@@ -24,21 +24,18 @@ namespace M2.Editor
         // shape parameter — everything downstream (walls, checkpoints, item/hazard placement)
         // just calls Geometry.PointAt/TangentAt/NormalAt and doesn't know the shape isn't an
         // ellipse anymore.
+        //
+        // Both axes share ONE radial multiplier (a true r(θ) polar curve) rather than being
+        // wobbled independently — an earlier version used sin() for the X radius and cos() for
+        // the Z radius, a 90° phase mismatch that let the two axes bulge out of sync with each
+        // other and made the loop cross itself (a broken/tangled track). A single shared
+        // multiplier keeps this a simple (non-self-intersecting) closed curve as long as it
+        // stays positive, which it always does here since WobbleStrength < 1.
         const float BaseRadiusX = 32f;
         const float BaseRadiusZ = 22f;
-        const float WobbleAmplitudeX = 9f;
-        const float WobbleAmplitudeZ = 7f;
+        const float WobbleStrength = 0.3f; // fraction of the base radius the loop bulges/pinches by
         const float WobbleFrequency = 3f; // how many bulge/pinch pairs around the loop
         const int ControlPointCount = 24; // spline smoothness — more points = smoother curves
-
-        // Vehicle body is 1.2m wide (see CreateVehicle scale). Track width fits two cars
-        // side by side with room to steer, plus ~2m of extra safety margin: 12m total.
-        const float VehicleWidth = 1.2f;
-        const float TrackWidth = 12f;
-        const float WallHeight = 1.2f;
-        const int WallSegments = 64; // higher than before — sharper curves need more segments to read smoothly
-        const int CheckpointCount = 6;
-        const int ItemSpawnCount = 6;
 
         static readonly TrackGeometry Geometry = new TrackGeometry(BuildControlPoints(), TrackWidth, WallHeight);
 
@@ -48,12 +45,20 @@ namespace M2.Editor
             for (int i = 0; i < ControlPointCount; i++)
             {
                 float theta = i * Mathf.PI * 2f / ControlPointCount;
-                float radiusX = BaseRadiusX + WobbleAmplitudeX * Mathf.Sin(theta * WobbleFrequency);
-                float radiusZ = BaseRadiusZ + WobbleAmplitudeZ * Mathf.Cos(theta * WobbleFrequency);
-                points[i] = new Vector3(radiusX * Mathf.Cos(theta), 0f, radiusZ * Mathf.Sin(theta));
+                float wobble = 1f + WobbleStrength * Mathf.Sin(theta * WobbleFrequency);
+                points[i] = new Vector3(BaseRadiusX * wobble * Mathf.Cos(theta), 0f, BaseRadiusZ * wobble * Mathf.Sin(theta));
             }
             return points;
         }
+
+        // Vehicle body is 1.2m wide (see CreateVehicle scale). Track width fits two cars
+        // side by side with room to steer, plus ~2m of extra safety margin: 12m total.
+        const float VehicleWidth = 1.2f;
+        const float TrackWidth = 12f;
+        const float WallHeight = 1.2f;
+        const int WallSegments = 64; // higher than before — sharper curves need more segments to read smoothly
+        const int CheckpointCount = 6;
+        const int ItemSpawnCount = 6;
 
         [MenuItem("M2/Build Test Track Scene/Bikini City (비키니시티)")]
         public static void BuildBikiniCity() => Build(StageType.BikiniCity);
@@ -102,10 +107,11 @@ namespace M2.Editor
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             ground.transform.SetParent(parent);
-            // Sized off the widest possible bulge (base + wobble amplitude), not just the base
-            // radius, so the wavy centerline never pokes past the visible ground plane.
-            float scaleX = (BaseRadiusX + WobbleAmplitudeX + TrackWidth) / 5f + 2f;
-            float scaleZ = (BaseRadiusZ + WobbleAmplitudeZ + TrackWidth) / 5f + 2f;
+            // Sized off the widest possible bulge (base * (1 + WobbleStrength)), not just the
+            // base radius, so the wavy centerline never pokes past the visible ground plane.
+            float maxWobbleMultiplier = 1f + WobbleStrength;
+            float scaleX = (BaseRadiusX * maxWobbleMultiplier + TrackWidth) / 5f + 2f;
+            float scaleZ = (BaseRadiusZ * maxWobbleMultiplier + TrackWidth) / 5f + 2f;
             ground.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 
             // This plane is the off-track surface only — keep it a distinct, lighter
@@ -377,6 +383,10 @@ namespace M2.Editor
             GameObject gmObject = new GameObject("GameManager");
             gmObject.transform.SetParent(parent);
             GameManager gm = gmObject.AddComponent<GameManager>();
+            // 테스트 트랙 전용: 조작법 안내(Briefing)를 고정 시간이 아니라 '시작' 버튼(또는
+            // Space 키)을 누를 때까지 대기하게 함. 레이스가 실제로 시작되면(Countdown 진입)
+            // RaceFlowUI가 기존 로직 그대로 브리핑 패널을 꺼줌.
+            gm.waitForManualStart = true;
 
             gm.racers.Add(vehicle.GetComponent<LapTracker>());
             gm.vehicles.Add(vehicle.GetComponent<VehicleController>());
@@ -404,6 +414,10 @@ namespace M2.Editor
                 28, Color.white);
             flowUI.briefingPanel = briefingPanelObj;
             flowUI.briefingText = briefingText;
+
+            Button startButton = SimpleUIFactory.CreateButton(briefingPanelObj.transform, "StartButton", "시작",
+                new Vector2(0f, -180f), new Vector2(200f, 60f));
+            flowUI.startButton = startButton;
 
             // Countdown panel
             GameObject countdownPanelObj = SimpleUIFactory.CreateFullscreenPanel(canvasObject.transform, "CountdownPanel",
@@ -448,6 +462,9 @@ namespace M2.Editor
             selector.geometry = Geometry;
             selector.hintLabel = hintLabel;
             selector.Initialize(builtStage);
+
+            // --- 임시 디버그: H 키로 콜라이더(히트박스) 와이어프레임 토글 ---
+            canvasObject.AddComponent<HitboxDebugToggle>();
         }
     }
 }

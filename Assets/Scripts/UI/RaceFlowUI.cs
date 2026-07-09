@@ -1,5 +1,6 @@
 using M2.Core;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace M2.UI
@@ -23,6 +24,8 @@ namespace M2.UI
         public Text briefingText;
         [TextArea(3, 6)]
         public string briefingMessage = "조작법 안내\n←/→: 조향 | ↑/↓: 가속/감속\nCtrl: 가속 아이템 | E: 공격/방어 아이템\nShift: 브레이크";
+        [Tooltip("gameManager.waitForManualStart가 true일 때만 의미 있음 — 누르면 Briefing을 끝내고 카운트다운 시작.")]
+        public Button startButton;
 
         [Header("Countdown Panel")]
         public GameObject countdownPanel;
@@ -62,6 +65,11 @@ namespace M2.UI
                 briefingText.text = briefingMessage;
             }
 
+            if (startButton != null && gameManager != null)
+            {
+                startButton.onClick.AddListener(gameManager.RequestStart);
+            }
+
             // Sync with current GameManager state — if GameManager.Start() already
             // fired and set a state (e.g. Briefing), we need to show the right panel
             // now, because our HandleStateChanged already ran and was then undone by
@@ -69,6 +77,17 @@ namespace M2.UI
             if (gameManager != null)
             {
                 HandleStateChanged(gameManager.CurrentState);
+            }
+        }
+
+        void Update()
+        {
+            // Space as a quick alternative to clicking startButton — RequestStart() is a
+            // harmless no-op unless GameManager is actually in manual-start Briefing wait.
+            if (gameManager != null && gameManager.CurrentState == RaceState.Briefing &&
+                Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                gameManager.RequestStart();
             }
         }
 

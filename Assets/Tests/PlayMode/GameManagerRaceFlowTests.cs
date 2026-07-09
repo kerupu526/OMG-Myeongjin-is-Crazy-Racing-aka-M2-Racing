@@ -105,6 +105,25 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(RaceState.Finished, gm.CurrentState);
         }
 
+        [UnityTest]
+        public IEnumerator Manual_Start_Waits_For_RequestStart_Instead_Of_A_Timer()
+        {
+            gm.waitForManualStart = true;
+            gm.briefingDuration = 0f; // irrelevant when waitForManualStart is true — prove it's ignored
+
+            yield return WaitForState(RaceState.Briefing);
+
+            // Give it several frames — with a timer this would already have moved on since
+            // briefingDuration is 0, but manual-start mode should still be waiting.
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.AreEqual(RaceState.Briefing, gm.CurrentState, "Should stay in Briefing until RequestStart() is called.");
+
+            gm.RequestStart();
+            yield return WaitForState(RaceState.Racing);
+
+            Assert.AreEqual(RaceState.Racing, gm.CurrentState, "RequestStart() should let the flow proceed to Countdown then Racing.");
+        }
+
         IEnumerator WaitForState(RaceState state)
         {
             float timeout = Time.time + 3f;

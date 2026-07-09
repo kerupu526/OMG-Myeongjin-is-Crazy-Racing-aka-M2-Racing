@@ -20,6 +20,8 @@ namespace M2.Core
         [Header("Race Flow Timing")]
         public float briefingDuration = 4f;
         public int countdownSeconds = 3;
+        [Tooltip("true면 briefingDuration 타이머 대신 RequestStart()가 호출될 때까지 Briefing 상태로 대기함. 테스트 트랙에서 수동으로 '시작' 버튼을 누르게 하기 위한 옵션 — 기본은 false(기존 타이머 방식 그대로).")]
+        public bool waitForManualStart = false;
 
         [Header("Race Rules")]
         public int targetLapCount = 3;
@@ -44,7 +46,15 @@ namespace M2.Core
         public event Action OnRaceDraw;
 
         bool raceEnded;
+        bool startRequested;
         readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
+
+        // Called by UI (a "시작" button) or a key press to end the Briefing wait when
+        // waitForManualStart is true. Harmless no-op otherwise/at any other time.
+        public void RequestStart()
+        {
+            startRequested = true;
+        }
 
         void Start()
         {
@@ -86,7 +96,15 @@ namespace M2.Core
 
             // Briefing
             SetState(RaceState.Briefing);
-            yield return new WaitForSeconds(briefingDuration);
+            if (waitForManualStart)
+            {
+                startRequested = false;
+                yield return new WaitUntil(() => startRequested);
+            }
+            else
+            {
+                yield return new WaitForSeconds(briefingDuration);
+            }
 
             // Countdown
             SetState(RaceState.Countdown);

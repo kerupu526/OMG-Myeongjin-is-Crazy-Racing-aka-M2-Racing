@@ -48,6 +48,29 @@ namespace M2.UI
             return text;
         }
 
+        public static Button CreateButton(Transform parent, string name, string label, Vector2 anchoredPosition, Vector2 size)
+        {
+            GameObject buttonObj = new GameObject(name);
+            buttonObj.transform.SetParent(parent, false);
+
+            RectTransform rect = buttonObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            Image bg = buttonObj.AddComponent<Image>();
+            bg.color = new Color(1f, 1f, 1f, 0.9f);
+
+            Button button = buttonObj.AddComponent<Button>();
+
+            Text text = CreateCenteredText(buttonObj.transform, "Label", 28, Color.black);
+            text.text = label;
+
+            return button;
+        }
+
         public static Text CreateCornerText(Transform parent, string name, Vector2 anchor, Vector2 anchoredPosition, TextAnchor alignment)
         {
             GameObject textObj = new GameObject(name);
