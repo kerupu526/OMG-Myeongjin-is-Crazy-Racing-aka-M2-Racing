@@ -49,9 +49,13 @@ namespace M2.Player
         float itemSpeedBonus;
         bool isStunned;
         bool inputLocked;
+        bool steeringInverted;
+        bool isKnockedBack;
         bool hasShield;
         Coroutine speedBoostRoutine;
         Coroutine stunRoutine;
+        Coroutine steeringInvertRoutine;
+        Coroutine knockbackRoutine;
         Coroutine shieldRoutine;
         float lastCollisionTime = -10f;
         const float collisionMemory = 0.15f;
@@ -117,6 +121,11 @@ namespace M2.Player
                 currentSpeed = 0f;
                 rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             }
+            else if (isKnockedBack)
+            {
+                // Leave rb.linearVelocity alone so the knockback impulse (and physics drag)
+                // actually carries the car instead of being overwritten by throttle control.
+            }
             else
             {
                 float throttleInput = throttleAction.ReadValue<float>();
@@ -124,7 +133,7 @@ namespace M2.Player
                 bool isBraking = brakeAction.IsPressed();
 
                 ApplyThrottle(throttleInput, isBraking);
-                ApplySteering(steerInput);
+                ApplySteering(steeringInverted ? -steerInput : steerInput);
             }
 
             CurrentAcceleration = (currentSpeed - speedBeforeUpdate) / Time.fixedDeltaTime;
@@ -191,6 +200,48 @@ namespace M2.Player
                 currentSpeed = 0f;
                 rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             }
+        }
+
+        // --- Steering invert (아프리카TV 방송사고 존) ---
+
+        public void SetSteeringInverted(bool inverted)
+        {
+            steeringInverted = inverted;
+        }
+
+        public void SetSteeringInvertedFor(float duration)
+        {
+            if (steeringInvertRoutine != null) StopCoroutine(steeringInvertRoutine);
+            steeringInvertRoutine = StartCoroutine(SteeringInvertRoutine(duration));
+        }
+
+        IEnumerator SteeringInvertRoutine(float duration)
+        {
+            steeringInverted = true;
+            yield return new WaitForSeconds(duration);
+            steeringInverted = false;
+            steeringInvertRoutine = null;
+        }
+
+        // --- Knockback (네더요새 가스트 파이어볼) ---
+
+        // Sets velocity directly to the impulse for `duration` and suspends normal throttle
+        // control so the knockback (and physics drag) actually carries the car off course
+        // instead of being overwritten by ApplyThrottle on the very next FixedUpdate.
+        public void ApplyKnockback(Vector3 impulse, float duration = 0.8f)
+        {
+            if (knockbackRoutine != null) StopCoroutine(knockbackRoutine);
+            currentSpeed = 0f;
+            rb.linearVelocity = new Vector3(impulse.x, rb.linearVelocity.y, impulse.z);
+            knockbackRoutine = StartCoroutine(KnockbackRoutine(duration));
+        }
+
+        IEnumerator KnockbackRoutine(float duration)
+        {
+            isKnockedBack = true;
+            yield return new WaitForSeconds(duration);
+            isKnockedBack = false;
+            knockbackRoutine = null;
         }
 
         // --- Item effect hooks (M2.Items acts on the vehicle through these) ---

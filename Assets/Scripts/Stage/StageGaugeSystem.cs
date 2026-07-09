@@ -13,6 +13,8 @@ namespace M2.Stage
         public float maxValue = 100f;
         [Tooltip("Passive change per second while running. Negative drains the gauge (e.g. oxygen), positive fills it (e.g. mental/temperature).")]
         public float passiveRatePerSecond = -2f;
+        [Tooltip("false(기본): 0에 도달하면 위험 상태(산소 고갈 등). true: maxValue에 도달하면 위험 상태(멘탈/체온 만땅). 시작값도 이 방향에 맞춰 안전한 쪽(false=가득 참, true=0)으로 자동 설정됨.")]
+        public bool dangerAtMax = false;
 
         public float CurrentValue { get; private set; }
         public bool IsDepleted { get; private set; }
@@ -23,7 +25,7 @@ namespace M2.Stage
 
         protected virtual void Awake()
         {
-            CurrentValue = maxValue;
+            CurrentValue = dangerAtMax ? 0f : maxValue;
         }
 
         protected virtual void Update()
@@ -41,8 +43,8 @@ namespace M2.Stage
 
             OnValueChanged?.Invoke(CurrentValue, maxValue);
 
-            bool wasDepleted = previous <= 0f;
-            bool isDepletedNow = CurrentValue <= 0f;
+            bool wasDepleted = IsInDangerZone(previous);
+            bool isDepletedNow = IsInDangerZone(CurrentValue);
 
             if (isDepletedNow && !wasDepleted)
             {
@@ -57,6 +59,8 @@ namespace M2.Stage
                 HandleRecovered();
             }
         }
+
+        bool IsInDangerZone(float value) => dangerAtMax ? value >= maxValue : value <= 0f;
 
         // Stage-specific reaction to the gauge bottoming out (game over, lockout, etc.)
         protected abstract void HandleDepleted();

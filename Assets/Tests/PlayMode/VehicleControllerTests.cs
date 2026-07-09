@@ -63,5 +63,56 @@ namespace M2.Tests.PlayMode
 
             Assert.AreEqual(0f, vehicle.CurrentSpeed, 0.01f, "A locked vehicle must not respond to throttle input.");
         }
+
+        [UnityTest]
+        public IEnumerator ApplyKnockback_Overrides_Velocity_And_Suspends_Throttle_Control()
+        {
+            // Press early (right after the initial frame, before any WaitForFixedUpdate) —
+            // calling Press()/Release() after physics steps have already run tends to throw
+            // "does not have an associated state" from the Input System's own test fixture.
+            yield return null;
+            Press(Keyboard.current.upArrowKey);
+
+            vehicle.ApplyKnockback(new Vector3(5f, 0f, 0f), 0.3f);
+            yield return new WaitForFixedUpdate();
+
+            Rigidbody rb = vehicle.GetComponent<Rigidbody>();
+            Assert.AreEqual(5f, rb.linearVelocity.x, 0.5f, "Knockback should set an immediate outward velocity.");
+
+            // Throttle has been held since before the knockback — it must not override the
+            // knockback velocity while isKnockedBack is active.
+            yield return new WaitForFixedUpdate();
+            Assert.Greater(Mathf.Abs(rb.linearVelocity.x), 0.1f, "Throttle input must not override velocity while knocked back.");
+        }
+
+        [UnityTest]
+        public IEnumerator SetSteeringInvertedFor_Flips_Turn_Direction()
+        {
+            // Both keys pressed up front, before any WaitForFixedUpdate (see the comment on
+            // ApplyKnockback_Overrides_Velocity_And_Suspends_Throttle_Control above), and with
+            // a frame between them — two Press() calls back-to-back with no yield in between
+            // silently lost the first one (car never moved, yaw stayed flat at 0 the whole test).
+            yield return null;
+            vehicle.acceleration = 100f;
+            vehicle.SetSteeringInvertedFor(5f);
+            Press(Keyboard.current.upArrowKey);
+            yield return null;
+            Press(Keyboard.current.rightArrowKey);
+
+            for (int i = 0; i < 20; i++)
+            {
+                yield return new WaitForFixedUpdate(); // get moving so steering isn't gated by minSpeedToSteer
+            }
+            float yawBefore = vehicle.transform.eulerAngles.y;
+
+            for (int i = 0; i < 10; i++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+            float yawAfter = vehicle.transform.eulerAngles.y;
+
+            float delta = Mathf.DeltaAngle(yawBefore, yawAfter);
+            Assert.Less(delta, 0f, "With steering inverted, holding 'right' should turn left (negative yaw delta) instead of right.");
+        }
     }
 }

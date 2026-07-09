@@ -13,8 +13,10 @@ namespace M2.UI
         [Header("References")]
         public GameManager gameManager;
         public RaceTimer raceTimer;
-        [Tooltip("Optional — set when the current stage is 비키니시티, to show star rating on the result panel.")]
+        [Tooltip("스테이지별 별점 상태 — 현재 씬의 스테이지에 맞는 것 하나만 채워두면 결과화면에 별점이 표시됨.")]
         public M2.Stage.BikiniCityStageState bikiniCityStageState;
+        public M2.Stage.AfricaTvStageState africaTvStageState;
+        public M2.Stage.NetherFortressStageState netherFortressStageState;
 
         [Header("Briefing Panel")]
         public GameObject briefingPanel;
@@ -111,12 +113,30 @@ namespace M2.UI
 
         string BuildStarLine()
         {
-            if (bikiniCityStageState == null || raceTimer == null) return "";
+            if (raceTimer == null) return "";
 
-            int missedStars = bikiniCityStageState.ComputeMissedStars();
-            int timeStars = bikiniCityStageState.ComputeTimeStars(raceTimer.ElapsedTime);
-            int total = missedStars + timeStars;
-            return $"\n★ {total}/6 (비법 {missedStars}★ + 시간 {timeStars}★, 놓친 비법 {bikiniCityStageState.MissedRecipeCount}회)";
+            if (bikiniCityStageState != null)
+            {
+                int missedStars = bikiniCityStageState.ComputeMissedStars();
+                int timeStars = bikiniCityStageState.ComputeTimeStars(raceTimer.ElapsedTime);
+                return $"\n★ {missedStars + timeStars}/6 (비법 {missedStars}★ + 시간 {timeStars}★, 놓친 비법 {bikiniCityStageState.MissedRecipeCount}회)";
+            }
+
+            if (africaTvStageState != null)
+            {
+                int missedStars = africaTvStageState.ComputeMissedStars();
+                int timeStars = africaTvStageState.ComputeTimeStars(raceTimer.ElapsedTime);
+                return $"\n★ {missedStars + timeStars}/6 (별풍선 {missedStars}★ + 시간 {timeStars}★, 놓친 별풍선 {africaTvStageState.MissedStarBalloonCount}회)";
+            }
+
+            if (netherFortressStageState != null)
+            {
+                int warningStars = netherFortressStageState.ComputeWarningStars();
+                int timeStars = netherFortressStageState.ComputeTimeStars(raceTimer.ElapsedTime);
+                return $"\n★ {warningStars + timeStars}/6 (화상경고 {warningStars}★ + 시간 {timeStars}★, 화상 경고 {netherFortressStageState.BurnWarningCount}회)";
+            }
+
+            return "";
         }
 
         void HandleRaceDraw()

@@ -38,6 +38,17 @@ if (-not (Test-Path $LogFile)) {
 
 $log = Get-Content $LogFile -Raw
 
+# The blocking `&` call above can return control a few seconds before Unity has actually
+# finished writing the rest of the log (observed repeatedly in practice), so a log that
+# has neither a success nor a failure marker yet doesn't necessarily mean the run failed —
+# poll briefly before giving up.
+$waited = 0
+while ($log -notmatch "M2_COMPILE_CHECK_OK|M2_SMOKE_TEST_OK|error CS|Exception|M2_.*_FAIL" -and $waited -lt 60) {
+    Start-Sleep -Seconds 3
+    $waited += 3
+    $log = Get-Content $LogFile -Raw
+}
+
 if ($log -match "M2_COMPILE_CHECK_OK" -or $log -match "M2_SMOKE_TEST_OK") {
     Write-Host "✅ 컴파일 성공!" -ForegroundColor Green
     exit 0
