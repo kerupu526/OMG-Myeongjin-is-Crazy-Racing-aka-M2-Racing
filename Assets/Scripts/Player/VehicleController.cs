@@ -116,6 +116,13 @@ namespace M2.Player
         {
             float speedBeforeUpdate = currentSpeed;
 
+            // Facing is otherwise controlled entirely by MoveRotation in ApplySteering, but a
+            // hard collision can still hand the Rigidbody leftover angular velocity from the
+            // physics solver. Left unchecked, that spins the car slightly after every crash —
+            // transform.forward drifts away from where the player expects it, so reversing
+            // away from a wall can look/feel like it's not responding at all.
+            rb.angularVelocity = Vector3.zero;
+
             if (isStunned || inputLocked)
             {
                 currentSpeed = 0f;

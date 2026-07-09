@@ -24,6 +24,14 @@ namespace M2.Stage
         protected override void Awake()
         {
             dangerAtMax = true;
+            // StageGaugeSystem's field default (-2, meant for oxygen draining toward 0) would
+            // otherwise apply here too and, combined with dangerAtMax's 0 starting value,
+            // permanently clamp the gauge at 0 — it would never rise on its own, contradicting
+            // CLAUDE.md's "체온 게이지가 빠르게 상승". Reset() would normally set a sane
+            // default, but that Editor-only callback never fires when StageAssembler adds
+            // this component at runtime (AddComponent<>()). +6/sec is a placeholder pending
+            // balance confirmation, per the class comment above.
+            passiveRatePerSecond = 6f;
             base.Awake();
 
             if (vehicleController == null)

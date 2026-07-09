@@ -23,6 +23,12 @@ namespace M2.Stage
         protected override void Awake()
         {
             dangerAtMax = true;
+            // StageGaugeSystem's field default (-2, meant for oxygen draining toward 0) would
+            // otherwise apply here too and, combined with dangerAtMax's 0 starting value,
+            // permanently clamp the gauge at 0 — it would never visibly move except on a hit.
+            // Reset() would normally set a sane default, but that Editor-only callback never
+            // fires when StageAssembler adds this component at runtime (AddComponent<>()).
+            passiveRatePerSecond = 0f;
             base.Awake();
 
             if (vehicleController == null)
