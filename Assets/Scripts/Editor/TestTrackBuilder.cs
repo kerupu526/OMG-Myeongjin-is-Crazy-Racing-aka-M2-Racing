@@ -28,6 +28,7 @@ namespace M2.Editor
         const int CheckpointCount = 6;
         const int ItemSpawnCount = 6;
         const int OxygenBubbleSpawnCount = 4;
+        const int TerrainHazardCount = 3;
 
         [MenuItem("M2/Build Test Track Scene")]
         public static void Build()
@@ -56,6 +57,10 @@ namespace M2.Editor
             var oxygenSpawnersRoot = new GameObject("OxygenBubbleSpawners").transform;
             oxygenSpawnersRoot.SetParent(root.transform);
             CreateOxygenBubbleSpawners(oxygenSpawnersRoot);
+
+            var terrainHazardsRoot = new GameObject("TerrainHazards").transform;
+            terrainHazardsRoot.SetParent(root.transform);
+            CreateTerrainHazards(terrainHazardsRoot);
 
             GameObject vehicle = CreateVehicle(root.transform);
             GameObject camera = SetupCamera(root.transform, vehicle.transform);
@@ -224,6 +229,31 @@ namespace M2.Editor
                 spawner.transform.SetParent(parent);
                 spawner.transform.position = position;
                 spawner.AddComponent<OxygenBubbleSpawner>();
+            }
+        }
+
+        static void CreateTerrainHazards(Transform parent)
+        {
+            for (int i = 0; i < TerrainHazardCount; i++)
+            {
+                // Offset from checkpoints/items/bubbles again, and pulled toward the inner
+                // edge of the track band so hazards are avoidable, not a guaranteed hit.
+                float theta = (i + 0.75f) * Mathf.PI * 2f / TerrainHazardCount;
+                Vector3 center = EllipsePoint(CenterRadiusX, CenterRadiusZ, theta);
+                Vector3 inward = -center.normalized;
+                Vector3 position = center + inward * (TrackWidth * 0.25f);
+
+                GameObject hazard = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                hazard.name = $"TerrainHazard_{i}";
+                hazard.transform.SetParent(parent);
+                hazard.transform.position = position + Vector3.up * 0.5f;
+                hazard.transform.localScale = new Vector3(1.5f, 1f, 1.5f);
+
+                // Terrain features are real 3D meshes per CLAUDE.md's 2.5D rule (only
+                // characters/vehicles/items are billboard sprites), so this stays visible.
+                ApplyColor(hazard.GetComponent<Renderer>(), new Color(0.45f, 0.3f, 0.15f));
+
+                hazard.AddComponent<TerrainHazard>();
             }
         }
 

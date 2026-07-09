@@ -36,9 +36,8 @@ namespace M2.Stage
             {
                 vehicleController.OnHitByAttackItem += HandleHitByAttackItem;
             }
-            // TODO: 지형지물(장애물) 충돌로도 "비법"을 떨어뜨려야 하지만(CLAUDE.md), 아직
-            // 비키니시티 전용 지형 오브젝트가 없어 이 트리거는 마련되지 않음. 지형 프리팹이
-            // 생기면 해당 콜라이더에서 NotifyRecipeDropped()를 호출하도록 연결할 것.
+            // 지형지물(장애물) 충돌은 TerrainHazard가 자체적으로 감지해서
+            // NotifyRecipeDropped()를 직접 호출한다 (여긴 구독할 이벤트가 없음).
         }
 
         void OnDisable()
