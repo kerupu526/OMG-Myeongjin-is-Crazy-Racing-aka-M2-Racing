@@ -5,6 +5,8 @@ using M2.Stage;
 using M2.UI;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace M2.Editor
@@ -304,6 +306,19 @@ namespace M2.Editor
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvasObject.AddComponent<CanvasScaler>();
             canvasObject.AddComponent<GraphicRaycaster>();
+
+            // Without an EventSystem, UI clicks (e.g. the "시작" button) never register at
+            // all — nothing routes pointer input to Graphic Raycasters. The project uses the
+            // New Input System exclusively (Project Settings > Active Input Handling), so this
+            // needs InputSystemUIInputModule, not the legacy StandaloneInputModule that
+            // EventSystem.AddComponent<EventSystem>() alone would leave unusable.
+            if (Object.FindFirstObjectByType<EventSystem>() == null)
+            {
+                GameObject eventSystemObject = new GameObject("EventSystem");
+                eventSystemObject.transform.SetParent(parent);
+                eventSystemObject.AddComponent<EventSystem>();
+                eventSystemObject.AddComponent<InputSystemUIInputModule>();
+            }
 
             GameObject textObject = new GameObject("RaceLabel");
             textObject.transform.SetParent(canvasObject.transform);
