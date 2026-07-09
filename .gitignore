@@ -71,3 +71,8 @@ Thumbs.db
 
 # Build log
 build.log
+
+# PlayMode test output
+playtest.log
+playtest_results.xml
+/TestScreenshots/
