@@ -12,6 +12,9 @@ namespace M2.Editor
     // Procedurally assembles a throwaway oval test track (ground, walls, checkpoints,
     // vehicle, camera, HUD) so the core loop can be play-tested without hand-wiring
     // GameObjects in the Inspector. Re-runnable: clears the previous build first.
+    // Stage-specific hazards/gauge/UI (비키니시티/아프리카TV/네더요새) are wired in via
+    // StageAssembler, the same runtime-safe helper StageTestSelector uses to hot-swap
+    // stages while in Play mode (see the 1/2/3 hotkeys).
     public static class TestTrackBuilder
     {
         const string RootName = "M2_TestTrack (Generated)";
@@ -27,11 +30,25 @@ namespace M2.Editor
         const int WallSegments = 48;
         const int CheckpointCount = 6;
         const int ItemSpawnCount = 6;
-        const int OxygenBubbleSpawnCount = 4;
-        const int TerrainHazardCount = 3;
 
-        [MenuItem("M2/Build Test Track Scene")]
-        public static void Build()
+        static readonly TrackGeometry Geometry = new TrackGeometry
+        {
+            CenterRadiusX = CenterRadiusX,
+            CenterRadiusZ = CenterRadiusZ,
+            TrackWidth = TrackWidth,
+            WallHeight = WallHeight,
+        };
+
+        [MenuItem("M2/Build Test Track Scene/Bikini City (비키니시티)")]
+        public static void BuildBikiniCity() => Build(StageType.BikiniCity);
+
+        [MenuItem("M2/Build Test Track Scene/Africa TV (아프리카TV)")]
+        public static void BuildAfricaTv() => Build(StageType.AfricaTv);
+
+        [MenuItem("M2/Build Test Track Scene/Nether Fortress (네더요새)")]
+        public static void BuildNetherFortress() => Build(StageType.NetherFortress);
+
+        public static void Build(StageType initialStage)
         {
             GameObject existingRoot = GameObject.Find(RootName);
             if (existingRoot != null)
@@ -54,21 +71,14 @@ namespace M2.Editor
             itemSpawnersRoot.SetParent(root.transform);
             CreateItemSpawners(itemSpawnersRoot);
 
-            var oxygenSpawnersRoot = new GameObject("OxygenBubbleSpawners").transform;
-            oxygenSpawnersRoot.SetParent(root.transform);
-            CreateOxygenBubbleSpawners(oxygenSpawnersRoot);
-
-            var terrainHazardsRoot = new GameObject("TerrainHazards").transform;
-            terrainHazardsRoot.SetParent(root.transform);
-            CreateTerrainHazards(terrainHazardsRoot);
-
             GameObject vehicle = CreateVehicle(root.transform);
             GameObject camera = SetupCamera(root.transform, vehicle.transform);
             SetupHud(root.transform, vehicle);
-            SetupGameManager(root.transform, vehicle);
+            SetupGameManager(root.transform, vehicle, initialStage);
 
             Selection.activeGameObject = root;
-            Debug.Log("M2 test track built. Enter Play mode and drive with Arrow Keys/WASD.");
+            Debug.Log($"M2 test track built ({initialStage}). Enter Play mode and drive with Arrow Keys/WASD. " +
+                "1/2/3 키로 스테이지를 바로 바꿔볼 수 있음 (레이스 시작 전에만).");
         }
 
         static void CreateGround(Transform parent)
@@ -83,7 +93,7 @@ namespace M2.Editor
             // This plane is the off-track surface only — keep it a distinct, lighter
             // "grass" color so the darker track ring (see CreateTrackSurface) reads clearly
             // as the drivable path instead of blending into the rest of the ground.
-            ApplyColor(ground.GetComponent<Renderer>(), new Color(0.25f, 0.4f, 0.22f));
+            RendererColorUtil.ApplyColor(ground.GetComponent<Renderer>(), new Color(0.25f, 0.4f, 0.22f));
         }
 
         static void CreateTrackSurface(Transform parent)
@@ -96,11 +106,14 @@ namespace M2.Editor
             var vertices = new Vector3[WallSegments * 2];
             var triangles = new int[WallSegments * 6];
 
+            var innerGeo = new TrackGeometry { CenterRadiusX = innerRadiusX, CenterRadiusZ = innerRadiusZ };
+            var outerGeo = new TrackGeometry { CenterRadiusX = outerRadiusX, CenterRadiusZ = outerRadiusZ };
+
             for (int i = 0; i < WallSegments; i++)
             {
                 float theta = i * Mathf.PI * 2f / WallSegments;
-                vertices[i * 2] = EllipsePoint(innerRadiusX, innerRadiusZ, theta);
-                vertices[i * 2 + 1] = EllipsePoint(outerRadiusX, outerRadiusZ, theta);
+                vertices[i * 2] = innerGeo.PointAt(theta);
+                vertices[i * 2 + 1] = outerGeo.PointAt(theta);
             }
 
             for (int i = 0; i < WallSegments; i++)
@@ -133,35 +146,22 @@ namespace M2.Editor
 
             trackSurface.AddComponent<MeshFilter>().mesh = mesh;
             Renderer renderer = trackSurface.AddComponent<MeshRenderer>();
-            ApplyColor(renderer, new Color(0.16f, 0.18f, 0.2f), doubleSided: true);
-        }
-
-        // Sets a color that works whether the active shader uses the legacy "_Color"
-        // property or URP Lit's "_BaseColor". `doubleSided` guards against the track ring
-        // rendering invisible from above if its triangle winding ends up backface-culled.
-        static void ApplyColor(Renderer renderer, Color color, bool doubleSided = false)
-        {
-            Material material = renderer.material;
-            material.color = color;
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
-            if (doubleSided && material.HasProperty("_Cull"))
-            {
-                material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
-            }
+            RendererColorUtil.ApplyColor(renderer, new Color(0.16f, 0.18f, 0.2f), doubleSided: true);
         }
 
         static void CreateWallRing(Transform parent, string name, float radiusX, float radiusZ)
         {
             var ring = new GameObject(name).transform;
             ring.SetParent(parent);
+            var geo = new TrackGeometry { CenterRadiusX = radiusX, CenterRadiusZ = radiusZ };
 
             for (int i = 0; i < WallSegments; i++)
             {
                 float theta = i * Mathf.PI * 2f / WallSegments;
                 float nextTheta = (i + 1) * Mathf.PI * 2f / WallSegments;
 
-                Vector3 p0 = EllipsePoint(radiusX, radiusZ, theta);
-                Vector3 p1 = EllipsePoint(radiusX, radiusZ, nextTheta);
+                Vector3 p0 = geo.PointAt(theta);
+                Vector3 p1 = geo.PointAt(nextTheta);
                 Vector3 mid = (p0 + p1) / 2f;
                 float segmentLength = Vector3.Distance(p0, p1);
 
@@ -184,8 +184,8 @@ namespace M2.Editor
             for (int i = 0; i < CheckpointCount; i++)
             {
                 float theta = i * Mathf.PI * 2f / CheckpointCount;
-                Vector3 position = EllipsePoint(CenterRadiusX, CenterRadiusZ, theta);
-                Vector3 tangent = EllipseTangent(CenterRadiusX, CenterRadiusZ, theta);
+                Vector3 position = Geometry.PointAt(theta);
+                Vector3 tangent = Geometry.TangentAt(theta);
 
                 GameObject checkpoint = new GameObject($"Checkpoint_{i}");
                 checkpoint.transform.SetParent(parent);
@@ -207,7 +207,7 @@ namespace M2.Editor
             {
                 // Offset from the checkpoint angles so pickups sit mid-track, not on top of a gate.
                 float theta = (i + 0.5f) * Mathf.PI * 2f / ItemSpawnCount;
-                Vector3 position = EllipsePoint(CenterRadiusX, CenterRadiusZ, theta);
+                Vector3 position = Geometry.PointAt(theta);
 
                 GameObject spawner = new GameObject($"ItemSpawner_{i}");
                 spawner.transform.SetParent(parent);
@@ -216,51 +216,10 @@ namespace M2.Editor
             }
         }
 
-        static void CreateOxygenBubbleSpawners(Transform parent)
-        {
-            for (int i = 0; i < OxygenBubbleSpawnCount; i++)
-            {
-                // Offset from both checkpoints and item spawners so bubbles don't stack
-                // on top of either.
-                float theta = (i + 0.25f) * Mathf.PI * 2f / OxygenBubbleSpawnCount;
-                Vector3 position = EllipsePoint(CenterRadiusX, CenterRadiusZ, theta);
-
-                GameObject spawner = new GameObject($"OxygenBubbleSpawner_{i}");
-                spawner.transform.SetParent(parent);
-                spawner.transform.position = position;
-                spawner.AddComponent<OxygenBubbleSpawner>();
-            }
-        }
-
-        static void CreateTerrainHazards(Transform parent)
-        {
-            for (int i = 0; i < TerrainHazardCount; i++)
-            {
-                // Offset from checkpoints/items/bubbles again, and pulled toward the inner
-                // edge of the track band so hazards are avoidable, not a guaranteed hit.
-                float theta = (i + 0.75f) * Mathf.PI * 2f / TerrainHazardCount;
-                Vector3 center = EllipsePoint(CenterRadiusX, CenterRadiusZ, theta);
-                Vector3 inward = -center.normalized;
-                Vector3 position = center + inward * (TrackWidth * 0.25f);
-
-                GameObject hazard = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                hazard.name = $"TerrainHazard_{i}";
-                hazard.transform.SetParent(parent);
-                hazard.transform.position = position + Vector3.up * 0.5f;
-                hazard.transform.localScale = new Vector3(1.5f, 1f, 1.5f);
-
-                // Terrain features are real 3D meshes per CLAUDE.md's 2.5D rule (only
-                // characters/vehicles/items are billboard sprites), so this stays visible.
-                ApplyColor(hazard.GetComponent<Renderer>(), new Color(0.45f, 0.3f, 0.15f));
-
-                hazard.AddComponent<TerrainHazard>();
-            }
-        }
-
         static GameObject CreateVehicle(Transform parent)
         {
-            Vector3 startPos = EllipsePoint(CenterRadiusX, CenterRadiusZ, 0f);
-            Vector3 tangent = EllipseTangent(CenterRadiusX, CenterRadiusZ, 0f);
+            Vector3 startPos = Geometry.PointAt(0f);
+            Vector3 tangent = Geometry.TangentAt(0f);
 
             GameObject vehicle = GameObject.CreatePrimitive(PrimitiveType.Cube);
             vehicle.name = "Vehicle_Placeholder";
@@ -286,8 +245,9 @@ namespace M2.Editor
             vehicle.AddComponent<VehicleController>();
             vehicle.AddComponent<LapTracker>();
             vehicle.AddComponent<ItemSlots>();
-            vehicle.AddComponent<BikiniCityOxygenGauge>();
-            vehicle.AddComponent<BikiniCityStageState>();
+            // Stage-specific gauge/state (BikiniCityOxygenGauge, etc.) is attached later by
+            // StageAssembler, not here — which stage is active can change at runtime via
+            // StageTestSelector.
 
             GameObject spriteChild = new GameObject("BillboardSprite");
             spriteChild.transform.SetParent(vehicle.transform);
@@ -399,9 +359,9 @@ namespace M2.Editor
             notifier.Bind(vehicle.GetComponent<ItemSlots>());
         }
 
-        // ---- GameManager + RaceFlowUI assembly ----
+        // ---- GameManager + RaceFlowUI + stage assembly ----
 
-        static void SetupGameManager(Transform parent, GameObject vehicle)
+        static void SetupGameManager(Transform parent, GameObject vehicle, StageType initialStage)
         {
             // --- GameManager ---
             GameObject gmObject = new GameObject("GameManager");
@@ -426,28 +386,27 @@ namespace M2.Editor
             RaceFlowUI flowUI = canvasObject.AddComponent<RaceFlowUI>();
             flowUI.gameManager = gm;
             flowUI.raceTimer = timer;
-            flowUI.bikiniCityStageState = vehicle.GetComponent<BikiniCityStageState>();
 
             // Briefing panel
-            GameObject briefingPanelObj = CreateFullscreenPanel(canvasObject.transform, "BriefingPanel",
+            GameObject briefingPanelObj = SimpleUIFactory.CreateFullscreenPanel(canvasObject.transform, "BriefingPanel",
                 new Color(0f, 0f, 0f, 0.75f));
-            Text briefingText = CreateCenteredText(briefingPanelObj.transform, "BriefingText",
+            Text briefingText = SimpleUIFactory.CreateCenteredText(briefingPanelObj.transform, "BriefingText",
                 28, Color.white);
             flowUI.briefingPanel = briefingPanelObj;
             flowUI.briefingText = briefingText;
 
             // Countdown panel
-            GameObject countdownPanelObj = CreateFullscreenPanel(canvasObject.transform, "CountdownPanel",
+            GameObject countdownPanelObj = SimpleUIFactory.CreateFullscreenPanel(canvasObject.transform, "CountdownPanel",
                 new Color(0f, 0f, 0f, 0.5f));
-            Text countdownText = CreateCenteredText(countdownPanelObj.transform, "CountdownText",
+            Text countdownText = SimpleUIFactory.CreateCenteredText(countdownPanelObj.transform, "CountdownText",
                 96, Color.yellow);
             flowUI.countdownPanel = countdownPanelObj;
             flowUI.countdownText = countdownText;
 
             // Result panel
-            GameObject resultPanelObj = CreateFullscreenPanel(canvasObject.transform, "ResultPanel",
+            GameObject resultPanelObj = SimpleUIFactory.CreateFullscreenPanel(canvasObject.transform, "ResultPanel",
                 new Color(0f, 0f, 0f, 0.8f));
-            Text resultText = CreateCenteredText(resultPanelObj.transform, "ResultText",
+            Text resultText = SimpleUIFactory.CreateCenteredText(resultPanelObj.transform, "ResultText",
                 36, Color.white);
             flowUI.resultPanel = resultPanelObj;
             flowUI.resultText = resultText;
@@ -457,100 +416,28 @@ namespace M2.Editor
             countdownPanelObj.SetActive(false);
             resultPanelObj.SetActive(false);
 
-            // --- Bikini City oxygen stage UI ---
-            Text oxygenLabel = CreateCornerText(canvasObject.transform, "OxygenLabel",
-                new Vector2(1f, 1f), new Vector2(-20f, -20f), TextAnchor.UpperRight);
+            // --- Stage-specific hazards/gauge/UI ---
+            GameObject stageHazardsRoot = new GameObject("StageHazards");
+            stageHazardsRoot.transform.SetParent(parent);
 
-            GameObject warningPanelObj = CreateFullscreenPanel(canvasObject.transform, "OxygenWarningOverlay",
-                new Color(1f, 0f, 0f, 0.35f));
+            BuiltStage builtStage = StageAssembler.Attach(initialStage, stageHazardsRoot.transform, parent,
+                vehicle, canvas, flowUI, Geometry);
 
-            GameObject oxygenGameOverPanelObj = CreateFullscreenPanel(canvasObject.transform, "OxygenGameOverPanel",
-                new Color(0f, 0f, 0f, 0.85f));
-            Text oxygenGameOverText = CreateCenteredText(oxygenGameOverPanelObj.transform, "OxygenGameOverText",
-                48, Color.red);
+            // --- Temporary in-Play stage switcher (1/2/3 hotkeys), 테스트 전용 ---
+            Text hintLabel = SimpleUIFactory.CreateCornerText(canvasObject.transform, "StageSwitchHint",
+                new Vector2(0f, 0f), new Vector2(20f, 20f), TextAnchor.LowerLeft);
+            hintLabel.color = Color.green;
 
-            warningPanelObj.SetActive(false);
-            oxygenGameOverPanelObj.SetActive(false);
-
-            BikiniCityStageUI stageUI = canvasObject.AddComponent<BikiniCityStageUI>();
-            stageUI.oxygenGauge = vehicle.GetComponent<BikiniCityOxygenGauge>();
-            stageUI.vehicleController = vehicle.GetComponent<VehicleController>();
-            stageUI.oxygenLabel = oxygenLabel;
-            stageUI.warningOverlay = warningPanelObj.GetComponent<Image>();
-            stageUI.gameOverPanel = oxygenGameOverPanelObj;
-            stageUI.gameOverText = oxygenGameOverText;
-        }
-
-        static Text CreateCornerText(Transform parent, string name, Vector2 anchor, Vector2 anchoredPosition, TextAnchor alignment)
-        {
-            GameObject textObj = new GameObject(name);
-            textObj.transform.SetParent(parent, false);
-
-            Text text = textObj.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 22;
-            text.color = Color.cyan;
-            text.alignment = alignment;
-
-            RectTransform rect = textObj.GetComponent<RectTransform>();
-            rect.anchorMin = anchor;
-            rect.anchorMax = anchor;
-            rect.pivot = anchor;
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = new Vector2(260f, 40f);
-
-            return text;
-        }
-
-        static GameObject CreateFullscreenPanel(Transform parent, string name, Color backgroundColor)
-        {
-            GameObject panel = new GameObject(name);
-            panel.transform.SetParent(parent, false);
-
-            RectTransform rect = panel.AddComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-
-            Image bg = panel.AddComponent<Image>();
-            bg.color = backgroundColor;
-            bg.raycastTarget = false;
-
-            return panel;
-        }
-
-        static Text CreateCenteredText(Transform parent, string name, int fontSize, Color color)
-        {
-            GameObject textObj = new GameObject(name);
-            textObj.transform.SetParent(parent, false);
-
-            Text text = textObj.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = fontSize;
-            text.color = color;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
-
-            RectTransform rect = textObj.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = new Vector2(40f, 40f);
-            rect.offsetMax = new Vector2(-40f, -40f);
-
-            return text;
-        }
-
-        static Vector3 EllipsePoint(float radiusX, float radiusZ, float theta)
-        {
-            return new Vector3(radiusX * Mathf.Cos(theta), 0f, radiusZ * Mathf.Sin(theta));
-        }
-
-        static Vector3 EllipseTangent(float radiusX, float radiusZ, float theta)
-        {
-            Vector3 derivative = new Vector3(-radiusX * Mathf.Sin(theta), 0f, radiusZ * Mathf.Cos(theta));
-            return derivative.normalized;
+            StageTestSelector selector = canvasObject.AddComponent<StageTestSelector>();
+            selector.gameManager = gm;
+            selector.vehicle = vehicle;
+            selector.canvas = canvas;
+            selector.flowUI = flowUI;
+            selector.worldParent = stageHazardsRoot.transform;
+            selector.trackCenter = parent;
+            selector.geometry = Geometry;
+            selector.hintLabel = hintLabel;
+            selector.Initialize(builtStage);
         }
     }
 }

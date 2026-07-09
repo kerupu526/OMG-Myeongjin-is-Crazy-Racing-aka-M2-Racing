@@ -20,6 +20,12 @@ if (-not (Test-Path $UnityPath)) {
     exit 1
 }
 
+# Remove any previous log first — otherwise a slow-starting Unity process can leave the
+# polling loop below reading stale content from the LAST run (including a leftover
+# "error CS" from a since-fixed failure) and report a false failure for a run that
+# actually succeeded.
+if (Test-Path $LogFile) { Remove-Item $LogFile -Force }
+
 Write-Host "🔧 유니티 컴파일 체크 시작..." -ForegroundColor Cyan
 Write-Host "   Project: $ProjectPath"
 Write-Host "   Method:  $Method"
@@ -30,6 +36,12 @@ Write-Host "   Method:  $Method"
     -logFile $LogFile
 
 Write-Host "----------------------------------------"
+
+$existsWaited = 0
+while (-not (Test-Path $LogFile) -and $existsWaited -lt 60) {
+    Start-Sleep -Seconds 3
+    $existsWaited += 3
+}
 
 if (-not (Test-Path $LogFile)) {
     Write-Host "❌ 로그 파일이 생성되지 않음. Unity 실행 자체가 실패했을 수 있음." -ForegroundColor Red
