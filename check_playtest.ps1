@@ -50,6 +50,19 @@ if ($NoGraphics) { $graphicsArgs += "-nographics" }
 
 Write-Host "----------------------------------------"
 
+# The `&` call above normally blocks until Unity.exe fully exits, but with -runTests it
+# can return control a little before the results XML is completely flushed to disk
+# (observed in practice, not just theory — this file has been re-checked into existence
+# seconds after this point came back empty). Poll briefly instead of failing immediately.
+if (-not (Test-Path $ResultsPath)) {
+    Write-Host "⏳ 결과 파일이 아직 안 보임 — 최대 60초 더 대기..." -ForegroundColor Yellow
+    $waited = 0
+    while (-not (Test-Path $ResultsPath) -and $waited -lt 60) {
+        Start-Sleep -Seconds 3
+        $waited += 3
+    }
+}
+
 if (-not (Test-Path $ResultsPath)) {
     Write-Host "❌ 결과 파일이 생성되지 않음. Unity 실행 자체가 실패했을 수 있음." -ForegroundColor Red
     Write-Host "로그: $LogFile"
