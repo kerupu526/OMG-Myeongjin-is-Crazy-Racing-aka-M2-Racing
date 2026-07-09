@@ -13,6 +13,8 @@ namespace M2.UI
         [Header("References")]
         public GameManager gameManager;
         public RaceTimer raceTimer;
+        [Tooltip("Optional — set when the current stage is 비키니시티, to show star rating on the result panel.")]
+        public M2.Stage.BikiniCityStageState bikiniCityStageState;
 
         [Header("Briefing Panel")]
         public GameObject briefingPanel;
@@ -103,7 +105,18 @@ namespace M2.UI
             if (resultText == null) return;
 
             string stats = BuildStatsString();
-            resultText.text = $"🏆 승리!\n{winner.gameObject.name}\n\n{stats}";
+            string starLine = BuildStarLine();
+            resultText.text = $"🏆 승리!\n{winner.gameObject.name}\n\n{stats}{starLine}";
+        }
+
+        string BuildStarLine()
+        {
+            if (bikiniCityStageState == null || raceTimer == null) return "";
+
+            int missedStars = bikiniCityStageState.ComputeMissedStars();
+            int timeStars = bikiniCityStageState.ComputeTimeStars(raceTimer.ElapsedTime);
+            int total = missedStars + timeStars;
+            return $"\n★ {total}/6 (비법 {missedStars}★ + 시간 {timeStars}★, 놓친 비법 {bikiniCityStageState.MissedRecipeCount}회)";
         }
 
         void HandleRaceDraw()

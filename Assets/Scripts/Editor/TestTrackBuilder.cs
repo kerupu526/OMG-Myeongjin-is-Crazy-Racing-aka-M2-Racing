@@ -1,6 +1,7 @@
 using M2.Core;
 using M2.Items;
 using M2.Player;
+using M2.Stage;
 using M2.UI;
 using UnityEditor;
 using UnityEngine;
@@ -26,6 +27,7 @@ namespace M2.Editor
         const int WallSegments = 48;
         const int CheckpointCount = 6;
         const int ItemSpawnCount = 6;
+        const int OxygenBubbleSpawnCount = 4;
 
         [MenuItem("M2/Build Test Track Scene")]
         public static void Build()
@@ -50,6 +52,10 @@ namespace M2.Editor
             var itemSpawnersRoot = new GameObject("ItemSpawners").transform;
             itemSpawnersRoot.SetParent(root.transform);
             CreateItemSpawners(itemSpawnersRoot);
+
+            var oxygenSpawnersRoot = new GameObject("OxygenBubbleSpawners").transform;
+            oxygenSpawnersRoot.SetParent(root.transform);
+            CreateOxygenBubbleSpawners(oxygenSpawnersRoot);
 
             GameObject vehicle = CreateVehicle(root.transform);
             GameObject camera = SetupCamera(root.transform, vehicle.transform);
@@ -205,6 +211,22 @@ namespace M2.Editor
             }
         }
 
+        static void CreateOxygenBubbleSpawners(Transform parent)
+        {
+            for (int i = 0; i < OxygenBubbleSpawnCount; i++)
+            {
+                // Offset from both checkpoints and item spawners so bubbles don't stack
+                // on top of either.
+                float theta = (i + 0.25f) * Mathf.PI * 2f / OxygenBubbleSpawnCount;
+                Vector3 position = EllipsePoint(CenterRadiusX, CenterRadiusZ, theta);
+
+                GameObject spawner = new GameObject($"OxygenBubbleSpawner_{i}");
+                spawner.transform.SetParent(parent);
+                spawner.transform.position = position;
+                spawner.AddComponent<OxygenBubbleSpawner>();
+            }
+        }
+
         static GameObject CreateVehicle(Transform parent)
         {
             Vector3 startPos = EllipsePoint(CenterRadiusX, CenterRadiusZ, 0f);
@@ -234,6 +256,8 @@ namespace M2.Editor
             vehicle.AddComponent<VehicleController>();
             vehicle.AddComponent<LapTracker>();
             vehicle.AddComponent<ItemSlots>();
+            vehicle.AddComponent<BikiniCityOxygenGauge>();
+            vehicle.AddComponent<BikiniCityStageState>();
 
             GameObject spriteChild = new GameObject("BillboardSprite");
             spriteChild.transform.SetParent(vehicle.transform);
@@ -372,6 +396,7 @@ namespace M2.Editor
             RaceFlowUI flowUI = canvasObject.AddComponent<RaceFlowUI>();
             flowUI.gameManager = gm;
             flowUI.raceTimer = timer;
+            flowUI.bikiniCityStageState = vehicle.GetComponent<BikiniCityStageState>();
 
             // Briefing panel
             GameObject briefingPanelObj = CreateFullscreenPanel(canvasObject.transform, "BriefingPanel",
@@ -401,6 +426,50 @@ namespace M2.Editor
             briefingPanelObj.SetActive(false);
             countdownPanelObj.SetActive(false);
             resultPanelObj.SetActive(false);
+
+            // --- Bikini City oxygen stage UI ---
+            Text oxygenLabel = CreateCornerText(canvasObject.transform, "OxygenLabel",
+                new Vector2(1f, 1f), new Vector2(-20f, -20f), TextAnchor.UpperRight);
+
+            GameObject warningPanelObj = CreateFullscreenPanel(canvasObject.transform, "OxygenWarningOverlay",
+                new Color(1f, 0f, 0f, 0.35f));
+
+            GameObject oxygenGameOverPanelObj = CreateFullscreenPanel(canvasObject.transform, "OxygenGameOverPanel",
+                new Color(0f, 0f, 0f, 0.85f));
+            Text oxygenGameOverText = CreateCenteredText(oxygenGameOverPanelObj.transform, "OxygenGameOverText",
+                48, Color.red);
+
+            warningPanelObj.SetActive(false);
+            oxygenGameOverPanelObj.SetActive(false);
+
+            BikiniCityStageUI stageUI = canvasObject.AddComponent<BikiniCityStageUI>();
+            stageUI.oxygenGauge = vehicle.GetComponent<BikiniCityOxygenGauge>();
+            stageUI.vehicleController = vehicle.GetComponent<VehicleController>();
+            stageUI.oxygenLabel = oxygenLabel;
+            stageUI.warningOverlay = warningPanelObj.GetComponent<Image>();
+            stageUI.gameOverPanel = oxygenGameOverPanelObj;
+            stageUI.gameOverText = oxygenGameOverText;
+        }
+
+        static Text CreateCornerText(Transform parent, string name, Vector2 anchor, Vector2 anchoredPosition, TextAnchor alignment)
+        {
+            GameObject textObj = new GameObject(name);
+            textObj.transform.SetParent(parent, false);
+
+            Text text = textObj.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 22;
+            text.color = Color.cyan;
+            text.alignment = alignment;
+
+            RectTransform rect = textObj.GetComponent<RectTransform>();
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = anchor;
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(260f, 40f);
+
+            return text;
         }
 
         static GameObject CreateFullscreenPanel(Transform parent, string name, Color backgroundColor)

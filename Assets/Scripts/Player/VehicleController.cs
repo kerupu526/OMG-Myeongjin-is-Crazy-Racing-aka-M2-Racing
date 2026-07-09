@@ -27,6 +27,9 @@ namespace M2.Player
 
         public event Action OnAccelItemUsed;
         public event Action OnAttackDefenseItemUsed;
+        // Fires when a hit actually lands (not on a blocked/shielded hit) — stage systems
+        // hook into this for stage-specific hit consequences (e.g. 비키니시티 "비법" drop).
+        public event Action OnHitByAttackItem;
 
         // --- Debug/test readouts ---
         public float CurrentSpeed => currentSpeed;
@@ -213,6 +216,7 @@ namespace M2.Player
         {
             if (stunRoutine != null) StopCoroutine(stunRoutine);
             stunRoutine = StartCoroutine(HitStunRoutine(stunDuration));
+            OnHitByAttackItem?.Invoke();
         }
 
         IEnumerator HitStunRoutine(float stunDuration)
