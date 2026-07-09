@@ -6,7 +6,10 @@
 # 디스플레이가 없는 헤드리스 환경에서는 -nographics 없이 실행하면 그래픽 디바이스
 # 생성 단계에서 무한 대기함(창을 띄울 화면이 없어서). 그래서 기본값은 -nographics 사용.
 # 실제 GPU/디스플레이가 있는 머신에서 스크린샷 테스트의 실제 렌더링 결과를 보려면
-# -NoGraphics:$false 로 재정의할 것 (단, 디스플레이 없는 환경에서는 멈출 수 있음).
+# -Graphics 스위치를 붙여 재정의할 것 (단, 디스플레이 없는 환경에서는 멈출 수 있음):
+#   .\check_playtest.ps1 -ProjectPath "..." -Graphics
+# (cmd.exe에서 실행할 때도 안전하도록 bool 파라미터 대신 스위치로 뺌 — cmd는 $false를
+#  해석하지 못하고 리터럴 문자열로 넘겨서 예전 -NoGraphics:$false 방식은 cmd.exe에서 깨짐)
 # UnityPath는 check_build.ps1과 동일하게 맞출 것.
 
 param(
@@ -14,8 +17,10 @@ param(
     [string]$UnityPath = "C:\Program Files\Unity\Hub\Editor\6000.3.11f1\Editor\Unity.exe",
     [string]$TestPlatform = "PlayMode",
     [string]$ResultsFile = "playtest_results.xml",
-    [bool]$NoGraphics = $true
+    [switch]$Graphics
 )
+
+$NoGraphics = -not $Graphics
 
 $LogFile = Join-Path $ProjectPath "playtest.log"
 $ResultsPath = Join-Path $ProjectPath $ResultsFile
