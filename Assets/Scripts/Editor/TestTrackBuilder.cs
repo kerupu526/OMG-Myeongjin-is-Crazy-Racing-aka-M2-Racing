@@ -19,25 +19,41 @@ namespace M2.Editor
     {
         const string RootName = "M2_TestTrack (Generated)";
 
-        const float CenterRadiusX = 30f;
-        const float CenterRadiusZ = 20f;
+        // Base oval radii, perturbed by a sine "wobble" per control point so the centerline
+        // winds like a real circuit (sweepers + pinches) instead of a plain ellipse. Purely a
+        // shape parameter — everything downstream (walls, checkpoints, item/hazard placement)
+        // just calls Geometry.PointAt/TangentAt/NormalAt and doesn't know the shape isn't an
+        // ellipse anymore.
+        const float BaseRadiusX = 32f;
+        const float BaseRadiusZ = 22f;
+        const float WobbleAmplitudeX = 9f;
+        const float WobbleAmplitudeZ = 7f;
+        const float WobbleFrequency = 3f; // how many bulge/pinch pairs around the loop
+        const int ControlPointCount = 24; // spline smoothness — more points = smoother curves
 
         // Vehicle body is 1.2m wide (see CreateVehicle scale). Track width fits two cars
         // side by side with room to steer, plus ~2m of extra safety margin: 12m total.
         const float VehicleWidth = 1.2f;
         const float TrackWidth = 12f;
         const float WallHeight = 1.2f;
-        const int WallSegments = 48;
+        const int WallSegments = 64; // higher than before — sharper curves need more segments to read smoothly
         const int CheckpointCount = 6;
         const int ItemSpawnCount = 6;
 
-        static readonly TrackGeometry Geometry = new TrackGeometry
+        static readonly TrackGeometry Geometry = new TrackGeometry(BuildControlPoints(), TrackWidth, WallHeight);
+
+        static Vector3[] BuildControlPoints()
         {
-            CenterRadiusX = CenterRadiusX,
-            CenterRadiusZ = CenterRadiusZ,
-            TrackWidth = TrackWidth,
-            WallHeight = WallHeight,
-        };
+            var points = new Vector3[ControlPointCount];
+            for (int i = 0; i < ControlPointCount; i++)
+            {
+                float theta = i * Mathf.PI * 2f / ControlPointCount;
+                float radiusX = BaseRadiusX + WobbleAmplitudeX * Mathf.Sin(theta * WobbleFrequency);
+                float radiusZ = BaseRadiusZ + WobbleAmplitudeZ * Mathf.Cos(theta * WobbleFrequency);
+                points[i] = new Vector3(radiusX * Mathf.Cos(theta), 0f, radiusZ * Mathf.Sin(theta));
+            }
+            return points;
+        }
 
         [MenuItem("M2/Build Test Track Scene/Bikini City (비키니시티)")]
         public static void BuildBikiniCity() => Build(StageType.BikiniCity);
@@ -60,8 +76,8 @@ namespace M2.Editor
 
             CreateGround(root.transform);
             CreateTrackSurface(root.transform);
-            CreateWallRing(root.transform, "OuterWall", CenterRadiusX + TrackWidth / 2f, CenterRadiusZ + TrackWidth / 2f);
-            CreateWallRing(root.transform, "InnerWall", CenterRadiusX - TrackWidth / 2f, CenterRadiusZ - TrackWidth / 2f);
+            CreateWallRing(root.transform, "OuterWall", +1f);
+            CreateWallRing(root.transform, "InnerWall", -1f);
 
             var checkpointsRoot = new GameObject("Checkpoints").transform;
             checkpointsRoot.SetParent(root.transform);
@@ -86,8 +102,10 @@ namespace M2.Editor
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             ground.transform.SetParent(parent);
-            float scaleX = (CenterRadiusX + TrackWidth) / 5f + 2f;
-            float scaleZ = (CenterRadiusZ + TrackWidth) / 5f + 2f;
+            // Sized off the widest possible bulge (base + wobble amplitude), not just the base
+            // radius, so the wavy centerline never pokes past the visible ground plane.
+            float scaleX = (BaseRadiusX + WobbleAmplitudeX + TrackWidth) / 5f + 2f;
+            float scaleZ = (BaseRadiusZ + WobbleAmplitudeZ + TrackWidth) / 5f + 2f;
             ground.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 
             // This plane is the off-track surface only — keep it a distinct, lighter
@@ -98,22 +116,14 @@ namespace M2.Editor
 
         static void CreateTrackSurface(Transform parent)
         {
-            float outerRadiusX = CenterRadiusX + TrackWidth / 2f;
-            float outerRadiusZ = CenterRadiusZ + TrackWidth / 2f;
-            float innerRadiusX = CenterRadiusX - TrackWidth / 2f;
-            float innerRadiusZ = CenterRadiusZ - TrackWidth / 2f;
-
             var vertices = new Vector3[WallSegments * 2];
             var triangles = new int[WallSegments * 6];
-
-            var innerGeo = new TrackGeometry { CenterRadiusX = innerRadiusX, CenterRadiusZ = innerRadiusZ };
-            var outerGeo = new TrackGeometry { CenterRadiusX = outerRadiusX, CenterRadiusZ = outerRadiusZ };
 
             for (int i = 0; i < WallSegments; i++)
             {
                 float theta = i * Mathf.PI * 2f / WallSegments;
-                vertices[i * 2] = innerGeo.PointAt(theta);
-                vertices[i * 2 + 1] = outerGeo.PointAt(theta);
+                vertices[i * 2] = Geometry.OffsetPointAt(theta, -TrackWidth / 2f);
+                vertices[i * 2 + 1] = Geometry.OffsetPointAt(theta, TrackWidth / 2f);
             }
 
             for (int i = 0; i < WallSegments; i++)
@@ -149,19 +159,19 @@ namespace M2.Editor
             RendererColorUtil.ApplyColor(renderer, new Color(0.16f, 0.18f, 0.2f), doubleSided: true);
         }
 
-        static void CreateWallRing(Transform parent, string name, float radiusX, float radiusZ)
+        static void CreateWallRing(Transform parent, string name, float sideSign)
         {
             var ring = new GameObject(name).transform;
             ring.SetParent(parent);
-            var geo = new TrackGeometry { CenterRadiusX = radiusX, CenterRadiusZ = radiusZ };
+            float lateralOffset = sideSign * TrackWidth / 2f;
 
             for (int i = 0; i < WallSegments; i++)
             {
                 float theta = i * Mathf.PI * 2f / WallSegments;
                 float nextTheta = (i + 1) * Mathf.PI * 2f / WallSegments;
 
-                Vector3 p0 = geo.PointAt(theta);
-                Vector3 p1 = geo.PointAt(nextTheta);
+                Vector3 p0 = Geometry.OffsetPointAt(theta, lateralOffset);
+                Vector3 p1 = Geometry.OffsetPointAt(nextTheta, lateralOffset);
                 Vector3 mid = (p0 + p1) / 2f;
                 float segmentLength = Vector3.Distance(p0, p1);
 

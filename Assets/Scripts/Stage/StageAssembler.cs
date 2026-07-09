@@ -132,12 +132,11 @@ namespace M2.Stage
         {
             for (int i = 0; i < TerrainHazardCount; i++)
             {
-                // Offset again, pulled toward the inner edge of the track band so hazards
-                // are avoidable, not a guaranteed hit.
+                // Offset again, pulled to one side of the track band (via the local normal,
+                // not a from-origin approximation — the centerline isn't a plain ellipse
+                // anymore) so hazards are avoidable, not a guaranteed hit.
                 float theta = (i + 0.75f) * Mathf.PI * 2f / TerrainHazardCount;
-                Vector3 center = geo.PointAt(theta);
-                Vector3 inward = -center.normalized;
-                Vector3 position = center + inward * (geo.TrackWidth * 0.25f);
+                Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * 0.25f);
 
                 GameObject hazard = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 hazard.name = $"TerrainHazard_{i}";
@@ -258,9 +257,7 @@ namespace M2.Stage
         static LavaZone CreateLavaZone(Transform parent, TrackGeometry geo)
         {
             const float theta = 0.35f * Mathf.PI * 2f;
-            Vector3 center = geo.PointAt(theta);
-            Vector3 inward = -center.normalized;
-            Vector3 position = center + inward * (geo.TrackWidth * 0.2f);
+            Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * 0.2f);
 
             GameObject lava = new GameObject("LavaZone");
             lava.transform.SetParent(parent);

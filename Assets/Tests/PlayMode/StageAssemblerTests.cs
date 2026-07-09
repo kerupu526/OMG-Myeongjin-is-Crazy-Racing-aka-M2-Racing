@@ -30,7 +30,18 @@ namespace M2.Tests.PlayMode
 
             worldParentObject = new GameObject("TestWorldParent");
 
-            geometry = new TrackGeometry { CenterRadiusX = 10f, CenterRadiusZ = 8f, TrackWidth = 4f, WallHeight = 1f };
+            geometry = new TrackGeometry(BuildOvalControlPoints(10f, 8f, 12), trackWidth: 4f, wallHeight: 1f);
+        }
+
+        static Vector3[] BuildOvalControlPoints(float radiusX, float radiusZ, int count)
+        {
+            var points = new Vector3[count];
+            for (int i = 0; i < count; i++)
+            {
+                float theta = i * Mathf.PI * 2f / count;
+                points[i] = new Vector3(radiusX * Mathf.Cos(theta), 0f, radiusZ * Mathf.Sin(theta));
+            }
+            return points;
         }
 
         [TearDown]
