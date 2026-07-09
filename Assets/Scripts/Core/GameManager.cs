@@ -44,6 +44,7 @@ namespace M2.Core
         public event Action OnRaceDraw;
 
         bool raceEnded;
+        readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
 
         void Start()
         {
@@ -105,10 +106,16 @@ namespace M2.Core
             if (raceTimer != null) raceTimer.StartRace();
             SetAllInputLocked(false);
 
-            // Subscribe to lap events from each racer
+            // Subscribe to lap events from each racer. Each racer gets its own closure
+            // so HandleLapCompleted knows exactly which racer fired the event — required
+            // once there's more than one racer, otherwise bonus time and win checks would
+            // run once per racer in the list instead of once per actual lap completion.
             foreach (var racer in racers)
             {
-                racer.OnLapCompleted += HandleLapCompleted;
+                LapTracker capturedRacer = racer;
+                Action<int> handler = lapNumber => HandleLapCompleted(capturedRacer, lapNumber);
+                lapHandlers[capturedRacer] = handler;
+                capturedRacer.OnLapCompleted += handler;
             }
 
             OnRaceStarted?.Invoke();
@@ -116,32 +123,20 @@ namespace M2.Core
 
         // ---- Lap / finish handling ----
 
-        void HandleLapCompleted(int lapNumber)
+        void HandleLapCompleted(LapTracker racer, int lapNumber)
         {
             if (raceEnded) return;
 
-            // Find which racer completed this lap
-            LapTracker winner = null;
-            foreach (var racer in racers)
+            // lapBonusSeconds[0] = bonus for completing lap 2, [1] = lap 3, [2] = lap 4
+            int bonusIndex = lapNumber - 2; // lap 2 → index 0
+            if (bonusIndex >= 0 && bonusIndex < lapBonusSeconds.Length)
             {
-                // Award lap bonus time
-                // lapBonusSeconds[0] = bonus for completing lap 2, [1] = lap 3, [2] = lap 4
-                int bonusIndex = lapNumber - 2; // lap 2 → index 0
-                if (bonusIndex >= 0 && bonusIndex < lapBonusSeconds.Length)
-                {
-                    TimeRemaining += lapBonusSeconds[bonusIndex];
-                }
-
-                // Check win condition
-                if (racer.LapCount >= targetLapCount)
-                {
-                    winner = racer;
-                }
+                TimeRemaining += lapBonusSeconds[bonusIndex];
             }
 
-            if (winner != null)
+            if (racer.LapCount >= targetLapCount)
             {
-                EndRace(winner);
+                EndRace(racer);
             }
         }
 
@@ -154,11 +149,12 @@ namespace M2.Core
             SetAllInputLocked(true);
             SetState(RaceState.Finished);
 
-            // Unsubscribe lap events
-            foreach (var racer in racers)
+            // Unsubscribe lap events (using the same delegate instances we subscribed with)
+            foreach (var kvp in lapHandlers)
             {
-                racer.OnLapCompleted -= HandleLapCompleted;
+                kvp.Key.OnLapCompleted -= kvp.Value;
             }
+            lapHandlers.Clear();
 
             if (winner != null)
             {
