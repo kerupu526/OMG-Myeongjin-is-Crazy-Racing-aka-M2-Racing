@@ -1,0 +1,51 @@
+# M2 유니티 컴파일 체크 스크립트 (Windows / PowerShell)
+#
+# 사용법:
+#   .\check_build.ps1 -ProjectPath "C:\Users\me\M2_MyeongjinCrazyRacing"
+#
+# UnityPath는 본인 설치 경로에 맞게 바꿔야 함. Unity Hub 설치 시 보통:
+#   C:\Program Files\Unity\Hub\Editor\<버전>\Editor\Unity.exe
+
+param(
+    [string]$ProjectPath = (Get-Location).Path,
+    [string]$UnityPath = "C:\Program Files\Unity\Hub\Editor\6000.3.11f1\Editor\Unity.exe",
+    [string]$Method = "BuildCheck.CompileCheck"
+)
+
+$LogFile = Join-Path $ProjectPath "build.log"
+
+if (-not (Test-Path $UnityPath)) {
+    Write-Host "❌ Unity 실행 파일을 찾을 수 없음: $UnityPath" -ForegroundColor Red
+    Write-Host "   -UnityPath 파라미터로 실제 설치 경로를 지정해줘 (Unity Hub > 설치 위치 확인)"
+    exit 1
+}
+
+Write-Host "🔧 유니티 컴파일 체크 시작..." -ForegroundColor Cyan
+Write-Host "   Project: $ProjectPath"
+Write-Host "   Method:  $Method"
+
+& $UnityPath -batchmode -nographics -quit `
+    -projectPath $ProjectPath `
+    -executeMethod $Method `
+    -logFile $LogFile
+
+Write-Host "----------------------------------------"
+
+if (-not (Test-Path $LogFile)) {
+    Write-Host "❌ 로그 파일이 생성되지 않음. Unity 실행 자체가 실패했을 수 있음." -ForegroundColor Red
+    exit 1
+}
+
+$log = Get-Content $LogFile -Raw
+
+if ($log -match "M2_COMPILE_CHECK_OK" -or $log -match "M2_SMOKE_TEST_OK") {
+    Write-Host "✅ 컴파일 성공!" -ForegroundColor Green
+    exit 0
+} else {
+    Write-Host "❌ 컴파일 에러 또는 실행 실패:" -ForegroundColor Red
+    Write-Host ""
+    Select-String -Path $LogFile -Pattern "error CS|Exception|M2_.*_FAIL" | ForEach-Object { $_.Line }
+    Write-Host ""
+    Write-Host "전체 로그: $LogFile"
+    exit 1
+}
