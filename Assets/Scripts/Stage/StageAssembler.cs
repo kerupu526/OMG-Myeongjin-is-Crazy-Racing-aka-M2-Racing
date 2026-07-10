@@ -144,9 +144,18 @@ namespace M2.Stage
                 hazard.transform.position = position + Vector3.up * 0.5f;
                 hazard.transform.localScale = new Vector3(1.5f, 1f, 1.5f);
 
-                // Terrain features are real 3D meshes per CLAUDE.md's 2.5D rule (only
-                // characters/vehicles/items are billboard sprites), so this stays visible.
-                RendererColorUtil.ApplyColor(hazard.GetComponent<Renderer>(), new Color(0.45f, 0.3f, 0.15f));
+                // The cube stays as the invisible collision proxy (TerrainHazard needs
+                // OnCollisionEnter, i.e. a solid non-trigger collider sized like this box) — a
+                // Kenney rock model renders the actual visual, same collider+visual-child split
+                // used for the vehicle in TestTrackBuilder.CreateVehicleModel.
+                // Using SafeDestroy (which checks Application.isPlaying) ensures that during
+                // runtime hot-swaps, we call Destroy() to safely queue the destruction, whereas
+                // during editor time we call DestroyImmediate().
+                SafeDestroy(hazard.GetComponent<MeshRenderer>());
+                SafeDestroy(hazard.GetComponent<MeshFilter>());
+                // 4x is a first guess, not measured — nudge further if it still reads too
+                // small/large once you see it in Play mode.
+                AttachVisualModel(hazard.transform, "KenneyProps/rock-sand-b", "KenneyProps/survivalkit_colormap", modelScale: 4f);
 
                 hazard.AddComponent<TerrainHazard>();
             }
@@ -274,7 +283,8 @@ namespace M2.Stage
             visual.transform.SetParent(lava.transform);
             visual.transform.localPosition = Vector3.zero;
             visual.transform.localScale = new Vector3(geo.TrackWidth * 0.6f, 0.05f, geo.TrackWidth * 0.6f);
-            Object.Destroy(visual.GetComponent<BoxCollider>()); // the parent's trigger collider already covers this
+            // SafeDestroy handles both editor-time builds and runtime hot-swaps.
+            SafeDestroy(visual.GetComponent<BoxCollider>());
             RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(0.9f, 0.25f, 0f));
 
             return lava.AddComponent<LavaZone>();
@@ -283,7 +293,10 @@ namespace M2.Stage
         static void CreateGhastFireball(Transform parent, Transform trackCenter, TrackGeometry geo)
         {
             const float theta = 0.35f * Mathf.PI * 2f + 0.1f * Mathf.PI * 2f;
-            Vector3 position = geo.PointAt(theta);
+            // Offset to the side of the track (like the terrain hazards / lava zone) instead of
+            // dead-center on the racing line where the car couldn't help hitting it every lap —
+            // that centerline placement is why Nether felt like it randomly grabbed you mid-road.
+            Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * 0.28f);
 
             GameObject fireball = new GameObject("GhastFireball");
             fireball.transform.SetParent(parent);
@@ -291,13 +304,92 @@ namespace M2.Stage
 
             SphereCollider collider = fireball.AddComponent<SphereCollider>();
             collider.isTrigger = true;
-            collider.radius = 1.5f;
+            // 0.8 turned out to overcorrect: the fireball sits 1m up while the vehicle's
+            // collider is centered at 0.5m, so with only 0.5m of vertical overlap left, a
+            // sphere of radius 0.8 only reaches ~0.6m sideways from the exact centerline —
+            // basically un-hittable while actually driving. 1.2 gives ~1.1m of horizontal
+            // reach at the vehicle's height, closer without going back to the original
+            // "knocked from a mile away" 1.5.
+            collider.radius = 1.2f;
+
+            // Was a bare invisible trigger before — no Kenney pack here has a fireball/ghast
+            // model, so a simple tinted sphere stands in (same "flat tinted primitive" approach
+            // as LavaZone's visual) rather than leaving the hazard completely unmarked.
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            visual.name = "GhastFireballVisual";
+            visual.transform.SetParent(fireball.transform);
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localScale = Vector3.one * 1.2f;
+            // SafeDestroy handles both editor-time builds and runtime hot-swaps.
+            SafeDestroy(visual.GetComponent<SphereCollider>());
+            RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(1f, 0.45f, 0.1f));
 
             GhastFireball ghast = fireball.AddComponent<GhastFireball>();
             ghast.trackCenter = trackCenter;
         }
 
+        // Safe helper to destroy objects that works both during editor-time script runs
+        // (where Destroy() is ignored) and during active Play mode (where DestroyImmediate() is dangerous).
+        private static void SafeDestroy(Object obj)
+        {
+            if (obj == null) return;
+
+            // If destroying a Collider, immediately disable it. During runtime hot-swaps, Object.Destroy
+            // is deferred to the end of the frame, which would leave a solid collider (like LavaVisual's box)
+            // physically active for 1 frame, causing the car to crash into an "invisible wall" instantly.
+            if (obj is Collider col)
+            {
+                col.enabled = false;
+            }
+
+            if (Application.isPlaying)
+            {
+                Object.Destroy(obj);
+            }
+            else
+            {
+                Object.DestroyImmediate(obj);
+            }
+        }
+
         // ---------------- Shared helpers ----------------
+
+        // Instantiates a Kenney model (from Resources, so this stays usable both at editor
+        // build-time and during in-Play stage hot-swapping) as a child visual, counter-scaling
+        // it against the parent's (possibly non-uniform) scale so it renders at its own authored
+        // proportions instead of being squashed/stretched by a collider proxy's box shape — same
+        // split used for the vehicle in TestTrackBuilder.CreateVehicleModel.
+        static void AttachVisualModel(Transform parent, string resourcePath, string textureResourcePath = null, float modelScale = 1f)
+        {
+            GameObject source = Resources.Load<GameObject>(resourcePath);
+            if (source == null)
+            {
+                Debug.LogWarning($"M2: hazard visual model not found at Resources/{resourcePath}.");
+                return;
+            }
+
+            GameObject model = Object.Instantiate(source, parent);
+            model.name = "Visual";
+
+            // modelScale is an extra multiplier on top of the parent-scale cancellation below —
+            // kenney_survival-kit's props (rock-sand-b included) are authored noticeably smaller
+            // than kenney_car-kit/racing-kit's ~1-unit-per-meter convention, so they read as tiny
+            // next to the vehicle/track without a boost here.
+            Vector3 proxyScale = parent.localScale;
+            model.transform.localScale = new Vector3(
+                modelScale / proxyScale.x, modelScale / proxyScale.y, modelScale / proxyScale.z);
+            model.transform.localPosition = new Vector3(0f, -0.5f / proxyScale.y, 0f);
+
+            if (textureResourcePath == null) return;
+
+            Texture2D texture = Resources.Load<Texture2D>(textureResourcePath);
+            if (texture == null) return;
+
+            foreach (Renderer renderer in model.GetComponentsInChildren<Renderer>())
+            {
+                RendererColorUtil.ApplyTexture(renderer, texture, Vector2.one);
+            }
+        }
 
         static GameObject CreateZoneTrigger(Transform parent, string name, TrackGeometry geo, float theta, float depth)
         {

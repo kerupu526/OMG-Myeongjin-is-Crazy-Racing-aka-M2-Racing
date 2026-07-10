@@ -8,7 +8,7 @@ namespace M2.Items
         public ItemDefinition definition;
         public ItemSpawner owner;
 
-        void Reset()
+        void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }

@@ -8,7 +8,7 @@ namespace M2.Core
         [Tooltip("Order of this checkpoint along the track. Index 0 is the finish line.")]
         public int index;
 
-        void Reset()
+        void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }

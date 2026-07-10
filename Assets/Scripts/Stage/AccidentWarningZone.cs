@@ -11,7 +11,7 @@ namespace M2.Stage
     {
         public static event Action OnWarningEntered;
 
-        void Reset()
+        void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }

@@ -4,7 +4,9 @@ using M2.Player;
 using M2.Stage;
 using M2.UI;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
@@ -20,6 +22,10 @@ namespace M2.Editor
     public static class TestTrackBuilder
     {
         const string RootName = "M2_TestTrack (Generated)";
+        // Used only by BuildAndSaveBikiniCityScene — "(Generated)"/"TestTrack" branding is
+        // misleading for a hierarchy meant to live permanently in its own saved scene.
+        const string PersistedBikiniCityRootName = "BikiniCity";
+        const string PersistedBikiniCityScenePath = "Assets/Scenes/Stage_BikiniCity.unity";
 
         // Base oval radii, perturbed by a sine "wobble" per control point so the centerline
         // winds like a real circuit (sweepers + pinches) instead of a plain ellipse. Purely a
@@ -33,8 +39,11 @@ namespace M2.Editor
         // other and made the loop cross itself (a broken/tangled track). A single shared
         // multiplier keeps this a simple (non-self-intersecting) closed curve as long as it
         // stays positive, which it always does here since WobbleStrength < 1.
-        const float BaseRadiusX = 32f;
-        const float BaseRadiusZ = 22f;
+        // 2인용 레이싱에 맞게 확대(원래 32/22, 12) — 곡률 클램프(SafeLateralOffset)가 동적으로
+        // 안전을 보장하므로 이 상수들만 바꿔도 자기교차 걱정 없이 커짐. 검증: 이 비율로 가장 좁은
+        // 지점도 폭 11m 이상 유지, 한 바퀴 길이 약 202m -> 306m로 증가(Node.js로 사전 검증).
+        const float BaseRadiusX = 48f;
+        const float BaseRadiusZ = 34f;
         const float WobbleStrength = 0.3f; // fraction of the base radius the loop bulges/pinches by
         const float WobbleFrequency = 3f; // how many bulge/pinch pairs around the loop
         const int ControlPointCount = 24; // spline smoothness — more points = smoother curves
@@ -53,14 +62,30 @@ namespace M2.Editor
             return points;
         }
 
-        // Vehicle body is 1.2m wide (see CreateVehicle scale). Track width fits two cars
-        // side by side with room to steer, plus ~2m of extra safety margin: 12m total.
+        // Vehicle body is 1.2m wide (see CreateVehicle scale). Widened from 12m for real
+        // 2-player racing (room to draft/overtake side by side, not just squeeze past).
         const float VehicleWidth = 1.2f;
-        const float TrackWidth = 12f;
+        const float TrackWidth = 16f;
         const float WallHeight = 1.2f;
         const int WallSegments = 64; // higher than before — sharper curves need more segments to read smoothly
         const int CheckpointCount = 6;
         const int ItemSpawnCount = 6;
+
+        // Vehicle visual: a real Kenney (kenney_car-kit, CC0) low-poly model instead of a
+        // billboard sprite. Cars physically rotate to face their travel direction (steering),
+        // unlike characters/items — so unlike CLAUDE.md's default "everything is a camera-facing
+        // billboard" rule, the vehicle is an exception and renders as an actual rotating 3D mesh.
+        // "race.fbx" was picked over kenney_racing-kit's raceCarRed/Green/etc. because it ships
+        // with a UV-mapped colormap.png texture atlas (guaranteed to render correctly); the
+        // racing-kit cars rely on baked vertex colors, which URP's default Lit shader doesn't
+        // read without extra material setup.
+        const string VehicleModelPath = "Assets/Art/Models/kenney_car-kit/Models/FBX format/race.fbx";
+        const string VehicleModelTexturePath = "Assets/Art/Models/kenney_car-kit/Models/FBX format/Textures/colormap.png";
+        // Kenney car-kit models are authored ~2 units long facing +Z already, matching this
+        // project's forward convention — but this is unverified without opening the Editor GUI
+        // (headless batchmode has no visual feedback). If the car appears to drive backwards in
+        // Play mode, add 180 here.
+        const float VehicleModelYawOffset = 0f;
 
         [MenuItem("M2/Build Test Track Scene/Bikini City (비키니시티)")]
         public static void BuildBikiniCity() => Build(StageType.BikiniCity);
@@ -71,20 +96,53 @@ namespace M2.Editor
         [MenuItem("M2/Build Test Track Scene/Nether Fortress (네더요새)")]
         public static void BuildNetherFortress() => Build(StageType.NetherFortress);
 
-        public static void Build(StageType initialStage)
+        // Freezes a BikiniCity build into a real, permanent Assets/Scenes/Stage_BikiniCity.unity
+        // scene file instead of building into whatever scene happens to be open — first step
+        // away from TestTrackBuilder for this stage (아프리카TV/네더요새는 당분간 그대로 유지).
+        // Re-running this OVERWRITES the saved scene from scratch — any manual edits made
+        // directly in Stage_BikiniCity.unity since the last run will be lost. Deliberately has
+        // NO EditorApplication.Exit call (unlike BuildCheck's headless methods) since this
+        // carries a [MenuItem] — a human can click it from an open Editor, and Exit-ing there
+        // would force-quit their whole Editor session.
+        [MenuItem("M2/Build Persisted Scene/Bikini City (비키니시티)")]
+        public static void BuildAndSaveBikiniCityScene()
         {
-            GameObject existingRoot = GameObject.Find(RootName);
+            if (EditorSceneManager.GetActiveScene().isDirty &&
+                !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                Debug.LogWarning("M2: 저장 안 된 변경사항이 있는 씬에서 취소를 선택함 — Stage_BikiniCity 빌드 중단.");
+                return;
+            }
+
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Build(StageType.BikiniCity, rootName: PersistedBikiniCityRootName, attachStageTestSelector: false);
+
+            bool saved = EditorSceneManager.SaveScene(scene, PersistedBikiniCityScenePath);
+            Debug.Log(saved
+                ? $"M2: Stage_BikiniCity 씬 저장 완료 → {PersistedBikiniCityScenePath}"
+                : $"M2: Stage_BikiniCity 씬 저장 실패 → {PersistedBikiniCityScenePath}");
+        }
+
+        // rootName/attachStageTestSelector let a caller opt out of the shared "(Generated)"
+        // ephemeral-test-track identity and the temporary 1/2/3 stage-switcher — used by
+        // BuildAndSaveBikiniCityScene to freeze a stage into its own permanent, single-stage
+        // scene. The 3 MenuItems above keep calling this with just a StageType, so their
+        // behavior is unchanged (both new params default to the original ephemeral-build values).
+        public static void Build(StageType initialStage, string rootName = RootName, bool attachStageTestSelector = true)
+        {
+            GameObject existingRoot = GameObject.Find(rootName);
             if (existingRoot != null)
             {
                 Object.DestroyImmediate(existingRoot);
             }
 
-            var root = new GameObject(RootName);
+            var root = new GameObject(rootName);
 
             CreateGround(root.transform);
             CreateTrackSurface(root.transform);
             CreateWallRing(root.transform, "OuterWall", +1f);
             CreateWallRing(root.transform, "InnerWall", -1f);
+            CreateBackgroundDecor(root.transform, initialStage);
 
             var checkpointsRoot = new GameObject("Checkpoints").transform;
             checkpointsRoot.SetParent(root.transform);
@@ -97,11 +155,13 @@ namespace M2.Editor
             GameObject vehicle = CreateVehicle(root.transform);
             GameObject camera = SetupCamera(root.transform, vehicle.transform);
             SetupHud(root.transform, vehicle);
-            SetupGameManager(root.transform, vehicle, initialStage);
+            SetupGameManager(root.transform, vehicle, initialStage, attachStageTestSelector);
 
             Selection.activeGameObject = root;
-            Debug.Log($"M2 test track built ({initialStage}). Enter Play mode and drive with Arrow Keys/WASD. " +
-                "1/2/3 키로 스테이지를 바로 바꿔볼 수 있음 (레이스 시작 전에만).");
+            string switcherHint = attachStageTestSelector
+                ? " 1/2/3 키로 스테이지를 바로 바꿔볼 수 있음 (레이스 시작 전에만)."
+                : "";
+            Debug.Log($"M2 test track built ({initialStage}). Enter Play mode and drive with Arrow Keys/WASD.{switcherHint}");
         }
 
         static void CreateGround(Transform parent)
@@ -122,16 +182,29 @@ namespace M2.Editor
             RendererColorUtil.ApplyColor(ground.GetComponent<Renderer>(), new Color(0.25f, 0.4f, 0.22f));
         }
 
+        // How many times a track texture repeats around one full lap. Purely a look parameter —
+        // raise it if/when a real texture reads as too stretched along the track's length.
+        const float TrackTextureRepeatsPerLap = 24f;
+
         static void CreateTrackSurface(Transform parent)
         {
             var vertices = new Vector3[WallSegments * 2];
+            var uvs = new Vector2[WallSegments * 2];
             var triangles = new int[WallSegments * 6];
 
             for (int i = 0; i < WallSegments; i++)
             {
                 float theta = i * Mathf.PI * 2f / WallSegments;
-                vertices[i * 2] = Geometry.OffsetPointAt(theta, -TrackWidth / 2f);
-                vertices[i * 2 + 1] = Geometry.OffsetPointAt(theta, TrackWidth / 2f);
+                // Clamped to the centerline's local turning radius so this edge matches
+                // CreateWallRing's wall placement exactly — see TrackGeometry.SafeLateralOffset.
+                vertices[i * 2] = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, -TrackWidth / 2f));
+                vertices[i * 2 + 1] = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, TrackWidth / 2f));
+
+                // U follows progress around the loop (not true arc length, so texture density
+                // varies slightly with the spline's speed) — V spans inner(0) to outer(1) edge.
+                float u = (i / (float)WallSegments) * TrackTextureRepeatsPerLap;
+                uvs[i * 2] = new Vector2(u, 0f);
+                uvs[i * 2 + 1] = new Vector2(u, 1f);
             }
 
             for (int i = 0; i < WallSegments; i++)
@@ -154,6 +227,7 @@ namespace M2.Editor
 
             var mesh = new Mesh { name = "TrackSurfaceMesh" };
             mesh.vertices = vertices;
+            mesh.uv = uvs;
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
@@ -164,36 +238,144 @@ namespace M2.Editor
 
             trackSurface.AddComponent<MeshFilter>().mesh = mesh;
             Renderer renderer = trackSurface.AddComponent<MeshRenderer>();
-            RendererColorUtil.ApplyColor(renderer, new Color(0.16f, 0.18f, 0.2f), doubleSided: true);
+            // Repeats are already baked into the UVs (TrackTextureRepeatsPerLap), so tiling here
+            // stays at 1:1 — doubling it up would re-multiply the repeat count.
+            RendererColorUtil.ApplyTexture(renderer, TrackTextureFactory.CreateAsphaltTexture(), Vector2.one, doubleSided: true);
         }
 
         static void CreateWallRing(Transform parent, string name, float sideSign)
         {
+            // Chain of CapsuleColliders instead of rotated box segments or a hand-rolled
+            // MeshCollider. Two prior attempts both failed here: overlapping rotated boxes
+            // poked jagged inward corners on tight bends that wedged the car (ApplySteering
+            // ignores input below minSpeedToSteer, so a wedged car couldn't turn free either);
+            // a custom zero/extruded-thickness MeshCollider apparently didn't cook/collide
+            // reliably at all (car drove straight through). A capsule's rounded caps overlap
+            // seamlessly around any curve with no inward corner, and CapsuleCollider is a
+            // native PhysX primitive with guaranteed solid continuous collision — no custom
+            // geometry that can silently fail to collide.
+            float desiredOffset = sideSign * TrackWidth / 2f;
+            float radius = WallHeight / 2f;
+
             var ring = new GameObject(name).transform;
             ring.SetParent(parent);
-            float lateralOffset = sideSign * TrackWidth / 2f;
 
             for (int i = 0; i < WallSegments; i++)
             {
                 float theta = i * Mathf.PI * 2f / WallSegments;
                 float nextTheta = (i + 1) * Mathf.PI * 2f / WallSegments;
 
-                Vector3 p0 = Geometry.OffsetPointAt(theta, lateralOffset);
-                Vector3 p1 = Geometry.OffsetPointAt(nextTheta, lateralOffset);
+                // Clamped per-point so the wall never offsets further than the centerline's
+                // local turning radius allows — otherwise this ring folds over itself on tight
+                // bends and cuts a diagonal "invisible wall" across the track (see
+                // TrackGeometry.SafeLateralOffset for why). Matches CreateTrackSurface's edges.
+                Vector3 p0 = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, desiredOffset));
+                Vector3 p1 = Geometry.OffsetPointAt(nextTheta, Geometry.SafeLateralOffset(nextTheta, desiredOffset));
                 Vector3 mid = (p0 + p1) / 2f;
                 float segmentLength = Vector3.Distance(p0, p1);
 
-                GameObject segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                segment.name = $"{name}_{i}";
+                GameObject segment = new GameObject($"{name}_{i}");
                 segment.transform.SetParent(ring);
-                segment.transform.position = mid + Vector3.up * (WallHeight / 2f);
+                segment.transform.position = mid + Vector3.up * radius;
                 segment.transform.rotation = Quaternion.LookRotation((p1 - p0).normalized, Vector3.up);
-                segment.transform.localScale = new Vector3(1f, WallHeight, segmentLength * 1.05f);
 
-                // 2.5D look: the wall is collision-only. A standing 3D box here is exactly
-                // what made the track read as "3D" — only the flat ground should be visible.
-                Object.DestroyImmediate(segment.GetComponent<MeshRenderer>());
-                Object.DestroyImmediate(segment.GetComponent<MeshFilter>());
+                CapsuleCollider capsule = segment.AddComponent<CapsuleCollider>();
+                capsule.direction = 2; // local Z — matches the LookRotation forward axis above
+                capsule.radius = radius;
+                // +radius*2 so the rounded caps reach into the neighboring segments, closing
+                // the seam instead of leaving a gap or a corner between adjacent capsules.
+                capsule.height = segmentLength + radius * 2f;
+
+                // Zero-friction material so the car slides along the wall instead of catching
+                // on the capsule surface. Without this, default friction can grip the vehicle
+                // in tight bends and fight against the steering/throttle, making it feel stuck.
+                // Minimum combine so this wall's zero always wins regardless of the car's material.
+                var wallMat = new PhysicsMaterial("WallFrictionless")
+                {
+                    dynamicFriction = 0f,
+                    staticFriction = 0f,
+                    bounciness = 0.2f,
+                    frictionCombine = PhysicsMaterialCombine.Minimum,
+                    bounceCombine = PhysicsMaterialCombine.Maximum
+                };
+                capsule.material = wallMat;
+                segment.AddComponent<M2.Core.WallMarker>();
+            }
+        }
+
+        const int BackgroundDecorCount = 10;
+        const float BackgroundDecorMargin = 8f; // how far outside the outer wall decor sits
+
+        static void CreateBackgroundDecor(Transform parent, StageType stage)
+        {
+            string[] modelPaths;
+            string texturePath;
+
+            switch (stage)
+            {
+                case StageType.BikiniCity:
+                    // No colormap.png in kenney_nature-kit — it relies on baked vertex colors,
+                    // which URP's default Lit shader doesn't read. Left in as a real test: if
+                    // these render blank/white in Play mode, swap to a texture-atlas pack instead.
+                    modelPaths = new[]
+                    {
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/cliff_blockCave_rock.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/rock_largeA.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/tree_detailed.fbx",
+                    };
+                    texturePath = null;
+                    break;
+                case StageType.AfricaTv:
+                    modelPaths = new[]
+                    {
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-a.fbx",
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-e.fbx",
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-j.fbx",
+                    };
+                    texturePath = "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/Textures/colormap.png";
+                    break;
+                case StageType.NetherFortress:
+                    modelPaths = new[]
+                    {
+                        "Assets/Art/Models/kenney_castle-kit/Models/FBX format/tower-hexagon-base.fbx",
+                        "Assets/Art/Models/kenney_castle-kit/Models/FBX format/tower-hexagon-mid.fbx",
+                        "Assets/Art/Models/kenney_castle-kit/Models/FBX format/bridge-straight.fbx",
+                    };
+                    texturePath = "Assets/Art/Models/kenney_castle-kit/Models/FBX format/Textures/colormap.png";
+                    break;
+                default:
+                    return;
+            }
+
+            Texture2D texture = texturePath != null ? AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath) : null;
+            // Fixed seed so re-running the build menu gives the same layout each time, instead
+            // of a different scatter on every rebuild.
+            var rng = new System.Random(12345);
+
+            var decorRoot = new GameObject("BackgroundDecor").transform;
+            decorRoot.SetParent(parent);
+
+            for (int i = 0; i < BackgroundDecorCount; i++)
+            {
+                float theta = (i + (float)rng.NextDouble() * 0.6f) * Mathf.PI * 2f / BackgroundDecorCount;
+                Vector3 position = Geometry.OffsetPointAt(theta, TrackWidth / 2f + BackgroundDecorMargin);
+
+                string path = modelPaths[rng.Next(modelPaths.Length)];
+                var source = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (source == null) continue;
+
+                GameObject instance = Object.Instantiate(source, decorRoot);
+                instance.name = System.IO.Path.GetFileNameWithoutExtension(path);
+                instance.transform.position = position;
+                instance.transform.rotation = Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
+
+                if (texture != null)
+                {
+                    foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>())
+                    {
+                        RendererColorUtil.ApplyTexture(renderer, texture, Vector2.one);
+                    }
+                }
             }
         }
 
@@ -247,8 +429,8 @@ namespace M2.Editor
             vehicle.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
             vehicle.transform.localScale = new Vector3(VehicleWidth, 0.6f, 2f);
 
-            // 2.5D rule (CLAUDE.md): vehicles render as a camera-facing billboard sprite,
-            // never a 3D mesh. This cube is kept invisible as the physics/collision proxy only.
+            // This cube is kept invisible as the physics/collision proxy only — the visible car
+            // is the real 3D model attached below.
             Object.DestroyImmediate(vehicle.GetComponent<MeshRenderer>());
             Object.DestroyImmediate(vehicle.GetComponent<MeshFilter>());
 
@@ -267,16 +449,43 @@ namespace M2.Editor
             // StageAssembler, not here — which stage is active can change at runtime via
             // StageTestSelector.
 
-            GameObject spriteChild = new GameObject("BillboardSprite");
-            spriteChild.transform.SetParent(vehicle.transform);
-            spriteChild.transform.localPosition = new Vector3(0f, 1.8f, 0f);
-            spriteChild.transform.localScale = new Vector3(1.4f, 1.8f, 1f);
-            SpriteRenderer spriteRenderer = spriteChild.AddComponent<SpriteRenderer>();
-            spriteRenderer.sprite = PlaceholderSpriteFactory.CreateCircleSprite(new Color(1f, 0.15f, 0.05f), Color.black, 128, 64f);
-            spriteRenderer.sortingOrder = 10;
-            spriteChild.AddComponent<BillboardSprite>();
+            CreateVehicleModel(vehicle.transform);
 
             return vehicle;
+        }
+
+        static void CreateVehicleModel(Transform parent)
+        {
+            var modelSource = AssetDatabase.LoadAssetAtPath<GameObject>(VehicleModelPath);
+            if (modelSource == null)
+            {
+                Debug.LogWarning($"M2: vehicle model not found at {VehicleModelPath} — falling back to no visual mesh.");
+                return;
+            }
+
+            GameObject model = Object.Instantiate(modelSource, parent);
+            model.name = "VehicleModel";
+
+            // `parent` (the vehicle root) is a primitive Cube scaled non-uniformly to
+            // (VehicleWidth, 0.6, 2) to size the invisible collision proxy — a child inherits
+            // that scale, which would otherwise squash/stretch this model's real proportions
+            // to match the box rather than rendering at its own authored size. Counter-scale
+            // here so the visual mesh isn't distorted by the collider's shape, and divide the
+            // position offset by the same factors since localPosition is interpreted in the
+            // parent's (non-uniformly scaled) local space.
+            Vector3 proxyScale = parent.localScale;
+            model.transform.localScale = new Vector3(1f / proxyScale.x, 1f / proxyScale.y, 1f / proxyScale.z);
+            model.transform.localPosition = new Vector3(0f, -0.3f / proxyScale.y, 0f); // sit the model on the "ground" of the collider proxy
+            model.transform.localRotation = Quaternion.Euler(0f, VehicleModelYawOffset, 0f);
+
+            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(VehicleModelTexturePath);
+            if (texture != null)
+            {
+                foreach (Renderer renderer in model.GetComponentsInChildren<Renderer>())
+                {
+                    RendererColorUtil.ApplyTexture(renderer, texture, Vector2.one);
+                }
+            }
         }
 
         static GameObject SetupCamera(Transform parent, Transform vehicleTransform)
@@ -317,7 +526,13 @@ namespace M2.Editor
                 GameObject eventSystemObject = new GameObject("EventSystem");
                 eventSystemObject.transform.SetParent(parent);
                 eventSystemObject.AddComponent<EventSystem>();
-                eventSystemObject.AddComponent<InputSystemUIInputModule>();
+                var uiModule = eventSystemObject.AddComponent<InputSystemUIInputModule>();
+                // AddComponent<T>() at script time skips the auto-wiring the Inspector's "Add
+                // Component" button normally does (via the component's Reset callback) — without
+                // this, the module has no Point/Click/etc. actions bound at all, so it silently
+                // never registers any pointer input (no exceptions, just nothing happens; this is
+                // what caused clicks on the "시작" button to do nothing with a clean console).
+                uiModule.AssignDefaultActions();
             }
 
             GameObject textObject = new GameObject("RaceLabel");
@@ -392,7 +607,7 @@ namespace M2.Editor
 
         // ---- GameManager + RaceFlowUI + stage assembly ----
 
-        static void SetupGameManager(Transform parent, GameObject vehicle, StageType initialStage)
+        static void SetupGameManager(Transform parent, GameObject vehicle, StageType initialStage, bool attachStageTestSelector)
         {
             // --- GameManager ---
             GameObject gmObject = new GameObject("GameManager");
@@ -463,20 +678,25 @@ namespace M2.Editor
                 vehicle, canvas, flowUI, Geometry);
 
             // --- Temporary in-Play stage switcher (1/2/3 hotkeys), 테스트 전용 ---
-            Text hintLabel = SimpleUIFactory.CreateCornerText(canvasObject.transform, "StageSwitchHint",
-                new Vector2(0f, 0f), new Vector2(20f, 20f), TextAnchor.LowerLeft);
-            hintLabel.color = Color.green;
+            // 정식 씬으로 고정되는 빌드(BuildAndSaveBikiniCityScene)는 이 스위처가 필요 없음 —
+            // 그 씬은 처음부터 한 스테이지 전용이라 다른 스테이지로 바꿀 일이 없음.
+            if (attachStageTestSelector)
+            {
+                Text hintLabel = SimpleUIFactory.CreateCornerText(canvasObject.transform, "StageSwitchHint",
+                    new Vector2(0f, 0f), new Vector2(20f, 20f), TextAnchor.LowerLeft);
+                hintLabel.color = Color.green;
 
-            StageTestSelector selector = canvasObject.AddComponent<StageTestSelector>();
-            selector.gameManager = gm;
-            selector.vehicle = vehicle;
-            selector.canvas = canvas;
-            selector.flowUI = flowUI;
-            selector.worldParent = stageHazardsRoot.transform;
-            selector.trackCenter = parent;
-            selector.geometry = Geometry;
-            selector.hintLabel = hintLabel;
-            selector.Initialize(builtStage);
+                StageTestSelector selector = canvasObject.AddComponent<StageTestSelector>();
+                selector.gameManager = gm;
+                selector.vehicle = vehicle;
+                selector.canvas = canvas;
+                selector.flowUI = flowUI;
+                selector.worldParent = stageHazardsRoot.transform;
+                selector.trackCenter = parent;
+                selector.geometry = Geometry;
+                selector.hintLabel = hintLabel;
+                selector.Initialize(builtStage);
+            }
 
             // --- 임시 디버그: H 키로 콜라이더(히트박스) 와이어프레임 토글 ---
             canvasObject.AddComponent<HitboxDebugToggle>();

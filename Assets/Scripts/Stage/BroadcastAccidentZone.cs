@@ -10,7 +10,7 @@ namespace M2.Stage
         [Tooltip("조향 반전이 지속되는 시간(초). CLAUDE.md: 10초.")]
         public float reversalDuration = 10f;
 
-        void Reset()
+        void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }

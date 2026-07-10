@@ -10,7 +10,7 @@ namespace M2.Stage
     {
         public bool IsPlayerInside { get; private set; }
 
-        void Reset()
+        void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }

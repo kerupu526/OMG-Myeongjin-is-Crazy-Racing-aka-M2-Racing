@@ -35,6 +35,7 @@ namespace M2.Stage
             if (vehicleController != null)
             {
                 vehicleController.OnHitByAttackItem += HandleHitByAttackItem;
+                vehicleController.OnWallHit += HandleWallHit;
             }
             // 지형지물(장애물) 충돌은 TerrainHazard가 자체적으로 감지해서
             // NotifyRecipeDropped()를 직접 호출한다 (여긴 구독할 이벤트가 없음).
@@ -45,10 +46,12 @@ namespace M2.Stage
             if (vehicleController != null)
             {
                 vehicleController.OnHitByAttackItem -= HandleHitByAttackItem;
+                vehicleController.OnWallHit -= HandleWallHit;
             }
         }
 
         void HandleHitByAttackItem() => NotifyRecipeDropped();
+        void HandleWallHit() => NotifyRecipeDropped();
 
         public void NotifyRecipeDropped()
         {

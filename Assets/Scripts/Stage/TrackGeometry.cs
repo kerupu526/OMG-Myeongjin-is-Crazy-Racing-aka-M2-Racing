@@ -38,6 +38,43 @@ namespace M2.Stage
 
         public Vector3 OffsetPointAt(float theta, float lateralOffset) => PointAt(theta) + NormalAt(theta) * lateralOffset;
 
+        // Approximates the centerline's local radius of curvature at theta via the
+        // circumradius of three closely-spaced points. A single shared polar-radius wobble
+        // (see TestTrackBuilder.BuildControlPoints) keeps the CENTERLINE itself from
+        // self-intersecting, but an offset curve (wall ring / track surface edge) can still
+        // fold over itself wherever the centerline turns tighter than the offset distance —
+        // classic "offset curve self-intersection". Tight pinches in the wobble can and do
+        // dip below TrackWidth/2 here, which previously produced walls that crossed the track
+        // diagonally and wedged the car in place.
+        public float LocalRadiusOfCurvature(float theta)
+        {
+            const float delta = 0.002f;
+            Vector3 a = PointAt(theta - delta);
+            Vector3 b = PointAt(theta);
+            Vector3 c = PointAt(theta + delta);
+
+            float ab = Vector3.Distance(a, b);
+            float bc = Vector3.Distance(b, c);
+            float ac = Vector3.Distance(a, c);
+            // Twice the signed XZ area of triangle abc.
+            float cross = Mathf.Abs((b.x - a.x) * (c.z - a.z) - (c.x - a.x) * (b.z - a.z));
+            if (cross < 0.00001f) return float.MaxValue; // effectively straight here
+
+            // Circumradius: R = (ab * bc * ac) / (4 * area) = (ab * bc * ac) / (2 * cross)
+            return (ab * bc * ac) / (2f * cross);
+        }
+
+        // Clamps a desired lateral offset so it never exceeds (a safety margin under) the
+        // centerline's local turning radius at theta, preventing wall/track-edge offset curves
+        // from folding over themselves on tight bends. Preserves the sign/direction of
+        // desiredOffset, only shrinks its magnitude when the curve is too tight for it.
+        public float SafeLateralOffset(float theta, float desiredOffset)
+        {
+            const float safetyMargin = 0.85f;
+            float maxOffset = LocalRadiusOfCurvature(theta) * safetyMargin;
+            return Mathf.Clamp(desiredOffset, -maxOffset, maxOffset);
+        }
+
         Vector3 Evaluate(float theta, bool tangent)
         {
             int n = controlPoints.Length;

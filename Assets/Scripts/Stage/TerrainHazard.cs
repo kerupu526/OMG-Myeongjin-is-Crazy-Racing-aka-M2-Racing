@@ -5,8 +5,8 @@ namespace M2.Stage
     // 비키니시티 지형지물(장애물). CLAUDE.md: "공격 아이템에 맞거나 지형지물에 닿으면
     // '비법'을 떨어뜨림 (놓친 횟수가 별점 기준)." 공격 아이템 쪽은
     // VehicleController.OnHitByAttackItem -> BikiniCityStageState가 이미 처리하고,
-    // 이 컴포넌트는 지형지물 충돌 쪽을 담당한다. 트랙 경계 벽(TestTrackBuilder의
-    // OuterWall/InnerWall)과는 별개의, 실제로 부딪히면 페널티가 있는 오브젝트.
+    // 트랙 경계 벽 충돌은 VehicleController.OnWallHit -> BikiniCityStageState가 처리한다.
+    // 이 컴포넌트는 그 둘과는 별개인, 트랙 위에 놓인 지형지물(장애물) 충돌만 담당한다.
     [RequireComponent(typeof(Collider))]
     public class TerrainHazard : MonoBehaviour
     {

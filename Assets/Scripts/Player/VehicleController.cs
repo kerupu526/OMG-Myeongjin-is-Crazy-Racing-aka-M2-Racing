@@ -17,6 +17,8 @@ namespace M2.Player
         public float passiveDeceleration = 6f;
         [Tooltip("Deceleration applied while the brake key (Shift) is held.")]
         public float brakeDeceleration = 25f;
+        [Tooltip("Extra currentSpeed bled off per second while actively scraping a wall (not just resting against it) — without this, the wall-slide fix removes the into-wall velocity component but leaves speed untouched, so grinding along a wall costs nothing and feels frictionless/on-rails.")]
+        public float wallScrapeDeceleration = 10f;
 
         [Header("Steering")]
         public float turnSpeed = 140f;
@@ -25,11 +27,21 @@ namespace M2.Player
         [Tooltip("Steering only takes effect once |currentSpeed| exceeds this — no turning in place while stopped.")]
         public float minSpeedToSteer = 0.5f;
 
+        [Tooltip("How fast a bounce shove (e.g. ghast fireball) bleeds back to zero, in m/s per second.")]
+        public float bounceDecay = 25f;
+
+        [Tooltip("Minimum time between OnWallHit events while continuously scraping a wall, so one multi-second slide doesn't fire dozens of hits in a row.")]
+        public float wallHitEventCooldown = 1f;
+
         public event Action OnAccelItemUsed;
         public event Action OnAttackDefenseItemUsed;
         // Fires when a hit actually lands (not on a blocked/shielded hit) — stage systems
         // hook into this for stage-specific hit consequences (e.g. 비키니시티 "비법" drop).
         public event Action OnHitByAttackItem;
+        // Fires when the car actively scrapes a wall (steering into it, not just grazing) —
+        // 비키니시티 hooks into this so ramming the track boundary also drops "비법", same as
+        // attack items / terrain hazards.
+        public event Action OnWallHit;
 
         // --- Debug/test readouts ---
         public float CurrentSpeed => currentSpeed;
@@ -52,6 +64,11 @@ namespace M2.Player
         bool steeringInverted;
         bool isKnockedBack;
         bool hasShield;
+        // A short outward shove that rides ON TOP of normal throttle/steering (added to the
+        // driving velocity, then decayed) rather than seizing control the way ApplyKnockback
+        // does — this is the "통통 튀는" bounce for the ghast fireball, so the player never
+        // loses control on contact. Decays toward zero over a few frames.
+        Vector3 bounceVelocity;
         Coroutine speedBoostRoutine;
         Coroutine stunRoutine;
         Coroutine steeringInvertRoutine;
@@ -59,6 +76,16 @@ namespace M2.Player
         Coroutine shieldRoutine;
         float lastCollisionTime = -10f;
         const float collisionMemory = 0.15f;
+        float lastWallHitEventTime = -Mathf.Infinity;
+
+        // Wall-collision tracking: accumulated contact normal from the current physics step.
+        // Reset at the top of FixedUpdate and rebuilt by OnCollisionStay. Used by
+        // ApplyThrottle to slide along walls instead of pushing through them.
+        Vector3 wallContactNormal;
+        bool wallContactActive;
+        // Small outward nudge applied per FixedUpdate when in contact with a wall, to help
+        // PhysX resolve any residual penetration that the velocity-clamping alone doesn't fix.
+        const float WallSeparationForce = 4f;
 
         void Awake()
         {
@@ -116,6 +143,15 @@ namespace M2.Player
         {
             float speedBeforeUpdate = currentSpeed;
 
+            // Snapshot and reset wall-contact state for this physics step. OnCollisionStay
+            // fires BEFORE FixedUpdate in Unity's execution order, so by now wallContactNormal
+            // already holds the aggregate push-away direction from all active wall contacts
+            // (or zero if there are none).
+            bool touchingWall = wallContactActive;
+            Vector3 wallNormal = wallContactNormal;
+            wallContactActive = false;
+            wallContactNormal = Vector3.zero;
+
             // Facing is otherwise controlled entirely by MoveRotation in ApplySteering, but a
             // hard collision can still hand the Rigidbody leftover angular velocity from the
             // physics solver. Left unchecked, that spins the car slightly after every crash —
@@ -139,17 +175,56 @@ namespace M2.Player
                 float steerInput = steerAction.ReadValue<float>();
                 bool isBraking = brakeAction.IsPressed();
 
-                ApplyThrottle(throttleInput, isBraking);
+                ApplyThrottle(throttleInput, isBraking, touchingWall, wallNormal);
                 ApplySteering(steeringInverted ? -steerInput : steerInput);
             }
 
             CurrentAcceleration = (currentSpeed - speedBeforeUpdate) / Time.fixedDeltaTime;
+
+            // Bleed the bounce shove back to zero so it's a quick nudge, not a lasting drift.
+            bounceVelocity = Vector3.MoveTowards(bounceVelocity, Vector3.zero, bounceDecay * Time.fixedDeltaTime);
         }
 
-        void OnCollisionEnter(Collision collision) => lastCollisionTime = Time.time;
-        void OnCollisionStay(Collision collision) => lastCollisionTime = Time.time;
+        void OnCollisionEnter(Collision collision)
+        {
+            lastCollisionTime = Time.time;
+            AccumulateWallContact(collision);
+        }
 
-        void ApplyThrottle(float throttleInput, bool isBraking)
+        void OnCollisionStay(Collision collision)
+        {
+            lastCollisionTime = Time.time;
+            AccumulateWallContact(collision);
+        }
+
+        // Builds an averaged push-away direction from all contact points on this wall.
+        // Multiple walls (e.g. corners) accumulate into one combined normal per frame,
+        // which ApplyThrottle uses to remove the into-wall velocity component.
+        void AccumulateWallContact(Collision collision)
+        {
+            // Only care about objects explicitly marked with WallMarker. This avoids any false
+            // positives from floor planes, terrain hazards, or improperly destroyed visual colliders.
+            if (collision.collider.GetComponent<M2.Core.WallMarker>() == null &&
+                collision.collider.GetComponentInParent<M2.Core.WallMarker>() == null)
+            {
+                return;
+            }
+
+            Vector3 avgNormal = Vector3.zero;
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                avgNormal += collision.GetContact(i).normal;
+            }
+            if (avgNormal.sqrMagnitude < 0.0001f) return;
+
+            avgNormal.y = 0f;
+            avgNormal.Normalize();
+
+            wallContactNormal = (wallContactNormal + avgNormal).normalized;
+            wallContactActive = true;
+        }
+
+        void ApplyThrottle(float throttleInput, bool isBraking, bool touchingWall, Vector3 wallNormal)
         {
             float effectiveMaxSpeed = maxSpeed + itemSpeedBonus;
 
@@ -179,7 +254,52 @@ namespace M2.Player
 
             Vector3 forward = transform.forward;
             forward.y = 0f;
-            Vector3 velocity = forward.normalized * currentSpeed;
+            // bounceVelocity rides on top of throttle control (decayed in FixedUpdate) so a
+            // fireball hit nudges the car outward without ever taking control away.
+            Vector3 velocity = forward.normalized * currentSpeed + bounceVelocity;
+
+            // --- Wall-slide: prevent the script-set velocity from pushing into the wall ---
+            // Without this, we overwrite rb.linearVelocity every frame with a vector that
+            // points INTO the wall, which cancels PhysX's collision resolution and lets the
+            // car tunnel straight through. By removing the into-wall component, the car
+            // slides along the wall instead. currentSpeed is bled down (not zeroed) while
+            // doing so — see wallScrapeDeceleration below — floored above minSpeedToSteer so
+            // the car never gets stuck against the wall with no way to turn away (the exact
+            // same "wedging" bug the old box-corner walls caused).
+            if (touchingWall && wallNormal.sqrMagnitude > 0.01f)
+            {
+                float intoWall = Vector3.Dot(velocity, wallNormal);
+                if (intoWall < 0f)
+                {
+                    // Remove the component pushing into the wall (project onto the wall plane).
+                    velocity -= wallNormal * intoWall;
+
+                    // Bleed currentSpeed while actually scraping the wall (steering into it),
+                    // not just resting/grazing against it — otherwise the zero-friction
+                    // PhysicsMaterial + pure direction-projection above means the car keeps
+                    // 100% of its speed while sliding along a wall, which reads as an
+                    // invisible rail rather than a collision. Floored above minSpeedToSteer so
+                    // the player can always still steer away — dropping below that threshold
+                    // is what caused the old "wedged with no steering" bug this wall-slide
+                    // logic exists to avoid.
+                    float speedFloor = minSpeedToSteer + 1f;
+                    if (Mathf.Abs(currentSpeed) > speedFloor)
+                    {
+                        float speedSign = currentSpeed < 0f ? -1f : 1f;
+                        currentSpeed = speedSign * Mathf.Max(speedFloor,
+                            Mathf.Abs(currentSpeed) - wallScrapeDeceleration * Time.fixedDeltaTime);
+                    }
+
+                    if (Time.time - lastWallHitEventTime >= wallHitEventCooldown)
+                    {
+                        lastWallHitEventTime = Time.time;
+                        OnWallHit?.Invoke();
+                    }
+                }
+                // Small nudge away from the wall to help resolve any residual overlap
+                velocity += wallNormal * WallSeparationForce * Time.fixedDeltaTime;
+            }
+
             velocity.y = rb.linearVelocity.y;
             rb.linearVelocity = velocity;
         }
@@ -249,6 +369,16 @@ namespace M2.Player
             yield return new WaitForSeconds(duration);
             isKnockedBack = false;
             knockbackRoutine = null;
+        }
+
+        // Lighter alternative to ApplyKnockback: a "통통 튀는" bounce that shoves the car
+        // outward but keeps the player in full control the whole time (the impulse is added
+        // on top of throttle in ApplyThrottle and decays over a few frames). Used by the ghast
+        // fireball, which previously froze the car with ApplyKnockback — reported as "먹통".
+        public void ApplyBounce(Vector3 impulse)
+        {
+            impulse.y = 0f;
+            bounceVelocity = impulse;
         }
 
         // --- Item effect hooks (M2.Items acts on the vehicle through these) ---

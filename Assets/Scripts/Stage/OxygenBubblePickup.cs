@@ -9,7 +9,7 @@ namespace M2.Stage
         [Tooltip("Fraction of the gauge's max value recovered on pickup. CLAUDE.md: 숨방울로 30% 회복.")]
         public float recoverFraction = 0.3f;
 
-        void Reset()
+        void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }

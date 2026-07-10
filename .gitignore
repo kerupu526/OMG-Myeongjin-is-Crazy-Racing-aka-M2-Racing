@@ -76,3 +76,10 @@ build.log
 playtest.log
 playtest_results.xml
 /TestScreenshots/
+
+# Vendored Kenney asset packs (CC0, freely re-downloadable from kenney.nl) — too large/noisy to
+# version wholesale (multiple unused format exports, docs, donate links per pack). Only the
+# specific files actually referenced by code are copied into Assets/Resources/KenneyProps
+# instead, which IS tracked. Must come after the meta-file un-ignore rule above to win.
+/Assets/Art/
+/Assets/Art.meta

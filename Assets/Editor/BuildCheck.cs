@@ -25,19 +25,39 @@ public static class BuildCheck
     }
 
     /// <summary>
+    /// TestTrackBuilder.BuildAndSaveBikiniCityScene()을 헤드리스로 실행해서
+    /// Assets/Scenes/Stage_BikiniCity.unity를 실제로 생성/갱신하는 진입점.
+    /// -executeMethod BuildCheck.BuildBikiniCityScene 로 호출.
+    /// SceneSmokeTest는 이 메서드가 최소 1회 성공한 뒤에야 의미가 있음(그 전엔 씬 파일 자체가 없음).
+    /// </summary>
+    public static void BuildBikiniCityScene()
+    {
+        Debug.Log("=== M2_SCENE_BUILD_START ===");
+        try
+        {
+            M2.Editor.TestTrackBuilder.BuildAndSaveBikiniCityScene();
+            Debug.Log("=== M2_SCENE_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_SCENE_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    /// <summary>
     /// 씬이 실제로 로드되고 주요 오브젝트(GameManager 등)가 존재하는지까지 확인하는 확장판.
     /// 필요해지면 이 메서드를 -executeMethod로 대신 호출하면 됨.
     ///
-    /// NOTE: SampleScene.unity에 GameManager가 저장되어 있어야 통과합니다.
-    /// Unity 에디터에서 M2/Build Test Track Scene 실행 후 씬을 저장하세요.
-    /// TODO: Stage_BikiniCity 정식 씬이 만들어지면 경로를 교체할 것.
+    /// NOTE: Stage_BikiniCity.unity에 GameManager가 저장되어 있어야 통과합니다.
+    /// 씬이 아직 없다면 먼저 -executeMethod BuildCheck.BuildBikiniCityScene 을 실행할 것.
     /// </summary>
     public static void SceneSmokeTest()
     {
         Debug.Log("=== M2_SMOKE_TEST_START ===");
 
-        // TODO: Stage_BikiniCity 정식 씬이 생기면 아래 경로를 교체
-        var scenePath = "Assets/Scenes/SampleScene.unity";
+        var scenePath = "Assets/Scenes/Stage_BikiniCity.unity";
         UnityEditor.SceneManagement.EditorSceneManager.OpenScene(scenePath);
 
         var gm = Object.FindFirstObjectByType<M2.Core.GameManager>();
