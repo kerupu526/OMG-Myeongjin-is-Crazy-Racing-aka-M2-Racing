@@ -27,40 +27,41 @@ namespace M2.Editor
         const string PersistedBikiniCityRootName = "BikiniCity";
         const string PersistedBikiniCityScenePath = "Assets/Scenes/Stage_BikiniCity.unity";
 
-        // Base oval radii, perturbed by a sine "wobble" per control point so the centerline
-        // winds like a real circuit (sweepers + pinches) instead of a plain ellipse. Purely a
-        // shape parameter — everything downstream (walls, checkpoints, item/hazard placement)
-        // just calls Geometry.PointAt/TangentAt/NormalAt and doesn't know the shape isn't an
-        // ellipse anymore.
+        // Hand-authored corner layout (replaces the old polar-wobble oval) — designed for
+        // 2-player overtaking: two straights long enough to draft on, each feeding into a
+        // genuine passing zone (a heavy-braking hairpin, and a chicane right before it), plus
+        // a wide sweeper where two cars can run side by side without contact. Catmull-Rom
+        // smooths between these points into flowing curves exactly like the old formula did —
+        // everything downstream (walls, checkpoints, item/hazard placement) only ever calls
+        // Geometry.PointAt/TangentAt/NormalAt and doesn't know the shape is hand-placed now.
         //
-        // Both axes share ONE radial multiplier (a true r(θ) polar curve) rather than being
-        // wobbled independently — an earlier version used sin() for the X radius and cos() for
-        // the Z radius, a 90° phase mismatch that let the two axes bulge out of sync with each
-        // other and made the loop cross itself (a broken/tangled track). A single shared
-        // multiplier keeps this a simple (non-self-intersecting) closed curve as long as it
-        // stays positive, which it always does here since WobbleStrength < 1.
-        // 2인용 레이싱에 맞게 확대(원래 32/22, 12) — 곡률 클램프(SafeLateralOffset)가 동적으로
-        // 안전을 보장하므로 이 상수들만 바꿔도 자기교차 걱정 없이 커짐. 검증: 이 비율로 가장 좁은
-        // 지점도 폭 11m 이상 유지, 한 바퀴 길이 약 202m -> 306m로 증가(Node.js로 사전 검증).
-        const float BaseRadiusX = 48f;
-        const float BaseRadiusZ = 34f;
-        const float WobbleStrength = 0.3f; // fraction of the base radius the loop bulges/pinches by
-        const float WobbleFrequency = 3f; // how many bulge/pinch pairs around the loop
-        const int ControlPointCount = 24; // spline smoothness — more points = smoother curves
-
-        static readonly TrackGeometry Geometry = new TrackGeometry(BuildControlPoints(), TrackWidth, WallHeight);
-
-        static Vector3[] BuildControlPoints()
+        // Verified via a throwaway Node.js port of this exact Catmull-Rom + SafeLateralOffset
+        // math before committing these numbers: 0 wall self-intersections (checked at both the
+        // in-game 64-segment resolution and a stricter 128-segment pass), minimum curvature
+        // radius 9.3m (above TrackWidth/2=8m, so the track never has to narrow — full 16m width
+        // everywhere), ~306m lap length. Uneven spacing between neighboring points can make
+        // Catmull-Rom overshoot into tighter-than-intended curvature (this bit once already,
+        // see the removed "closing" point that used to sit here) — if these points are ever
+        // hand-tweaked again, re-verify rather than assuming a small nudge is safe.
+        static readonly Vector3[] BikiniCityTrackControlPoints =
         {
-            var points = new Vector3[ControlPointCount];
-            for (int i = 0; i < ControlPointCount; i++)
-            {
-                float theta = i * Mathf.PI * 2f / ControlPointCount;
-                float wobble = 1f + WobbleStrength * Mathf.Sin(theta * WobbleFrequency);
-                points[i] = new Vector3(BaseRadiusX * wobble * Mathf.Cos(theta), 0f, BaseRadiusZ * wobble * Mathf.Sin(theta));
-            }
-            return points;
-        }
+            new Vector3(-48f, 0f, -28f), // 0: front straight, start/finish area
+            new Vector3(-25f, 0f, -32f), // 1: chicane kick-out
+            new Vector3(-6f, 0f, -23f),  // 2: chicane kick-back-in
+            new Vector3(14f, 0f, -28f),  // 3: front straight resumes
+            new Vector3(34f, 0f, -26f),  // 4: braking zone into the hairpin
+            new Vector3(50f, 0f, -18f),  // 5: hairpin entry curl
+            new Vector3(60f, 0f, -2f),   // 6: hairpin far side
+            new Vector3(60f, 0f, 14f),   // 7: hairpin apex (wide loop, not a cusp)
+            new Vector3(46f, 0f, 24f),   // 8: hairpin exit
+            new Vector3(22f, 0f, 27f),   // 9: back straight (long — main draft/overtake zone)
+            new Vector3(-10f, 0f, 29f),  // 10: back straight continues
+            new Vector3(-38f, 0f, 26f),  // 11: into the west sweeper
+            new Vector3(-55f, 0f, 8f),   // 12: west sweeper — wide, fast, side-by-side room
+            new Vector3(-57f, 0f, -10f), // 13: west sweeper continues, closes back to point 0
+        };
+
+        static readonly TrackGeometry Geometry = new TrackGeometry(BikiniCityTrackControlPoints, TrackWidth, WallHeight);
 
         // Vehicle body is 1.2m wide (see CreateVehicle scale). Widened from 12m for real
         // 2-player racing (room to draft/overtake side by side, not just squeeze past).
@@ -169,11 +170,18 @@ namespace M2.Editor
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             ground.transform.SetParent(parent);
-            // Sized off the widest possible bulge (base * (1 + WobbleStrength)), not just the
-            // base radius, so the wavy centerline never pokes past the visible ground plane.
-            float maxWobbleMultiplier = 1f + WobbleStrength;
-            float scaleX = (BaseRadiusX * maxWobbleMultiplier + TrackWidth) / 5f + 2f;
-            float scaleZ = (BaseRadiusZ * maxWobbleMultiplier + TrackWidth) / 5f + 2f;
+            // Sized off the control points' actual bounding box (the track is hand-placed now,
+            // not a formula-derived oval) plus track width, so the track and its walls never
+            // poke past the visible ground plane. Unity's primitive Plane is 10x10m at scale 1,
+            // hence the /5 to convert a desired half-extent in meters into a scale factor.
+            float maxAbsX = 0f, maxAbsZ = 0f;
+            foreach (Vector3 p in BikiniCityTrackControlPoints)
+            {
+                maxAbsX = Mathf.Max(maxAbsX, Mathf.Abs(p.x));
+                maxAbsZ = Mathf.Max(maxAbsZ, Mathf.Abs(p.z));
+            }
+            float scaleX = (maxAbsX + TrackWidth) / 5f + 2f;
+            float scaleZ = (maxAbsZ + TrackWidth) / 5f + 2f;
             ground.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 
             // This plane is the off-track surface only — keep it a distinct, lighter

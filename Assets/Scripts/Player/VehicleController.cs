@@ -15,10 +15,12 @@ namespace M2.Player
         public float reverseSpeed = 8f;
         [Tooltip("Passive coast-down when no throttle/reverse input is held.")]
         public float passiveDeceleration = 6f;
-        [Tooltip("Deceleration applied while the brake key (Shift) is held.")]
+        [Tooltip("Deceleration used to kill forward momentum quickly when the player presses reverse (Down/S) while still moving forward.")]
         public float brakeDeceleration = 25f;
         [Tooltip("Extra currentSpeed bled off per second while actively scraping a wall (not just resting against it) — without this, the wall-slide fix removes the into-wall velocity component but leaves speed untouched, so grinding along a wall costs nothing and feels frictionless/on-rails.")]
         public float wallScrapeDeceleration = 10f;
+        [Tooltip("One-shot outward bounce applied on wall impact (same cooldown/timing as OnWallHit, and same 'bounces but never loses control' mechanism as ApplyBounce/bounceDecay used for the ghast fireball) — gives scraping a wall a physical bump instead of just slowing down.")]
+        public float wallBounceStrength = 3f;
 
         [Header("Steering")]
         public float turnSpeed = 140f;
@@ -32,6 +34,20 @@ namespace M2.Player
 
         [Tooltip("Minimum time between OnWallHit events while continuously scraping a wall, so one multi-second slide doesn't fire dozens of hits in a row.")]
         public float wallHitEventCooldown = 1f;
+
+        [Header("Drift (Shift)")]
+        [Tooltip("Hold Shift while steering to drift — the car's facing turns faster than its actual travel direction (moveDirection lags behind via driftSlipRecoverySpeed), so it slides through the corner instead of gripping. Release Shift for a short speed boost (마리오카트식 미니터보), scaled by how long you held the drift.")]
+        public float driftTurnMultiplier = 1.6f;
+        [Tooltip("How fast the car's actual travel direction catches up to its facing while drifting, in degrees/sec. Lower = more slide.")]
+        public float driftSlipRecoverySpeed = 200f;
+        [Tooltip("Minimum hold time before releasing grants any boost — stops accidental taps from giving a free boost.")]
+        public float minDriftHoldTimeForBoost = 0.3f;
+        [Tooltip("Hold time (seconds) to reach the maximum boost bonus — charge scales linearly up to this.")]
+        public float driftBoostChargeTime = 1.5f;
+        [Tooltip("Speed bonus granted at max charge (same units as maxSpeed).")]
+        public float maxDriftBoostSpeed = 8f;
+        [Tooltip("How long the release boost lasts.")]
+        public float driftBoostDuration = 1f;
 
         public event Action OnAccelItemUsed;
         public event Action OnAttackDefenseItemUsed;
@@ -53,17 +69,26 @@ namespace M2.Player
         Rigidbody rb;
         InputAction steerAction;
         InputAction throttleAction;
-        InputAction brakeAction;
+        InputAction driftAction;
         InputAction useAccelItemAction;
         InputAction useAttackDefenseItemAction;
 
         float currentSpeed;
         float itemSpeedBonus;
+        float driftSpeedBonus;
         bool isStunned;
         bool inputLocked;
         bool steeringInverted;
         bool isKnockedBack;
         bool hasShield;
+        bool isDrifting;
+        float driftHoldTime;
+        // Actual travel direction, as distinct from transform.forward (facing). Snaps to
+        // forward every frame while not drifting (identical to the old always-aligned
+        // behavior) — only lags behind facing while isDrifting, which is what produces the
+        // sideways slide. Kept unit-length via RotateTowards with maxMagnitudeDelta=0.
+        Vector3 moveDirection = Vector3.forward;
+        Coroutine driftBoostRoutine;
         // A short outward shove that rides ON TOP of normal throttle/steering (added to the
         // driving velocity, then decayed) rather than seizing control the way ApplyKnockback
         // does — this is the "통통 튀는" bounce for the ghast fireball, so the player never
@@ -106,17 +131,21 @@ namespace M2.Player
                 .With("Positive", "<Keyboard>/upArrow")
                 .With("Positive", "<Keyboard>/w");
 
-            brakeAction = new InputAction("Brake", InputActionType.Button, "<Keyboard>/leftShift");
+            driftAction = new InputAction("Drift", InputActionType.Button, "<Keyboard>/leftShift");
 
             useAccelItemAction = new InputAction("UseAccelItem", InputActionType.Button, "<Keyboard>/leftCtrl");
             useAttackDefenseItemAction = new InputAction("UseAttackDefenseItem", InputActionType.Button, "<Keyboard>/e");
+
+            Vector3 initialForward = transform.forward;
+            initialForward.y = 0f;
+            moveDirection = initialForward.normalized;
         }
 
         void OnEnable()
         {
             steerAction.Enable();
             throttleAction.Enable();
-            brakeAction.Enable();
+            driftAction.Enable();
             useAccelItemAction.Enable();
             useAttackDefenseItemAction.Enable();
 
@@ -131,7 +160,7 @@ namespace M2.Player
 
             steerAction.Disable();
             throttleAction.Disable();
-            brakeAction.Disable();
+            driftAction.Disable();
             useAccelItemAction.Disable();
             useAttackDefenseItemAction.Disable();
         }
@@ -173,10 +202,31 @@ namespace M2.Player
             {
                 float throttleInput = throttleAction.ReadValue<float>();
                 float steerInput = steerAction.ReadValue<float>();
-                bool isBraking = brakeAction.IsPressed();
+                bool driftHeld = driftAction.IsPressed();
 
-                ApplyThrottle(throttleInput, isBraking, touchingWall, wallNormal);
-                ApplySteering(steeringInverted ? -steerInput : steerInput);
+                if (driftHeld && !isDrifting)
+                {
+                    isDrifting = true;
+                    driftHoldTime = 0f;
+                }
+                else if (!driftHeld && isDrifting)
+                {
+                    isDrifting = false;
+                    if (driftHoldTime >= minDriftHoldTimeForBoost)
+                    {
+                        float chargeFraction = Mathf.Clamp01(driftHoldTime / driftBoostChargeTime);
+                        ApplyDriftBoost(chargeFraction * maxDriftBoostSpeed, driftBoostDuration);
+                    }
+                    driftHoldTime = 0f;
+                }
+
+                if (isDrifting)
+                {
+                    driftHoldTime += Time.fixedDeltaTime;
+                }
+
+                ApplyThrottle(throttleInput, isDrifting, touchingWall, wallNormal);
+                ApplySteering(steeringInverted ? -steerInput : steerInput, isDrifting);
             }
 
             CurrentAcceleration = (currentSpeed - speedBeforeUpdate) / Time.fixedDeltaTime;
@@ -224,15 +274,11 @@ namespace M2.Player
             wallContactActive = true;
         }
 
-        void ApplyThrottle(float throttleInput, bool isBraking, bool touchingWall, Vector3 wallNormal)
+        void ApplyThrottle(float throttleInput, bool isDrifting, bool touchingWall, Vector3 wallNormal)
         {
-            float effectiveMaxSpeed = maxSpeed + itemSpeedBonus;
+            float effectiveMaxSpeed = maxSpeed + itemSpeedBonus + driftSpeedBonus;
 
-            if (isBraking)
-            {
-                currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, brakeDeceleration * Time.fixedDeltaTime);
-            }
-            else if (Mathf.Approximately(throttleInput, 0f))
+            if (Mathf.Approximately(throttleInput, 0f))
             {
                 currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, passiveDeceleration * Time.fixedDeltaTime);
             }
@@ -254,9 +300,19 @@ namespace M2.Player
 
             Vector3 forward = transform.forward;
             forward.y = 0f;
+            forward.Normalize();
+
+            // While drifting, moveDirection lags behind the (faster-turning, see
+            // ApplySteering) facing instead of snapping to it — that gap between where the
+            // car points and where it's actually travelling is the slide. Not drifting means
+            // instant snap, identical to the pre-drift always-aligned behavior.
+            moveDirection = isDrifting
+                ? Vector3.RotateTowards(moveDirection, forward, driftSlipRecoverySpeed * Mathf.Deg2Rad * Time.fixedDeltaTime, 0f)
+                : forward;
+
             // bounceVelocity rides on top of throttle control (decayed in FixedUpdate) so a
             // fireball hit nudges the car outward without ever taking control away.
-            Vector3 velocity = forward.normalized * currentSpeed + bounceVelocity;
+            Vector3 velocity = moveDirection * currentSpeed + bounceVelocity;
 
             // --- Wall-slide: prevent the script-set velocity from pushing into the wall ---
             // Without this, we overwrite rb.linearVelocity every frame with a vector that
@@ -294,6 +350,11 @@ namespace M2.Player
                     {
                         lastWallHitEventTime = Time.time;
                         OnWallHit?.Invoke();
+                        // Same cooldown as the event above so this reads as one discrete bump
+                        // per hit rather than a continuous shove while pressed into the wall —
+                        // ApplyBounce/bounceDecay is the same never-loses-control mechanism
+                        // GhastFireball uses, just much gentler here.
+                        ApplyBounce(wallNormal * wallBounceStrength);
                     }
                 }
                 // Small nudge away from the wall to help resolve any residual overlap
@@ -304,17 +365,34 @@ namespace M2.Player
             rb.linearVelocity = velocity;
         }
 
-        void ApplySteering(float steerInput)
+        void ApplySteering(float steerInput, bool isDrifting)
         {
             if (Mathf.Abs(currentSpeed) < minSpeedToSteer) return;
 
             float speedFactor = Mathf.Abs(currentSpeed) / Mathf.Max(maxSpeed, 0.0001f);
             float turnFactor = Mathf.Lerp(1f, turnSpeedAtMaxVelocity, speedFactor);
+            if (isDrifting) turnFactor *= driftTurnMultiplier;
 
             float speedSign = currentSpeed < 0f ? -1f : 1f;
             float yaw = steerInput * turnSpeed * turnFactor * speedSign * Time.fixedDeltaTime;
             Quaternion deltaRotation = Quaternion.Euler(0f, yaw, 0f);
             rb.MoveRotation(rb.rotation * deltaRotation);
+        }
+
+        // --- Drift boost (마리오카트식 미니터보) ---
+
+        void ApplyDriftBoost(float bonusSpeed, float duration)
+        {
+            if (driftBoostRoutine != null) StopCoroutine(driftBoostRoutine);
+            driftBoostRoutine = StartCoroutine(DriftBoostRoutine(bonusSpeed, duration));
+        }
+
+        IEnumerator DriftBoostRoutine(float bonusSpeed, float duration)
+        {
+            driftSpeedBonus = bonusSpeed;
+            yield return new WaitForSeconds(duration);
+            driftSpeedBonus = 0f;
+            driftBoostRoutine = null;
         }
 
         // --- Input lock (briefing / countdown / race-end) ---
