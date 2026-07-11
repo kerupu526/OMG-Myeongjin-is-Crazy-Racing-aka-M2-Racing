@@ -21,8 +21,9 @@ namespace M2.Stage
         [Tooltip("용암 안에 머무는 동안(피격 여부와 무관하게) 초당 추가로 오르는 체온 — 플레이스홀더 " +
             "수치. 원래는 '피격 시에만' 콤보 보너스가 붙는 구조였는데, 플레이테스트에서 용암에 " +
             "그냥 들어가만 있어도 아무 반응이 없다는 피드백(\"용암존 들어갔을 때 온도 상승을 안함\")이 " +
-            "나와서 추가 — StageGaugeSystem의 기본 패시브 상승(1/초)과는 별개로 이 값이 더해짐.")]
-        public float lavaZonePassiveHeatPerSecond = 8f;
+            "나와서 추가 — StageGaugeSystem의 기본 패시브 상승(1/초)과는 별개로 이 값이 더해짐. " +
+            "8→10으로 상향(사용자: \"초당 10도 정도로 높이고\").")]
+        public float lavaZonePassiveHeatPerSecond = 10f;
 
         [Header("화상 경고 횟수 별점 기준 (이하일 때 별 획득, 오름차순)")]
         public int warningThreshold1Star = 5;
@@ -68,6 +69,7 @@ namespace M2.Stage
             if (temperatureGauge != null)
             {
                 temperatureGauge.OnBurnWarning += HandleBurnWarning;
+                temperatureGauge.OnBurnGameOver += HandleBurnGameOver;
             }
         }
 
@@ -80,10 +82,22 @@ namespace M2.Stage
             if (temperatureGauge != null)
             {
                 temperatureGauge.OnBurnWarning -= HandleBurnWarning;
+                temperatureGauge.OnBurnGameOver -= HandleBurnGameOver;
             }
         }
 
         void HandleBurnWarning() => BurnWarningCount++;
+
+        // Before this, a burn game over only showed NetherFortressStageUI's small overlay —
+        // GameManager itself never learned the race was over, so the real result screen
+        // (순위/통계, RaceFlowUI) never appeared and the race timer kept running underneath.
+        // Playtester feedback: "100도 됐을 때 게임오버 하면 나오는 게임오버 화면이 아직 안
+        // 만들어졌어. 패배한 걸로 치고 일단 무승부 처리를 내자." — real per-racer win/loss
+        // doesn't exist yet (CLAUDE.md 우선순위 5), so this is a draw for now.
+        void HandleBurnGameOver()
+        {
+            if (gameManager != null) gameManager.EndRaceAsDraw("화상");
+        }
 
         void HandleHitByAttackItem()
         {

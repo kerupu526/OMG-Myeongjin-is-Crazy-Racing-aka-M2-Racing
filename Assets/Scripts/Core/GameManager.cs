@@ -43,7 +43,7 @@ namespace M2.Core
         public event Action<int> OnCountdownTick;   // 3, 2, 1
         public event Action OnRaceStarted;
         public event Action<LapTracker> OnRaceWon;
-        public event Action OnRaceDraw;
+        public event Action<string> OnRaceDraw; // reason shown on the result screen (e.g. "제한시간 초과", "화상")
 
         bool raceEnded;
         bool startRequested;
@@ -158,7 +158,7 @@ namespace M2.Core
             }
         }
 
-        void EndRace(LapTracker winner)
+        void EndRace(LapTracker winner, string drawReason = "제한시간 초과")
         {
             if (raceEnded) return;
             raceEnded = true;
@@ -180,8 +180,17 @@ namespace M2.Core
             }
             else
             {
-                OnRaceDraw?.Invoke();
+                OnRaceDraw?.Invoke(drawReason);
             }
+        }
+
+        // Lets a stage-specific instant-loss hazard (e.g. Nether Fortress's burn game over)
+        // end the race early. Real per-racer win/loss handling doesn't exist yet (CLAUDE.md
+        // 우선순위 5), so this is treated as a draw for now — playtester ask: "패배한 걸로 치고
+        // 일단 무승부 처리를 내자".
+        public void EndRaceAsDraw(string reason)
+        {
+            EndRace(null, reason);
         }
 
         // ---- Helpers ----

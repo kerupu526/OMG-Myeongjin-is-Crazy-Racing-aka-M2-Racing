@@ -96,13 +96,35 @@ namespace M2.Tests.PlayMode
         {
             gm.lap1TimeLimit = 0.2f; // short so the test doesn't wait long
             bool drawFired = false;
-            gm.OnRaceDraw += () => drawFired = true;
+            string reason = null;
+            gm.OnRaceDraw += r => { drawFired = true; reason = r; };
 
             yield return WaitForState(RaceState.Racing);
             yield return new WaitForSeconds(0.3f);
 
             Assert.IsTrue(drawFired, "Time limit expiring with nobody finishing should raise OnRaceDraw.");
+            Assert.AreEqual("제한시간 초과", reason, "A timeout draw should report the timeout reason.");
             Assert.AreEqual(RaceState.Finished, gm.CurrentState);
+        }
+
+        [UnityTest]
+        public IEnumerator EndRaceAsDraw_Lets_A_Stage_Hazard_End_The_Race_Early_With_A_Custom_Reason()
+        {
+            // Regression coverage for Nether Fortress's burn game over — before this, reaching
+            // max temperature only showed a small stage-specific overlay and GameManager never
+            // learned the race was over, so the real result screen never appeared and the race
+            // timer kept running underneath. Playtester ask: "패배한 걸로 치고 일단 무승부
+            // 처리를 내자".
+            string reason = null;
+            gm.OnRaceDraw += r => reason = r;
+
+            yield return WaitForState(RaceState.Racing);
+
+            gm.EndRaceAsDraw("화상");
+
+            Assert.AreEqual(RaceState.Finished, gm.CurrentState);
+            Assert.AreEqual("화상", reason, "EndRaceAsDraw should report the caller's custom reason, not the timeout default.");
+            Assert.AreEqual(0f, vehicle.CurrentSpeed, 0.01f, "Ending the race should lock vehicle input like any other race end.");
         }
 
         [UnityTest]

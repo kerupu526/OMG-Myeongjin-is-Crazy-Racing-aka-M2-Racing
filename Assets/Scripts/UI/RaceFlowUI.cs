@@ -158,13 +158,13 @@ namespace M2.UI
             return "";
         }
 
-        void HandleRaceDraw()
+        void HandleRaceDraw(string reason)
         {
             SetPanelActive(resultPanel, true);
             if (resultText == null) return;
 
             string stats = BuildStatsString();
-            resultText.text = $"무승부\n제한시간 초과\n\n{stats}";
+            resultText.text = $"무승부\n{reason}\n\n{stats}";
         }
 
         string BuildStatsString()
