@@ -187,6 +187,17 @@ public static class BuildCheck
             return;
         }
 
+        // NetworkManager는 반드시 씬 루트(부모 없음)여야 함 — DontDestroyOnLoad를 자기 자신에게
+        // 거는데 이건 루트 오브젝트에서만 동작함. 실제로 한 번 중첩시켜서 NGO의 "NetworkManager
+        // is nested under [X]" 검증 에러를 직접 겪은 뒤 추가한 회귀 검사(NetworkBootstrapSceneBuilder.cs 참고).
+        if (networkManager.transform.parent != null)
+        {
+            Debug.LogError($"M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: NetworkManager가 " +
+                $"'{networkManager.transform.parent.name}' 밑에 중첩돼있음 — 씬 루트여야 함");
+            EditorApplication.Exit(1);
+            return;
+        }
+
         if (networkManager.NetworkConfig.PlayerPrefab == null)
         {
             Debug.LogError("M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: NetworkConfig.PlayerPrefab이 비어있음");

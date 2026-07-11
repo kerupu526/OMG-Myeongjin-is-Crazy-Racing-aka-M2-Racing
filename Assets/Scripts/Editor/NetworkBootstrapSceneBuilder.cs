@@ -69,8 +69,13 @@ namespace M2.Editor
 
         static NetworkBootstrapUI CreateNetworkManagerAndUi(Transform parent)
         {
+            // NetworkManager must be a scene ROOT GameObject (no parent) — it calls
+            // DontDestroyOnLoad on itself, which Unity only allows for root objects. Nesting it
+            // under the "NetworkBootstrap" root (as an earlier version of this did) triggers
+            // NGO's own "NetworkManager is nested under [X]" validation error the moment you
+            // enter Play mode (playtester feedback: "NetworkManager is nested under
+            // NetworkBootstrap.이라는데?").
             GameObject nmObject = new GameObject("NetworkManager");
-            nmObject.transform.SetParent(parent);
 
             NetworkManager networkManager = nmObject.AddComponent<NetworkManager>();
             UnityTransport transport = nmObject.AddComponent<UnityTransport>();
