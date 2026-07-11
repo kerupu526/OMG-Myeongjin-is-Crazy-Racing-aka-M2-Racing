@@ -771,9 +771,11 @@ namespace M2.Editor
             statusHud.vehicleController = vehicle.GetComponent<VehicleController>();
             statusHud.label = statusText;
 
-            // Center-screen "반대 방향입니다!" flash — playtester feedback: driving backward
-            // past a checkpoint (long reverse, or turning around entirely) had no warning at
-            // all, which felt broken compared to how racing games normally handle it.
+            // Center-screen "반대 방향입니다!" banner, shown for as long as
+            // VehicleController's wrong-way prevention is actively refusing movement —
+            // playtester feedback: driving backward past a checkpoint (or turning around
+            // entirely and driving forward) had no warning or resistance at all, which felt
+            // broken compared to how racing games normally handle it.
             GameObject wrongWayTextObject = new GameObject("WrongWayLabel");
             wrongWayTextObject.transform.SetParent(canvasObject.transform);
             Text wrongWayText = wrongWayTextObject.AddComponent<Text>();
@@ -793,7 +795,6 @@ namespace M2.Editor
             WrongWayWarning wrongWayWarning = canvasObject.AddComponent<WrongWayWarning>();
             wrongWayWarning.label = wrongWayText;
             wrongWayWarning.vehicleController = vehicle.GetComponent<VehicleController>();
-            wrongWayWarning.Bind(vehicle.GetComponent<LapTracker>());
         }
 
         // ---- GameManager + RaceFlowUI + stage assembly ----

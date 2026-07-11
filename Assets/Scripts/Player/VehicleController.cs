@@ -59,13 +59,20 @@ namespace M2.Player
         // A checkpoint-crossing-based detector (LapTracker.OnWrongWayDetected) was tried first,
         // but checkpoints sit far apart on these tracks (as much as ~110m on AfricaTV) — a
         // normal short reverse or three-point turn never actually crosses one, so the warning
-        // never fired at all (playtester feedback: "배너도 전혀 안 뜨니까 고쳐"). This tracks
-        // actual reverse distance instead, independent of checkpoint spacing, and — per
-        // "역주행 방지 기능 만들어" — actually stops further backward progress once you're over
-        // budget, rather than only warning. Still lets a normal wall-recovery backup through
-        // (see CLAUDE.md's fix history) since that's well under this budget in practice.
-        [Tooltip("How far the vehicle can travel in reverse (meters) before further reverse input is refused. Recovers 1:1 while driving forward.")]
-        public float maxReverseDistance = 15f;
+        // never fired at all (playtester feedback: "배너도 전혀 안 뜨니까 고쳐"). A second pass
+        // tracked plain reverse distance (currentSpeed < 0) instead, which fixed that but missed
+        // the other half of the ask entirely: turning the car fully around and driving FORWARD
+        // the wrong way looks identical to normal forward driving from the vehicle's own
+        // reference frame (playtester feedback: "내가 뒤로 돌아서 전진 키를 누르는 건 안
+        // 먹혀서 의미가 없는데"). This version instead measures actual world movement against
+        // the direction to LapTracker.NextCheckpointPosition — accumulates while driving (either
+        // pedal) away from it, recovers while driving toward it — so it catches both forms of
+        // wrong-way driving the same way. FixedUpdate then blocks whichever pedal (forward or
+        // reverse) is the one currently driving away from the checkpoint, determined by which
+        // way the car is actually facing. A normal wall-recovery backup (see CLAUDE.md's fix
+        // history) stays well under this budget in practice.
+        [Tooltip("How far the vehicle can travel away from its next checkpoint (meters) before further movement in that direction is refused. Recovers 1:1 while driving toward it.")]
+        public float maxWrongWayDistance = 15f;
 
         public event Action OnAccelItemUsed;
         public event Action OnAttackDefenseItemUsed;
@@ -94,9 +101,10 @@ namespace M2.Player
         public bool HasShield => hasShield;
         public bool HasSpeedBoost => itemSpeedBonus > 0f;
         public bool HasDriftBoost => driftSpeedBonus > 0f;
-        public bool IsReverseBlocked => usedReverseDistance >= maxReverseDistance;
+        public bool IsWrongWayBlocked => usedWrongWayDistance >= maxWrongWayDistance;
 
         Rigidbody rb;
+        M2.Core.LapTracker lapTracker;
         InputAction steerAction;
         InputAction throttleAction;
         InputAction driftAction;
@@ -106,10 +114,10 @@ namespace M2.Player
         float currentSpeed;
         float itemSpeedBonus;
         float driftSpeedBonus;
-        // Cumulative distance travelled in reverse since the budget last fully recovered —
-        // grows while currentSpeed < 0, drains 1:1 while currentSpeed > 0. See
-        // maxReverseDistance / IsReverseBlocked above.
-        float usedReverseDistance;
+        // Cumulative distance travelled away from LapTracker.NextCheckpointPosition since the
+        // budget last fully recovered — grows while actual movement points away from it, drains
+        // 1:1 while it points toward it. See maxWrongWayDistance / IsWrongWayBlocked above.
+        float usedWrongWayDistance;
         bool isStunned;
         bool inputLocked;
         bool steeringInverted;
@@ -150,6 +158,10 @@ namespace M2.Player
         {
             rb = GetComponent<Rigidbody>();
             rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            // Optional on purpose — PlayMode tests that build a bare VehicleController without
+            // a LapTracker should still run; wrong-way tracking just no-ops without one (see
+            // the null checks in FixedUpdate/ApplyThrottle).
+            lapTracker = GetComponent<M2.Core.LapTracker>();
 
             steerAction = new InputAction("Steer", InputActionType.Value, expectedControlType: "Axis");
             steerAction.AddCompositeBinding("1DAxis")
@@ -206,16 +218,32 @@ namespace M2.Player
         {
             float speedBeforeUpdate = currentSpeed;
 
-            // Reverse-distance budget: uses last frame's currentSpeed (the actual distance
-            // covered since the previous FixedUpdate), so this frame's ApplyThrottle already
-            // sees an up-to-date IsReverseBlocked when deciding whether to allow more reverse.
-            if (speedBeforeUpdate < 0f)
+            // Wrong-way budget: measures actual world movement against the direction to the
+            // next checkpoint, using last frame's currentSpeed/moveDirection (the real distance
+            // covered since the previous FixedUpdate) — so this frame's ApplyThrottle already
+            // sees an up-to-date IsWrongWayBlocked. carFacesTowardCheckpoint additionally tells
+            // ApplyThrottle WHICH pedal (forward or reverse) is the one currently driving away,
+            // since that depends on facing, not on which key is held.
+            bool carFacesTowardCheckpoint = true;
+            if (lapTracker != null)
             {
-                usedReverseDistance += -speedBeforeUpdate * Time.fixedDeltaTime;
-            }
-            else if (speedBeforeUpdate > 0f)
-            {
-                usedReverseDistance = Mathf.Max(0f, usedReverseDistance - speedBeforeUpdate * Time.fixedDeltaTime);
+                Vector3 towardCheckpoint = lapTracker.NextCheckpointPosition - transform.position;
+                towardCheckpoint.y = 0f;
+                if (towardCheckpoint.sqrMagnitude > 0.01f)
+                {
+                    Vector3 towardCheckpointDir = towardCheckpoint.normalized;
+                    carFacesTowardCheckpoint = Vector3.Dot(moveDirection, towardCheckpointDir) >= 0f;
+
+                    if (Mathf.Abs(speedBeforeUpdate) > 0.01f)
+                    {
+                        Vector3 actualVelocityDir = moveDirection * Mathf.Sign(speedBeforeUpdate);
+                        float progress = Vector3.Dot(actualVelocityDir, towardCheckpointDir);
+                        float distanceThisFrame = Mathf.Abs(speedBeforeUpdate) * Time.fixedDeltaTime;
+                        usedWrongWayDistance = progress < 0f
+                            ? usedWrongWayDistance + distanceThisFrame
+                            : Mathf.Max(0f, usedWrongWayDistance - distanceThisFrame);
+                    }
+                }
             }
 
             // Snapshot and reset wall-contact state for this physics step. OnCollisionStay
@@ -271,7 +299,7 @@ namespace M2.Player
                     driftHoldTime += Time.fixedDeltaTime;
                 }
 
-                ApplyThrottle(throttleInput, isDrifting, touchingWall, wallNormal);
+                ApplyThrottle(throttleInput, isDrifting, touchingWall, wallNormal, carFacesTowardCheckpoint);
                 ApplySteering(steeringInverted ? -steerInput : steerInput, isDrifting);
             }
 
@@ -320,7 +348,7 @@ namespace M2.Player
             wallContactActive = true;
         }
 
-        void ApplyThrottle(float throttleInput, bool isDrifting, bool touchingWall, Vector3 wallNormal)
+        void ApplyThrottle(float throttleInput, bool isDrifting, bool touchingWall, Vector3 wallNormal, bool carFacesTowardCheckpoint)
         {
             float effectiveMaxSpeed = maxSpeed + itemSpeedBonus + driftSpeedBonus;
 
@@ -331,6 +359,10 @@ namespace M2.Player
             else if (throttleInput > 0f)
             {
                 float target = throttleInput * effectiveMaxSpeed;
+                // Wrong-way prevention: the car is facing AWAY from the checkpoint, so
+                // accelerating forward would deepen the wrong-way distance — refuse once over
+                // budget (reversing from here actually helps, so that pedal stays untouched).
+                if (IsWrongWayBlocked && !carFacesTowardCheckpoint) target = 0f;
                 float rate = currentSpeed < target ? acceleration : deceleration;
                 currentSpeed = Mathf.MoveTowards(currentSpeed, target, rate * Time.fixedDeltaTime);
             }
@@ -341,12 +373,11 @@ namespace M2.Player
                 // down at the normal accel rate; once past zero, ramp into reverse normally.
                 float target = throttleInput * reverseSpeed;
                 float rate;
-                if (IsReverseBlocked)
+                // Wrong-way prevention: the car is facing TOWARD the checkpoint here, so
+                // reversing is what would deepen the wrong-way distance — refuse once over
+                // budget, same pull-to-a-stop-at-brake-rate behavior as the forward case.
+                if (IsWrongWayBlocked && carFacesTowardCheckpoint)
                 {
-                    // Wrong-way prevention: refuse to go any further backward once over
-                    // budget — pull straight to a stop at the brake rate instead of the slow
-                    // accel ramp, so hitting the limit reads as a clear "no" rather than the
-                    // car just sluggishly refusing to speed up.
                     target = 0f;
                     rate = brakeDeceleration;
                 }
