@@ -55,6 +55,18 @@ namespace M2.Player
         [Tooltip("How long the release boost lasts.")]
         public float driftBoostDuration = 1f;
 
+        [Header("Wrong-Way Prevention")]
+        // A checkpoint-crossing-based detector (LapTracker.OnWrongWayDetected) was tried first,
+        // but checkpoints sit far apart on these tracks (as much as ~110m on AfricaTV) — a
+        // normal short reverse or three-point turn never actually crosses one, so the warning
+        // never fired at all (playtester feedback: "배너도 전혀 안 뜨니까 고쳐"). This tracks
+        // actual reverse distance instead, independent of checkpoint spacing, and — per
+        // "역주행 방지 기능 만들어" — actually stops further backward progress once you're over
+        // budget, rather than only warning. Still lets a normal wall-recovery backup through
+        // (see CLAUDE.md's fix history) since that's well under this budget in practice.
+        [Tooltip("How far the vehicle can travel in reverse (meters) before further reverse input is refused. Recovers 1:1 while driving forward.")]
+        public float maxReverseDistance = 15f;
+
         public event Action OnAccelItemUsed;
         public event Action OnAttackDefenseItemUsed;
         // Fires when a hit actually lands (not on a blocked/shielded hit) — stage systems
@@ -82,6 +94,7 @@ namespace M2.Player
         public bool HasShield => hasShield;
         public bool HasSpeedBoost => itemSpeedBonus > 0f;
         public bool HasDriftBoost => driftSpeedBonus > 0f;
+        public bool IsReverseBlocked => usedReverseDistance >= maxReverseDistance;
 
         Rigidbody rb;
         InputAction steerAction;
@@ -93,6 +106,10 @@ namespace M2.Player
         float currentSpeed;
         float itemSpeedBonus;
         float driftSpeedBonus;
+        // Cumulative distance travelled in reverse since the budget last fully recovered —
+        // grows while currentSpeed < 0, drains 1:1 while currentSpeed > 0. See
+        // maxReverseDistance / IsReverseBlocked above.
+        float usedReverseDistance;
         bool isStunned;
         bool inputLocked;
         bool steeringInverted;
@@ -188,6 +205,18 @@ namespace M2.Player
         void FixedUpdate()
         {
             float speedBeforeUpdate = currentSpeed;
+
+            // Reverse-distance budget: uses last frame's currentSpeed (the actual distance
+            // covered since the previous FixedUpdate), so this frame's ApplyThrottle already
+            // sees an up-to-date IsReverseBlocked when deciding whether to allow more reverse.
+            if (speedBeforeUpdate < 0f)
+            {
+                usedReverseDistance += -speedBeforeUpdate * Time.fixedDeltaTime;
+            }
+            else if (speedBeforeUpdate > 0f)
+            {
+                usedReverseDistance = Mathf.Max(0f, usedReverseDistance - speedBeforeUpdate * Time.fixedDeltaTime);
+            }
 
             // Snapshot and reset wall-contact state for this physics step. OnCollisionStay
             // fires BEFORE FixedUpdate in Unity's execution order, so by now wallContactNormal
@@ -311,7 +340,20 @@ namespace M2.Player
                 // at the brake rate first so reverse feels immediate rather than crawling
                 // down at the normal accel rate; once past zero, ramp into reverse normally.
                 float target = throttleInput * reverseSpeed;
-                float rate = currentSpeed > 0f ? brakeDeceleration : acceleration;
+                float rate;
+                if (IsReverseBlocked)
+                {
+                    // Wrong-way prevention: refuse to go any further backward once over
+                    // budget — pull straight to a stop at the brake rate instead of the slow
+                    // accel ramp, so hitting the limit reads as a clear "no" rather than the
+                    // car just sluggishly refusing to speed up.
+                    target = 0f;
+                    rate = brakeDeceleration;
+                }
+                else
+                {
+                    rate = currentSpeed > 0f ? brakeDeceleration : acceleration;
+                }
                 currentSpeed = Mathf.MoveTowards(currentSpeed, target, rate * Time.fixedDeltaTime);
             }
 

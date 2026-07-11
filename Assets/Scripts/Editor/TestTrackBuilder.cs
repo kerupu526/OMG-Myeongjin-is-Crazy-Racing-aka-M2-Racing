@@ -792,6 +792,7 @@ namespace M2.Editor
 
             WrongWayWarning wrongWayWarning = canvasObject.AddComponent<WrongWayWarning>();
             wrongWayWarning.label = wrongWayText;
+            wrongWayWarning.vehicleController = vehicle.GetComponent<VehicleController>();
             wrongWayWarning.Bind(vehicle.GetComponent<LapTracker>());
         }
 
