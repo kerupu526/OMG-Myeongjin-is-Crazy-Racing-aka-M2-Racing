@@ -49,6 +49,9 @@ namespace M2.Tests.PlayMode
             stageState.lavaZone = lavaZone;
             stageState.normalHitTempBonus = 3f;
             stageState.lavaHitTempBonus = 7f;
+            // Zeroed here so the hit-bonus tests below measure only the discrete hit event —
+            // the dedicated passive-heating test further down opts back into a nonzero rate.
+            stageState.lavaZonePassiveHeatPerSecond = 0f;
         }
 
         public override void TearDown()
@@ -116,6 +119,24 @@ namespace M2.Tests.PlayMode
             vehicle.ApplyHitStun(0.1f);
             yield return null;
             Assert.AreEqual(7f, gauge.CurrentValue, 0.01f, "A hit while near lava should apply the larger lavaHitTempBonus.");
+        }
+
+        [UnityTest]
+        public IEnumerator Standing_In_Lava_Zone_Raises_Temperature_Passively_Without_Being_Hit()
+        {
+            // Regression test for playtester feedback ("용암존 들어갔을 때 온도 상승을 안함") — the
+            // gauge used to only move on a discrete attack-item hit, so simply driving into and
+            // sitting in the lava zone did nothing at all.
+            stageState.lavaZonePassiveHeatPerSecond = 5f;
+
+            lavaZoneObject.transform.position = vehicleObject.transform.position;
+            yield return new WaitForFixedUpdate();
+            Assert.IsTrue(lavaZone.IsPlayerInside, "Vehicle should be registered as inside the lava zone.");
+
+            yield return new WaitForSeconds(0.5f);
+
+            Assert.Greater(gauge.CurrentValue, 0f,
+                "Merely standing in the lava zone (no hit) should still raise the temperature gauge.");
         }
     }
 }
