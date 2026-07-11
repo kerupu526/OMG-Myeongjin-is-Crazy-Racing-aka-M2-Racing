@@ -159,7 +159,7 @@ namespace M2.Editor
 
         // Vehicle body is 1.2m wide (see CreateVehicle scale). Widened from 12m for real
         // 2-player racing (room to draft/overtake side by side, not just squeeze past).
-        const float VehicleWidth = 1.2f;
+        internal const float VehicleWidth = 1.2f;
         const float BikiniCityTrackWidth = 16f;
         const float AfricaTvTrackWidth = 16f;
         // Narrower than the other two stages per playtester feedback ("네더요새 폭이 넓다") — still
@@ -179,8 +179,8 @@ namespace M2.Editor
         // with a UV-mapped colormap.png texture atlas (guaranteed to render correctly); the
         // racing-kit cars rely on baked vertex colors, which URP's default Lit shader doesn't
         // read without extra material setup.
-        const string VehicleModelPath = "Assets/Art/Models/kenney_car-kit/Models/FBX format/race.fbx";
-        const string VehicleModelTexturePath = "Assets/Art/Models/kenney_car-kit/Models/FBX format/Textures/colormap.png";
+        internal const string VehicleModelPath = "Assets/Art/Models/kenney_car-kit/Models/FBX format/race.fbx";
+        internal const string VehicleModelTexturePath = "Assets/Art/Models/kenney_car-kit/Models/FBX format/Textures/colormap.png";
         // Kenney car-kit models are authored ~2 units long facing +Z already, matching this
         // project's forward convention — but this is unverified without opening the Editor GUI
         // (headless batchmode has no visual feedback). If the car appears to drive backwards in
@@ -637,7 +637,9 @@ namespace M2.Editor
             return vehicle;
         }
 
-        static void CreateVehicleModel(Transform parent)
+        // internal, not static-private: NetworkPrefabBuilder reuses this to give the networked
+        // vehicle prefab the same real Kenney model instead of duplicating this loading logic.
+        internal static void CreateVehicleModel(Transform parent)
         {
             var modelSource = AssetDatabase.LoadAssetAtPath<GameObject>(VehicleModelPath);
             if (modelSource == null)

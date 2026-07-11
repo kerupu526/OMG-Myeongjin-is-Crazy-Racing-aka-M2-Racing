@@ -81,4 +81,136 @@ public static class BuildCheck
         Debug.Log("=== M2_SMOKE_TEST_OK ===");
         EditorApplication.Exit(0);
     }
+
+    /// <summary>
+    /// M2.Editor.NetworkPrefabBuilder를 헤드리스로 실행해서 Assets/Prefabs/Player/NetworkVehicle.prefab을
+    /// 실제로 생성/갱신하는 진입점. -executeMethod BuildCheck.BuildNetworkVehiclePrefab 처럼 호출.
+    /// </summary>
+    public static void BuildNetworkVehiclePrefab()
+    {
+        Debug.Log("=== M2_NETWORK_PREFAB_BUILD_START ===");
+        try
+        {
+            M2.Editor.NetworkPrefabBuilder.BuildNetworkVehiclePrefab();
+            Debug.Log("=== M2_NETWORK_PREFAB_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_NETWORK_PREFAB_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    /// <summary>
+    /// NetworkVehicle.prefab이 필요한 컴포넌트를 다 갖췄는지, 그리고 GlobalObjectIdHash(스폰
+    /// 메시지 매칭에 쓰이는 값)가 실제로 0이 아닌지까지 확인. GlobalObjectIdHash는 NGO 어셈블리
+    /// 내부에서만 접근 가능한 internal 필드라 리플렉션으로 읽음(NetworkPrefabBuilder.cs가 저장할
+    /// 때도 같은 방식으로 값을 채워 넣음 — 코드 주석 참고, 배치모드에서는 이 필드가 자동으로
+    /// 채워지지 않는 걸 직접 확인했음). BuildNetworkVehiclePrefab이 최소 1회 성공한 뒤에야
+    /// 의미가 있음. (실제 스폰 성공 여부 자체는 2개 클라이언트 접속 테스트로만 확인 가능 —
+    /// CLAUDE.md 참고, 이 스모크 테스트는 "스폰이 실패할 수밖에 없는 상태"만 미리 걸러냄.)
+    /// </summary>
+    public static void SmokeTestNetworkVehiclePrefab()
+    {
+        Debug.Log("=== M2_NETWORK_PREFAB_SMOKE_TEST_START ===");
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Player/NetworkVehicle.prefab");
+        if (prefab == null)
+        {
+            Debug.LogError("M2_NETWORK_PREFAB_SMOKE_TEST_FAIL: NetworkVehicle.prefab을 찾을 수 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        var networkObject = prefab.GetComponent<Unity.Netcode.NetworkObject>();
+        if (networkObject == null ||
+            prefab.GetComponent<M2.Player.VehicleController>() == null ||
+            prefab.GetComponent<M2.Network.NetworkVehicleSync>() == null)
+        {
+            Debug.LogError("M2_NETWORK_PREFAB_SMOKE_TEST_FAIL: NetworkObject/VehicleController/NetworkVehicleSync 중 하나가 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        var hashField = typeof(Unity.Netcode.NetworkObject).GetField("GlobalObjectIdHash",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        uint hash = (uint)hashField.GetValue(networkObject);
+        if (hash == 0)
+        {
+            Debug.LogError("M2_NETWORK_PREFAB_SMOKE_TEST_FAIL: GlobalObjectIdHash가 0 — 이 프리팹은 네트워크로 스폰될 수 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        Debug.Log($"=== M2_NETWORK_PREFAB_SMOKE_TEST_OK (GlobalObjectIdHash={hash}) ===");
+        EditorApplication.Exit(0);
+    }
+
+    /// <summary>
+    /// M2.Editor.NetworkBootstrapSceneBuilder를 헤드리스로 실행해서
+    /// Assets/Scenes/NetworkBootstrap.unity를 실제로 생성/갱신하는 진입점.
+    /// BuildNetworkVehiclePrefab이 먼저 최소 1회 성공해야 NetworkManager.PlayerPrefab이 채워짐.
+    /// </summary>
+    public static void BuildNetworkBootstrapScene()
+    {
+        Debug.Log("=== M2_NETWORK_BOOTSTRAP_SCENE_BUILD_START ===");
+        try
+        {
+            M2.Editor.NetworkBootstrapSceneBuilder.BuildAndSaveScene();
+            Debug.Log("=== M2_NETWORK_BOOTSTRAP_SCENE_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_NETWORK_BOOTSTRAP_SCENE_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    /// <summary>
+    /// NetworkBootstrap.unity가 NetworkManager(+PlayerPrefab 배선) / NetworkBootstrapUI(버튼
+    /// 배선) / VehicleCameraFollow를 다 갖췄는지 확인. BuildNetworkBootstrapScene이 최소 1회
+    /// 성공한 뒤에야 의미가 있음.
+    /// </summary>
+    public static void SmokeTestNetworkBootstrapScene()
+    {
+        Debug.Log("=== M2_NETWORK_BOOTSTRAP_SMOKE_TEST_START ===");
+
+        UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/NetworkBootstrap.unity");
+
+        var networkManager = Object.FindFirstObjectByType<Unity.Netcode.NetworkManager>();
+        if (networkManager == null)
+        {
+            Debug.LogError("M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: NetworkManager를 씬에서 찾을 수 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        if (networkManager.NetworkConfig.PlayerPrefab == null)
+        {
+            Debug.LogError("M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: NetworkConfig.PlayerPrefab이 비어있음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        var bootstrapUi = Object.FindFirstObjectByType<M2.Network.NetworkBootstrapUI>();
+        if (bootstrapUi == null || bootstrapUi.hostButton == null || bootstrapUi.joinButton == null ||
+            bootstrapUi.ipInputField == null)
+        {
+            Debug.LogError("M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: NetworkBootstrapUI 버튼/입력창 배선이 비어있음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        if (Object.FindFirstObjectByType<M2.Player.VehicleCameraFollow>() == null)
+        {
+            Debug.LogError("M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: VehicleCameraFollow가 씬에 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        Debug.Log("=== M2_NETWORK_BOOTSTRAP_SMOKE_TEST_OK ===");
+        EditorApplication.Exit(0);
+    }
 }

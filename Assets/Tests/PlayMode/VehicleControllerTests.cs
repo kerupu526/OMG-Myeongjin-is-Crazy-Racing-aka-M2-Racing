@@ -114,5 +114,30 @@ namespace M2.Tests.PlayMode
             float delta = Mathf.DeltaAngle(yawBefore, yawAfter);
             Assert.Less(delta, 0f, "With steering inverted, holding 'right' should turn left (negative yaw delta) instead of right.");
         }
+
+        [UnityTest]
+        public IEnumerator IsOwnedLocally_Defaults_True_Without_A_NetworkObject()
+        {
+            // Guards the Netcode Milestone 1 ownership gate added to FixedUpdate
+            // (M2.Network.NetworkVehicleSync) — every existing local scene (TestTrackBuilder,
+            // StageTestSelector, and every other PlayMode test in this project) builds a
+            // VehicleController with no NetworkObject at all, and must keep driving exactly as
+            // before. Actually verifying the "not the owner" branch requires a real second
+            // connected network client, which this environment cannot exercise automatically —
+            // see CLAUDE.md's Netcode section for the manual dual-instance test procedure.
+            yield return null;
+
+            Assert.IsTrue(vehicle.IsOwnedLocally,
+                "Without a NetworkObject component, the vehicle must always be treated as locally owned.");
+
+            Press(Keyboard.current.upArrowKey);
+            for (int i = 0; i < 30; i++)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.Greater(vehicle.CurrentSpeed, 0f,
+                "The ownership gate must not block input/simulation in the existing non-networked local flow.");
+        }
     }
 }

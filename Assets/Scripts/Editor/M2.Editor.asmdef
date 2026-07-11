@@ -4,7 +4,9 @@
     "references": [
         "M2.Runtime",
         "Unity.InputSystem",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "Unity.Netcode.Runtime",
+        "Unity.Networking.Transport"
     ],
     "includePlatforms": [
         "Editor"

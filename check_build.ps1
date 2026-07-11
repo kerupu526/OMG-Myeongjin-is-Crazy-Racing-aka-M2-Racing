@@ -55,19 +55,28 @@ $log = Get-Content $LogFile -Raw
 # has neither a success nor a failure marker yet doesn't necessarily mean the run failed —
 # poll briefly before giving up.
 $waited = 0
-while ($log -notmatch "M2_COMPILE_CHECK_OK|M2_SMOKE_TEST_OK|M2_SCENE_BUILD_OK|error CS|Exception|M2_.*_FAIL" -and $waited -lt 60) {
+# "Exception(?!s)" — not just "Exception" — so package import log lines that merely
+# mention a folder/class named "...Exceptions" (plural, e.g. NGO's own
+# Packages/com.unity.netcode.gameobjects/Runtime/Exceptions) don't get mistaken for a
+# real thrown exception and end this polling loop early, before Unity has actually
+# finished writing the real success/failure marker later in the log (observed in
+# practice: this caused a false failure report on a run that had actually succeeded).
+while ($log -notmatch "M2_.*_OK|error CS|Exception(?!s)|M2_.*_FAIL" -and $waited -lt 60) {
     Start-Sleep -Seconds 3
     $waited += 3
     $log = Get-Content $LogFile -Raw
 }
 
-if ($log -match "M2_COMPILE_CHECK_OK" -or $log -match "M2_SMOKE_TEST_OK" -or $log -match "M2_SCENE_BUILD_OK") {
+# Generic "M2_..._OK" instead of an enumerated list of marker names — so any new
+# BuildCheck entry point (e.g. BuildNetworkVehiclePrefab) is recognized automatically
+# without having to edit this script again every time BuildCheck.cs gains a new method.
+if ($log -match "M2_.*_OK") {
     Write-Host "✅ 컴파일 성공!" -ForegroundColor Green
     exit 0
 } else {
     Write-Host "❌ 컴파일 에러 또는 실행 실패:" -ForegroundColor Red
     Write-Host ""
-    Select-String -Path $LogFile -Pattern "error CS|Exception|M2_.*_FAIL" | ForEach-Object { $_.Line }
+    Select-String -Path $LogFile -Pattern "error CS|Exception(?!s)|M2_.*_FAIL" | ForEach-Object { $_.Line }
     Write-Host ""
     Write-Host "전체 로그: $LogFile"
     exit 1

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -103,7 +104,16 @@ namespace M2.Player
         public bool HasDriftBoost => driftSpeedBonus > 0f;
         public bool IsWrongWayBlocked => usedWrongWayDistance >= maxWrongWayDistance;
 
+        // True when this vehicle should simulate/read input locally: always true in every
+        // existing non-networked scene (TestTrackBuilder/StageTestSelector — no NetworkObject
+        // means this defaults true, so nothing about the local flow changes), and reflects
+        // NetworkObject.IsOwner once a network connection actually spawns this vehicle — a
+        // remote player's copy just displays the position OwnerAuthoritativeNetworkTransform
+        // replicates instead of simulating its own (conflicting) physics.
+        public bool IsOwnedLocally => networkObject == null || networkObject.IsOwner;
+
         Rigidbody rb;
+        NetworkObject networkObject;
         M2.Core.LapTracker lapTracker;
         InputAction steerAction;
         InputAction throttleAction;
@@ -158,6 +168,9 @@ namespace M2.Player
         {
             rb = GetComponent<Rigidbody>();
             rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+            // Optional on purpose — every existing local test scene has no NetworkObject at
+            // all, and IsOwnedLocally treats that as "always locally owned" (see its comment).
+            networkObject = GetComponent<NetworkObject>();
             // Optional on purpose — PlayMode tests that build a bare VehicleController without
             // a LapTracker should still run; wrong-way tracking just no-ops without one (see
             // the null checks in FixedUpdate/ApplyThrottle).
@@ -216,6 +229,12 @@ namespace M2.Player
 
         void FixedUpdate()
         {
+            // A remote player's vehicle isn't simulated locally at all — it just displays
+            // whatever OwnerAuthoritativeNetworkTransform (NetworkVehicleSync) replicates from
+            // the owning client. Running physics here too would fight that replicated
+            // transform every frame. No-op in every non-networked scene (see IsOwnedLocally).
+            if (!IsOwnedLocally) return;
+
             float speedBeforeUpdate = currentSpeed;
 
             // Wrong-way budget: measures actual world movement against the direction to the
