@@ -10,42 +10,65 @@ namespace M2.Network
     // is the same supported path the player vehicle already uses.
     public class NetworkRaceBootstrap : MonoBehaviour
     {
-        [Tooltip("NetworkRaceManager가 붙어있는 프리팹. NetworkConfig.Prefabs에도 등록돼 있어야 함(씬 빌더가 처리).")]
+        [Tooltip("NetworkRaceManager가 붙어있는 프리팹. 런타임에 AddNetworkPrefab으로 등록됨(호스트·클라이언트 양쪽).")]
         public GameObject raceManagerPrefab;
 
         bool spawned;
         bool prefabRegistered;
+        bool serverStartedHooked;
 
-        void OnEnable()
+        // Registration and event hookup live in Start(), not OnEnable/Awake: NetworkManager sets
+        // NetworkManager.Singleton in its own OnEnable, and relying on same-GameObject component
+        // OnEnable ordering to read it was fragile — a null Singleton there made the earlier
+        // OnEnable-based version silently return and never register/spawn (playtester: HUD stuck
+        // on "상대를 기다리는 중...", i.e. the race manager never appeared). Start() runs after
+        // every component's Awake AND OnEnable, so Singleton is guaranteed set, and it still runs
+        // at scene load — well before the user clicks Host/Join — so the AddNetworkPrefab happens
+        // before any connection on both sides, as NGO requires.
+        void Start()
         {
+            RegisterPrefab();
+
             var manager = NetworkManager.Singleton;
-            if (manager == null) return;
-
-            // Register the race-manager prefab as a spawnable network prefab BEFORE any
-            // connection starts. This must happen at runtime, on BOTH host and client, so both
-            // sides agree on its GlobalObjectIdHash when the host spawns it. Editor-time
-            // NetworkConfig.Prefabs.Add() does NOT work for this: NetworkPrefabs.m_Prefabs is
-            // [NonSerialized], so an Add() made while authoring the scene is dropped when the
-            // scene is saved (only NetworkPrefabsLists serializes). AddNetworkPrefab is the
-            // supported runtime registration path (the player vehicle avoids this only because
-            // NetworkConfig.PlayerPrefab is a separate serialized field NGO auto-registers).
-            if (!prefabRegistered && raceManagerPrefab != null &&
-                raceManagerPrefab.GetComponent<NetworkObject>() != null)
+            if (manager != null)
             {
-                manager.AddNetworkPrefab(raceManagerPrefab);
-                prefabRegistered = true;
+                manager.OnServerStarted += HandleServerStarted;
+                serverStartedHooked = true;
+                if (manager.IsServer) HandleServerStarted();
             }
-
-            manager.OnServerStarted += HandleServerStarted;
-            // StartHost may already have fired OnServerStarted before this subscribed (scene
-            // object enable order vs. the host button) — cover that by checking directly too.
-            if (manager.IsServer) HandleServerStarted();
         }
 
-        void OnDisable()
+        void OnDestroy()
         {
             var manager = NetworkManager.Singleton;
-            if (manager != null) manager.OnServerStarted -= HandleServerStarted;
+            if (manager != null && serverStartedHooked) manager.OnServerStarted -= HandleServerStarted;
+        }
+
+        // Belt-and-suspenders: if the OnServerStarted event was somehow missed (e.g. hook order),
+        // spawn as soon as we observe the server running. Server-only, one-shot.
+        void Update()
+        {
+            if (spawned) return;
+            var manager = NetworkManager.Singleton;
+            if (manager != null && manager.IsServer && manager.IsListening) HandleServerStarted();
+        }
+
+        void RegisterPrefab()
+        {
+            if (prefabRegistered) return;
+            var manager = NetworkManager.Singleton;
+            if (manager == null || raceManagerPrefab == null) return;
+            if (raceManagerPrefab.GetComponent<NetworkObject>() == null)
+            {
+                Debug.LogWarning("M2Net: raceManagerPrefab에 NetworkObject가 없음 — 등록/스폰 불가.");
+                return;
+            }
+            // AddNetworkPrefab must run at runtime on BOTH host and client before connecting so
+            // both agree on the prefab's GlobalObjectIdHash. Editor-time NetworkConfig.Prefabs.Add()
+            // doesn't persist (NetworkPrefabs.m_Prefabs is [NonSerialized]).
+            manager.AddNetworkPrefab(raceManagerPrefab);
+            prefabRegistered = true;
+            Debug.Log("M2Net: raceManagerPrefab 등록 완료 (AddNetworkPrefab).");
         }
 
         void HandleServerStarted()
@@ -55,13 +78,16 @@ namespace M2.Network
             if (manager == null || !manager.IsServer) return;
             if (raceManagerPrefab == null)
             {
-                Debug.LogWarning("M2: NetworkRaceBootstrap.raceManagerPrefab이 비어있음 — 레이스 매니저가 스폰되지 않음.");
+                Debug.LogWarning("M2Net: raceManagerPrefab이 비어있음 — 레이스 매니저가 스폰되지 않음.");
                 return;
             }
+
+            RegisterPrefab(); // ensure registered even if Start() hadn't yet
 
             spawned = true;
             GameObject instance = Instantiate(raceManagerPrefab);
             instance.GetComponent<NetworkObject>().Spawn();
+            Debug.Log("M2Net: NetworkRaceManager 스폰됨.");
         }
     }
 }
