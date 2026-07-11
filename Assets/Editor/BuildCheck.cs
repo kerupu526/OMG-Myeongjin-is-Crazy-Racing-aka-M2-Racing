@@ -25,17 +25,22 @@ public static class BuildCheck
     }
 
     /// <summary>
-    /// TestTrackBuilder.BuildAndSaveBikiniCityScene()을 헤드리스로 실행해서
-    /// Assets/Scenes/Stage_BikiniCity.unity를 실제로 생성/갱신하는 진입점.
-    /// -executeMethod BuildCheck.BuildBikiniCityScene 로 호출.
-    /// SceneSmokeTest는 이 메서드가 최소 1회 성공한 뒤에야 의미가 있음(그 전엔 씬 파일 자체가 없음).
+    /// TestTrackBuilder.BuildAndSave*Scene()을 헤드리스로 실행해서 Assets/Scenes/Stage_*.unity를
+    /// 실제로 생성/갱신하는 진입점들. -executeMethod BuildCheck.BuildBikiniCityScene 처럼 호출.
+    /// SceneSmokeTest*는 해당 Build*Scene이 최소 1회 성공한 뒤에야 의미가 있음(그 전엔 씬 파일 자체가 없음).
     /// </summary>
-    public static void BuildBikiniCityScene()
+    public static void BuildBikiniCityScene() => BuildScene(M2.Editor.TestTrackBuilder.BuildAndSaveBikiniCityScene);
+
+    public static void BuildAfricaTvScene() => BuildScene(M2.Editor.TestTrackBuilder.BuildAndSaveAfricaTvScene);
+
+    public static void BuildNetherFortressScene() => BuildScene(M2.Editor.TestTrackBuilder.BuildAndSaveNetherFortressScene);
+
+    static void BuildScene(System.Action build)
     {
         Debug.Log("=== M2_SCENE_BUILD_START ===");
         try
         {
-            M2.Editor.TestTrackBuilder.BuildAndSaveBikiniCityScene();
+            build();
             Debug.Log("=== M2_SCENE_BUILD_OK ===");
             EditorApplication.Exit(0);
         }
@@ -47,17 +52,22 @@ public static class BuildCheck
     }
 
     /// <summary>
-    /// 씬이 실제로 로드되고 주요 오브젝트(GameManager 등)가 존재하는지까지 확인하는 확장판.
-    /// 필요해지면 이 메서드를 -executeMethod로 대신 호출하면 됨.
+    /// 씬이 실제로 로드되고 주요 오브젝트(GameManager 등)가 존재하는지까지 확인하는 확장판들.
+    /// 필요해지면 이 메서드들을 -executeMethod로 대신 호출하면 됨.
     ///
-    /// NOTE: Stage_BikiniCity.unity에 GameManager가 저장되어 있어야 통과합니다.
-    /// 씬이 아직 없다면 먼저 -executeMethod BuildCheck.BuildBikiniCityScene 을 실행할 것.
+    /// NOTE: 각 Stage_*.unity에 GameManager가 저장되어 있어야 통과합니다.
+    /// 씬이 아직 없다면 먼저 해당 Build*Scene을 실행할 것.
     /// </summary>
-    public static void SceneSmokeTest()
+    public static void SceneSmokeTest() => SmokeTestScene("Assets/Scenes/Stage_BikiniCity.unity");
+
+    public static void SceneSmokeTestAfricaTv() => SmokeTestScene("Assets/Scenes/Stage_AfricaTV.unity");
+
+    public static void SceneSmokeTestNetherFortress() => SmokeTestScene("Assets/Scenes/Stage_NetherFortress.unity");
+
+    static void SmokeTestScene(string scenePath)
     {
         Debug.Log("=== M2_SMOKE_TEST_START ===");
 
-        var scenePath = "Assets/Scenes/Stage_BikiniCity.unity";
         UnityEditor.SceneManagement.EditorSceneManager.OpenScene(scenePath);
 
         var gm = Object.FindFirstObjectByType<M2.Core.GameManager>();

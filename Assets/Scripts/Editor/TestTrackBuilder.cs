@@ -22,10 +22,14 @@ namespace M2.Editor
     public static class TestTrackBuilder
     {
         const string RootName = "M2_TestTrack (Generated)";
-        // Used only by BuildAndSaveBikiniCityScene — "(Generated)"/"TestTrack" branding is
+        // Used only by BuildAndSavePersistedScene — "(Generated)"/"TestTrack" branding is
         // misleading for a hierarchy meant to live permanently in its own saved scene.
         const string PersistedBikiniCityRootName = "BikiniCity";
         const string PersistedBikiniCityScenePath = "Assets/Scenes/Stage_BikiniCity.unity";
+        const string PersistedAfricaTvRootName = "AfricaTv";
+        const string PersistedAfricaTvScenePath = "Assets/Scenes/Stage_AfricaTV.unity";
+        const string PersistedNetherFortressRootName = "NetherFortress";
+        const string PersistedNetherFortressScenePath = "Assets/Scenes/Stage_NetherFortress.unity";
 
         // Hand-authored corner layout (replaces the old polar-wobble oval) — designed for
         // 2-player overtaking: two straights long enough to draft on, each feeding into a
@@ -43,7 +47,7 @@ namespace M2.Editor
         // Catmull-Rom overshoot into tighter-than-intended curvature (this bit once already,
         // see the removed "closing" point that used to sit here) — if these points are ever
         // hand-tweaked again, re-verify rather than assuming a small nudge is safe.
-        static readonly Vector3[] BikiniCityTrackControlPoints =
+        static readonly Vector3[] BikiniCityControlPoints =
         {
             new Vector3(-48f, 0f, -28f), // 0: front straight, start/finish area
             new Vector3(-25f, 0f, -32f), // 1: chicane kick-out
@@ -61,7 +65,69 @@ namespace M2.Editor
             new Vector3(-57f, 0f, -10f), // 13: west sweeper continues, closes back to point 0
         };
 
-        static readonly TrackGeometry Geometry = new TrackGeometry(BikiniCityTrackControlPoints, TrackWidth, WallHeight);
+        // Longest of the 3 stages (per CLAUDE.md's "트랙 길이: 가장 김") — a bigger, more
+        // technical layout: front chicane into a double-apex esses, a long braking zone into a
+        // wide hairpin loop, then the longest back straight of any stage (main draft zone),
+        // closing through a west sweeper. Verified the same way as BikiniCity: 0 wall
+        // self-intersections at both 64 and 128 segments, min curvature radius 7.13m (narrows
+        // to a 12.1m-wide pinch at one point vs the full 16m elsewhere — still >10x the 1.2m
+        // vehicle width, so left as-is rather than forcing every corner above TrackWidth/2 the
+        // way BikiniCity's does), ~444m lap length.
+        static readonly Vector3[] AfricaTvControlPoints =
+        {
+            new Vector3(-70f, 0f, -35f), // 0: front straight, start/finish
+            new Vector3(-45f, 0f, -42f), // 1: chicane kick-out
+            new Vector3(-20f, 0f, -30f), // 2: chicane kick-back-in
+            new Vector3(5f, 0f, -38f),   // 3: esses valley
+            new Vector3(30f, 0f, -30f),  // 4: esses ridge
+            new Vector3(50f, 0f, -38f),  // 5: esses valley
+            new Vector3(72f, 0f, -25f),  // 6: braking zone into the hairpin
+            new Vector3(85f, 0f, -5f),   // 7: hairpin entry curl
+            new Vector3(85f, 0f, 15f),   // 8: hairpin far side
+            new Vector3(85f, 0f, 33f),   // 9: hairpin apex (wide loop)
+            new Vector3(65f, 0f, 42f),   // 10: hairpin exit
+            new Vector3(35f, 0f, 38f),   // 11: back straight (longest of any stage)
+            new Vector3(0f, 0f, 40f),    // 12: back straight continues
+            new Vector3(-35f, 0f, 38f),  // 13: back straight continues more
+            new Vector3(-60f, 0f, 30f),  // 14: into the west sweeper
+            new Vector3(-78f, 0f, 10f),  // 15: west sweeper wide
+            new Vector3(-82f, 0f, -12f), // 16: west sweeper continues
+            new Vector3(-78f, 0f, -28f), // 17: closes back to point 0
+        };
+
+        // Shortest of the 3 stages (per CLAUDE.md's "트랙 길이: 가장 짧음") — a tight fortress
+        // courtyard loop, but still comfortably wide: front straight into a wide hairpin, a
+        // short back straight, and a west sweeper closing the loop. Verified: 0 wall
+        // self-intersections at both 64 and 128 segments, min curvature radius 14.5m (above
+        // TrackWidth/2=8m everywhere — full 16m width, no pinch), ~190m lap length. An earlier
+        // 10-point draft had two points only 5m apart right at the closing seam, which made
+        // Catmull-Rom overshoot into a self-crossing wall (same failure mode CLAUDE.md already
+        // documents for BikiniCity) — fixed by dropping to 9 points with even spacing throughout.
+        static readonly Vector3[] NetherFortressControlPoints =
+        {
+            new Vector3(-35f, 0f, -22f), // 0: front straight, start/finish
+            new Vector3(-10f, 0f, -26f), // 1: front straight continues
+            new Vector3(14f, 0f, -18f),  // 2: braking zone into the hairpin
+            new Vector3(24f, 0f, -2f),   // 3: hairpin entry curl
+            new Vector3(24f, 0f, 16f),   // 4: hairpin apex (wide loop)
+            new Vector3(10f, 0f, 24f),   // 5: hairpin exit
+            new Vector3(-14f, 0f, 22f),  // 6: back straight
+            new Vector3(-32f, 0f, 12f),  // 7: into the west sweeper
+            new Vector3(-42f, 0f, -8f),  // 8: west sweeper wide, closes back to point 0
+        };
+
+        static Vector3[] ControlPointsFor(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => AfricaTvControlPoints,
+            StageType.NetherFortress => NetherFortressControlPoints,
+            _ => BikiniCityControlPoints,
+        };
+
+        // Set at the start of Build() from the stage passed in — every helper below reads
+        // this instead of taking a TrackGeometry parameter. Not thread-safe, but this whole
+        // class is editor-only batch/GUI tooling that never runs Build() concurrently.
+        static Vector3[] currentControlPoints = BikiniCityControlPoints;
+        static TrackGeometry Geometry = new TrackGeometry(BikiniCityControlPoints, TrackWidth, WallHeight);
 
         // Vehicle body is 1.2m wide (see CreateVehicle scale). Widened from 12m for real
         // 2-player racing (room to draft/overtake side by side, not just squeeze past).
@@ -97,31 +163,41 @@ namespace M2.Editor
         [MenuItem("M2/Build Test Track Scene/Nether Fortress (네더요새)")]
         public static void BuildNetherFortress() => Build(StageType.NetherFortress);
 
-        // Freezes a BikiniCity build into a real, permanent Assets/Scenes/Stage_BikiniCity.unity
-        // scene file instead of building into whatever scene happens to be open — first step
-        // away from TestTrackBuilder for this stage (아프리카TV/네더요새는 당분간 그대로 유지).
-        // Re-running this OVERWRITES the saved scene from scratch — any manual edits made
-        // directly in Stage_BikiniCity.unity since the last run will be lost. Deliberately has
-        // NO EditorApplication.Exit call (unlike BuildCheck's headless methods) since this
-        // carries a [MenuItem] — a human can click it from an open Editor, and Exit-ing there
-        // would force-quit their whole Editor session.
+        // Freezes a stage build into a real, permanent Assets/Scenes/Stage_*.unity scene file
+        // instead of building into whatever scene happens to be open. Re-running this
+        // OVERWRITES the saved scene from scratch — any manual edits made directly in the
+        // scene file since the last run will be lost. Deliberately has NO
+        // EditorApplication.Exit call (unlike BuildCheck's headless methods) since these carry
+        // [MenuItem]s — a human can click one from an open Editor, and Exit-ing there would
+        // force-quit their whole Editor session.
         [MenuItem("M2/Build Persisted Scene/Bikini City (비키니시티)")]
-        public static void BuildAndSaveBikiniCityScene()
+        public static void BuildAndSaveBikiniCityScene() =>
+            BuildAndSavePersistedScene(StageType.BikiniCity, PersistedBikiniCityRootName, PersistedBikiniCityScenePath);
+
+        [MenuItem("M2/Build Persisted Scene/Africa TV (아프리카TV)")]
+        public static void BuildAndSaveAfricaTvScene() =>
+            BuildAndSavePersistedScene(StageType.AfricaTv, PersistedAfricaTvRootName, PersistedAfricaTvScenePath);
+
+        [MenuItem("M2/Build Persisted Scene/Nether Fortress (네더요새)")]
+        public static void BuildAndSaveNetherFortressScene() =>
+            BuildAndSavePersistedScene(StageType.NetherFortress, PersistedNetherFortressRootName, PersistedNetherFortressScenePath);
+
+        static void BuildAndSavePersistedScene(StageType stage, string rootName, string scenePath)
         {
             if (EditorSceneManager.GetActiveScene().isDirty &&
                 !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
-                Debug.LogWarning("M2: 저장 안 된 변경사항이 있는 씬에서 취소를 선택함 — Stage_BikiniCity 빌드 중단.");
+                Debug.LogWarning($"M2: 저장 안 된 변경사항이 있는 씬에서 취소를 선택함 — {scenePath} 빌드 중단.");
                 return;
             }
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Build(StageType.BikiniCity, rootName: PersistedBikiniCityRootName, attachStageTestSelector: false);
+            Build(stage, rootName: rootName, attachStageTestSelector: false);
 
-            bool saved = EditorSceneManager.SaveScene(scene, PersistedBikiniCityScenePath);
+            bool saved = EditorSceneManager.SaveScene(scene, scenePath);
             Debug.Log(saved
-                ? $"M2: Stage_BikiniCity 씬 저장 완료 → {PersistedBikiniCityScenePath}"
-                : $"M2: Stage_BikiniCity 씬 저장 실패 → {PersistedBikiniCityScenePath}");
+                ? $"M2: {stage} 씬 저장 완료 → {scenePath}"
+                : $"M2: {stage} 씬 저장 실패 → {scenePath}");
         }
 
         // rootName/attachStageTestSelector let a caller opt out of the shared "(Generated)"
@@ -131,6 +207,9 @@ namespace M2.Editor
         // behavior is unchanged (both new params default to the original ephemeral-build values).
         public static void Build(StageType initialStage, string rootName = RootName, bool attachStageTestSelector = true)
         {
+            currentControlPoints = ControlPointsFor(initialStage);
+            Geometry = new TrackGeometry(currentControlPoints, TrackWidth, WallHeight);
+
             GameObject existingRoot = GameObject.Find(rootName);
             if (existingRoot != null)
             {
@@ -175,7 +254,7 @@ namespace M2.Editor
             // poke past the visible ground plane. Unity's primitive Plane is 10x10m at scale 1,
             // hence the /5 to convert a desired half-extent in meters into a scale factor.
             float maxAbsX = 0f, maxAbsZ = 0f;
-            foreach (Vector3 p in BikiniCityTrackControlPoints)
+            foreach (Vector3 p in currentControlPoints)
             {
                 maxAbsX = Mathf.Max(maxAbsX, Mathf.Abs(p.x));
                 maxAbsZ = Mathf.Max(maxAbsZ, Mathf.Abs(p.z));
