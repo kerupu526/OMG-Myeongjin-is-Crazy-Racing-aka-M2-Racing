@@ -47,7 +47,23 @@ namespace M2.Editor
         // Catmull-Rom overshoot into tighter-than-intended curvature (this bit once already,
         // see the removed "closing" point that used to sit here) — if these points are ever
         // hand-tweaked again, re-verify rather than assuming a small nudge is safe.
-        static readonly Vector3[] BikiniCityControlPoints =
+        // Applied uniformly to every stage's control points below. Playtester feedback after
+        // the per-stage-width tuning pass: "맵 길이가 전체적으로 짧은 거 같기도... 아주 조금만
+        // 넓히자" (AfricaTV's ~444m lap took only ~1 minute chaining gasoline boosts). A uniform
+        // scale preserves every already-verified property exactly (self-intersection-free,
+        // curvature-to-TrackWidth ratio) since neither depends on absolute scale — re-verified
+        // anyway via the same Node.js port before committing this (0 self-intersections on all
+        // 3 stages at the new size).
+        const float TrackLengthScale = 1.2f;
+
+        static Vector3[] Scale(Vector3[] points, float factor)
+        {
+            var scaled = new Vector3[points.Length];
+            for (int i = 0; i < points.Length; i++) scaled[i] = points[i] * factor;
+            return scaled;
+        }
+
+        static readonly Vector3[] BikiniCityControlPoints = Scale(new[]
         {
             new Vector3(-48f, 0f, -28f), // 0: front straight, start/finish area
             new Vector3(-25f, 0f, -32f), // 1: chicane kick-out
@@ -63,7 +79,7 @@ namespace M2.Editor
             new Vector3(-38f, 0f, 26f),  // 11: into the west sweeper
             new Vector3(-55f, 0f, 8f),   // 12: west sweeper — wide, fast, side-by-side room
             new Vector3(-57f, 0f, -10f), // 13: west sweeper continues, closes back to point 0
-        };
+        }, TrackLengthScale);
 
         // Longest of the 3 stages (per CLAUDE.md's "트랙 길이: 가장 김") — a bigger, more
         // technical layout: front chicane into a double-apex esses, a long braking zone into a
@@ -73,7 +89,7 @@ namespace M2.Editor
         // to a 12.1m-wide pinch at one point vs the full 16m elsewhere — still >10x the 1.2m
         // vehicle width, so left as-is rather than forcing every corner above TrackWidth/2 the
         // way BikiniCity's does), ~444m lap length.
-        static readonly Vector3[] AfricaTvControlPoints =
+        static readonly Vector3[] AfricaTvControlPoints = Scale(new[]
         {
             new Vector3(-70f, 0f, -35f), // 0: front straight, start/finish
             new Vector3(-45f, 0f, -42f), // 1: chicane kick-out
@@ -93,7 +109,7 @@ namespace M2.Editor
             new Vector3(-78f, 0f, 10f),  // 15: west sweeper wide
             new Vector3(-82f, 0f, -12f), // 16: west sweeper continues
             new Vector3(-78f, 0f, -28f), // 17: closes back to point 0
-        };
+        }, TrackLengthScale);
 
         // Shortest of the 3 stages (per CLAUDE.md's "트랙 길이: 가장 짧음") — a tight fortress
         // courtyard loop, but still comfortably wide: front straight into a wide hairpin, a
@@ -103,7 +119,7 @@ namespace M2.Editor
         // 10-point draft had two points only 5m apart right at the closing seam, which made
         // Catmull-Rom overshoot into a self-crossing wall (same failure mode CLAUDE.md already
         // documents for BikiniCity) — fixed by dropping to 9 points with even spacing throughout.
-        static readonly Vector3[] NetherFortressControlPoints =
+        static readonly Vector3[] NetherFortressControlPoints = Scale(new[]
         {
             new Vector3(-35f, 0f, -22f), // 0: front straight, start/finish
             new Vector3(-10f, 0f, -26f), // 1: front straight continues
@@ -114,7 +130,7 @@ namespace M2.Editor
             new Vector3(-14f, 0f, 22f),  // 6: back straight
             new Vector3(-32f, 0f, 12f),  // 7: into the west sweeper
             new Vector3(-42f, 0f, -8f),  // 8: west sweeper wide, closes back to point 0
-        };
+        }, TrackLengthScale);
 
         static Vector3[] ControlPointsFor(StageType stage) => stage switch
         {
@@ -123,16 +139,29 @@ namespace M2.Editor
             _ => BikiniCityControlPoints,
         };
 
+        static float TrackWidthFor(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => AfricaTvTrackWidth,
+            StageType.NetherFortress => NetherFortressTrackWidth,
+            _ => BikiniCityTrackWidth,
+        };
+
         // Set at the start of Build() from the stage passed in — every helper below reads
         // this instead of taking a TrackGeometry parameter. Not thread-safe, but this whole
         // class is editor-only batch/GUI tooling that never runs Build() concurrently.
         static Vector3[] currentControlPoints = BikiniCityControlPoints;
-        static TrackGeometry Geometry = new TrackGeometry(BikiniCityControlPoints, TrackWidth, WallHeight);
+        static float currentTrackWidth = BikiniCityTrackWidth;
+        static TrackGeometry Geometry = new TrackGeometry(BikiniCityControlPoints, BikiniCityTrackWidth, WallHeight);
 
         // Vehicle body is 1.2m wide (see CreateVehicle scale). Widened from 12m for real
         // 2-player racing (room to draft/overtake side by side, not just squeeze past).
         const float VehicleWidth = 1.2f;
-        const float TrackWidth = 16f;
+        const float BikiniCityTrackWidth = 16f;
+        const float AfricaTvTrackWidth = 16f;
+        // Narrower than the other two stages per playtester feedback ("네더요새 폭이 넓다") — still
+        // safely clear of NetherFortressControlPoints' min curvature radius (14.49m, so half of
+        // even this narrower width never triggers TrackGeometry.SafeLateralOffset's clamp).
+        const float NetherFortressTrackWidth = 11f;
         const float WallHeight = 1.2f;
         const int WallSegments = 64; // higher than before — sharper curves need more segments to read smoothly
         const int CheckpointCount = 6;
@@ -208,7 +237,8 @@ namespace M2.Editor
         public static void Build(StageType initialStage, string rootName = RootName, bool attachStageTestSelector = true)
         {
             currentControlPoints = ControlPointsFor(initialStage);
-            Geometry = new TrackGeometry(currentControlPoints, TrackWidth, WallHeight);
+            currentTrackWidth = TrackWidthFor(initialStage);
+            Geometry = new TrackGeometry(currentControlPoints, currentTrackWidth, WallHeight);
 
             GameObject existingRoot = GameObject.Find(rootName);
             if (existingRoot != null)
@@ -220,6 +250,7 @@ namespace M2.Editor
 
             CreateGround(root.transform);
             CreateTrackSurface(root.transform);
+            CreateStartFinishLine(root.transform);
             CreateWallRing(root.transform, "OuterWall", +1f);
             CreateWallRing(root.transform, "InnerWall", -1f);
             CreateBackgroundDecor(root.transform, initialStage);
@@ -259,8 +290,8 @@ namespace M2.Editor
                 maxAbsX = Mathf.Max(maxAbsX, Mathf.Abs(p.x));
                 maxAbsZ = Mathf.Max(maxAbsZ, Mathf.Abs(p.z));
             }
-            float scaleX = (maxAbsX + TrackWidth) / 5f + 2f;
-            float scaleZ = (maxAbsZ + TrackWidth) / 5f + 2f;
+            float scaleX = (maxAbsX + currentTrackWidth) / 5f + 2f;
+            float scaleZ = (maxAbsZ + currentTrackWidth) / 5f + 2f;
             ground.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 
             // This plane is the off-track surface only — keep it a distinct, lighter
@@ -284,8 +315,8 @@ namespace M2.Editor
                 float theta = i * Mathf.PI * 2f / WallSegments;
                 // Clamped to the centerline's local turning radius so this edge matches
                 // CreateWallRing's wall placement exactly — see TrackGeometry.SafeLateralOffset.
-                vertices[i * 2] = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, -TrackWidth / 2f));
-                vertices[i * 2 + 1] = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, TrackWidth / 2f));
+                vertices[i * 2] = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, -currentTrackWidth / 2f));
+                vertices[i * 2 + 1] = Geometry.OffsetPointAt(theta, Geometry.SafeLateralOffset(theta, currentTrackWidth / 2f));
 
                 // U follows progress around the loop (not true arc length, so texture density
                 // varies slightly with the spline's speed) — V spans inner(0) to outer(1) edge.
@@ -330,6 +361,27 @@ namespace M2.Editor
             RendererColorUtil.ApplyTexture(renderer, TrackTextureFactory.CreateAsphaltTexture(), Vector2.one, doubleSided: true);
         }
 
+        // Checkered start/finish line at theta=0 (matches Checkpoint_0 / the vehicle's spawn
+        // point) — playtester feedback: "출발/도착선이 없어". Editor-only build (no runtime
+        // hot-swap path uses this), so Object.DestroyImmediate on the leftover collider is safe
+        // here, unlike StageAssembler's hazards which need the Play-mode-safe SafeDestroy.
+        static void CreateStartFinishLine(Transform parent)
+        {
+            const float depth = 2.5f; // along-track thickness of the line
+            Vector3 position = Geometry.PointAt(0f);
+            Vector3 tangent = Geometry.TangentAt(0f);
+
+            GameObject line = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            line.name = "StartFinishLine";
+            line.transform.SetParent(parent);
+            line.transform.position = position + Vector3.up * 0.02f; // above TrackSurface's 0.01 to avoid z-fighting
+            line.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
+            line.transform.localScale = new Vector3(currentTrackWidth, 0.05f, depth);
+            Object.DestroyImmediate(line.GetComponent<BoxCollider>());
+
+            RendererColorUtil.ApplyTexture(line.GetComponent<Renderer>(), TrackTextureFactory.CreateCheckeredFlagTexture(), Vector2.one);
+        }
+
         static void CreateWallRing(Transform parent, string name, float sideSign)
         {
             // Chain of CapsuleColliders instead of rotated box segments or a hand-rolled
@@ -341,7 +393,7 @@ namespace M2.Editor
             // seamlessly around any curve with no inward corner, and CapsuleCollider is a
             // native PhysX primitive with guaranteed solid continuous collision — no custom
             // geometry that can silently fail to collide.
-            float desiredOffset = sideSign * TrackWidth / 2f;
+            float desiredOffset = sideSign * currentTrackWidth / 2f;
             float radius = WallHeight / 2f;
 
             var ring = new GameObject(name).transform;
@@ -445,7 +497,7 @@ namespace M2.Editor
             for (int i = 0; i < BackgroundDecorCount; i++)
             {
                 float theta = (i + (float)rng.NextDouble() * 0.6f) * Mathf.PI * 2f / BackgroundDecorCount;
-                Vector3 position = Geometry.OffsetPointAt(theta, TrackWidth / 2f + BackgroundDecorMargin);
+                Vector3 position = Geometry.OffsetPointAt(theta, currentTrackWidth / 2f + BackgroundDecorMargin);
 
                 string path = modelPaths[rng.Next(modelPaths.Length)];
                 var source = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -481,7 +533,7 @@ namespace M2.Editor
 
                 BoxCollider box = checkpoint.AddComponent<BoxCollider>();
                 box.isTrigger = true;
-                box.size = new Vector3(TrackWidth, WallHeight * 2f, 1f);
+                box.size = new Vector3(currentTrackWidth, WallHeight * 2f, 1f);
 
                 Checkpoint cp = checkpoint.AddComponent<Checkpoint>();
                 cp.index = i;

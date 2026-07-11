@@ -48,6 +48,12 @@ namespace M2.Items
 
             SphereCollider collider = pickupObject.GetComponent<SphereCollider>();
             collider.isTrigger = true;
+            // Left at the primitive default (0.5, ~0.6m world radius after the 1.2x visual
+            // scale above) it barely out-sized the 1.2m-wide vehicle, making pickups feel too
+            // fiddly to actually grab while driving (playtester feedback: "먹기 쉽게 조금
+            // 널널하게"). Bigger than the visual sprite on purpose — a generous grab radius is
+            // the norm for arcade racers, not a hitbox bug.
+            collider.radius = 1.1f;
 
             ItemPickup pickup = pickupObject.AddComponent<ItemPickup>();
             pickup.definition = definition;

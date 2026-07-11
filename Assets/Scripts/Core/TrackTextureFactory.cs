@@ -47,5 +47,29 @@ namespace M2.Core
 
             return texture;
         }
+
+        // Simple black/white checkerboard for the start/finish line marker (playtester
+        // feedback: "출발/도착선이 없어"). Point-filtered so the checker edges stay crisp
+        // instead of blurring into gray at the small size this gets stretched to.
+        public static Texture2D CreateCheckeredFlagTexture(int width = 64, int height = 64, int checkerCount = 8)
+        {
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Point;
+
+            for (int y = 0; y < height; y++)
+            {
+                int cy = y * checkerCount / height;
+                for (int x = 0; x < width; x++)
+                {
+                    int cx = x * checkerCount / width;
+                    bool isWhite = (cx + cy) % 2 == 0;
+                    texture.SetPixel(x, y, isWhite ? Color.white : Color.black);
+                }
+            }
+            texture.Apply();
+
+            return texture;
+        }
     }
 }

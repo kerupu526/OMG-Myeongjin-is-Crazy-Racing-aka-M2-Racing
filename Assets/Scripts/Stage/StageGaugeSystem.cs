@@ -1,4 +1,5 @@
 using System;
+using M2.Core;
 using UnityEngine;
 
 namespace M2.Stage
@@ -23,13 +24,23 @@ namespace M2.Stage
         public event Action OnDepleted;
         public event Action OnRecovered;
 
+        GameManager gameManager;
+
         protected virtual void Awake()
         {
             CurrentValue = dangerAtMax ? 0f : maxValue;
+            // Passive tick must not run before the race actually starts — without this gate,
+            // a dangerAtMax gauge (temperature/mental) with no grace period on depletion (e.g.
+            // NetherFortress's instant burn game-over) could hit max while the player is still
+            // reading the Briefing screen or waiting through Countdown, locking them out before
+            // they ever get to drive. GameManager may not exist yet in edit-mode contexts
+            // (PlayMode tests building a bare gauge in isolation), hence the null check below.
+            gameManager = FindFirstObjectByType<GameManager>();
         }
 
         protected virtual void Update()
         {
+            if (gameManager != null && gameManager.CurrentState != RaceState.Racing) return;
             ModifyValue(passiveRatePerSecond * Time.deltaTime);
         }
 

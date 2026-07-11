@@ -14,6 +14,9 @@ namespace M2.Stage
         [Tooltip("공격 아이템에 맞았을 때 멘탈 게이지에 추가로 가하는 상승량 (별풍선 손실과는 별개의 이중 타격 효과, 플레이스홀더 수치).")]
         public float mentalBonusOnHit = 20f;
 
+        [Tooltip("방송사고 존에 들어갔을 때 멘탈 게이지 상승량 (플레이스홀더 수치).")]
+        public float mentalBonusOnAccidentZone = 15f;
+
         [Header("놓친 별풍선 개수 별점 기준 (이하일 때 별 획득, 오름차순)")]
         public int missedThreshold1Star = 15;
         public int missedThreshold2Star = 5;
@@ -40,6 +43,7 @@ namespace M2.Stage
             {
                 vehicleController.OnHitByAttackItem += HandleHitByAttackItem;
             }
+            BroadcastAccidentZone.OnAccidentEntered += HandleAccidentEntered;
         }
 
         void OnDisable()
@@ -48,6 +52,7 @@ namespace M2.Stage
             {
                 vehicleController.OnHitByAttackItem -= HandleHitByAttackItem;
             }
+            BroadcastAccidentZone.OnAccidentEntered -= HandleAccidentEntered;
         }
 
         void HandleHitByAttackItem()
@@ -57,6 +62,14 @@ namespace M2.Stage
             if (mentalGauge != null)
             {
                 mentalGauge.ModifyValue(mentalBonusOnHit);
+            }
+        }
+
+        void HandleAccidentEntered()
+        {
+            if (mentalGauge != null)
+            {
+                mentalGauge.ModifyValue(mentalBonusOnAccidentZone);
             }
         }
 

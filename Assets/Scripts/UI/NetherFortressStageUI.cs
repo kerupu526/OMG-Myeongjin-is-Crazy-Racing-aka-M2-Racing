@@ -67,7 +67,7 @@ namespace M2.UI
         void HandleBurnGameOver()
         {
             SetActive(gameOverPanel, true);
-            if (gameOverText != null) gameOverText.text = "화상!\nGAME OVER";
+            if (gameOverText != null) gameOverText.text = "게임 오버!\n(화상)";
             if (vehicleController != null) vehicleController.SetInputLocked(true);
         }
 

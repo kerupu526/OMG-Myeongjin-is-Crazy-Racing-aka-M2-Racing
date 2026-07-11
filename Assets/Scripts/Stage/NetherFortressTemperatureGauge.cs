@@ -29,9 +29,10 @@ namespace M2.Stage
             // permanently clamp the gauge at 0 — it would never rise on its own, contradicting
             // CLAUDE.md's "체온 게이지가 빠르게 상승". Reset() would normally set a sane
             // default, but that Editor-only callback never fires when StageAssembler adds
-            // this component at runtime (AddComponent<>()). +6/sec is a placeholder pending
-            // balance confirmation, per the class comment above.
-            passiveRatePerSecond = 6f;
+            // this component at runtime (AddComponent<>()). +1/sec per playtester feedback —
+            // the original +6/sec placeholder emptied the whole 100-point gauge in under 17s,
+            // leaving no time to actually drive before an instant (no-grace-period) game over.
+            passiveRatePerSecond = 1f;
             base.Awake();
 
             if (vehicleController == null)

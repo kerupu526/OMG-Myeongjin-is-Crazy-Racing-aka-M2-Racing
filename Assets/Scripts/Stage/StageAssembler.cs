@@ -212,12 +212,66 @@ namespace M2.Stage
             // i.e. just "before" the accident zone along the track.
             const float accidentTheta = 0.6f * Mathf.PI * 2f;
             const float warningTheta = accidentTheta - 0.06f * Mathf.PI * 2f;
+            // Narrowed + pushed to one side instead of spanning the full track width — a
+            // player who reacts to the warning can dodge past on the clear side instead of
+            // being guaranteed to clip it (playtester feedback: "무조건 닿는 게 아닐 수 있도록").
+            // 0.55 read as too small on a second pass (playtester: "크기만 좀 키워줘") — widened
+            // back up to 0.8 while keeping the same lateral offset, so there's still a clear
+            // ~5.6m lane on the far side to dodge through.
+            const float widthRatio = 0.8f;
+            const float lateralOffsetRatio = 0.25f;
 
-            CreateZoneTrigger(parent, "BroadcastAccidentZone", geo, accidentTheta, depth: 3f)
-                .AddComponent<BroadcastAccidentZone>();
+            GameObject accidentZone = CreateZoneTrigger(parent, "BroadcastAccidentZone", geo, accidentTheta, depth: 3f,
+                widthRatio: widthRatio, lateralOffsetRatio: lateralOffsetRatio);
+            accidentZone.AddComponent<BroadcastAccidentZone>();
+            AddFlatGroundTint(accidentZone.transform, geo, geo.TrackWidth * widthRatio, 3f, new Color(0.55f, 0.1f, 0.55f));
 
-            CreateZoneTrigger(parent, "AccidentWarningZone", geo, warningTheta, depth: 1f)
-                .AddComponent<AccidentWarningZone>();
+            GameObject warningZone = CreateZoneTrigger(parent, "AccidentWarningZone", geo, warningTheta, depth: 1f,
+                widthRatio: widthRatio, lateralOffsetRatio: lateralOffsetRatio);
+            warningZone.AddComponent<AccidentWarningZone>();
+
+            // A physical world-space sign at the track edge, standing on the same side as the
+            // upcoming accident zone, a little before the warning trigger — the only warning
+            // used to be a screen-space flash on ENTERING the zone, which read as "it just
+            // reverses on you out of nowhere" the first time through (playtester feedback:
+            // "표식이나 그런 게 없으니까 그냥 반전되는 느낌").
+            CreateWarningSign(parent, geo, warningTheta - 0.03f * Mathf.PI * 2f, lateralOffsetRatio);
+        }
+
+        static void CreateWarningSign(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
+        {
+            // Right at the track edge on the danger side — visible without blocking the
+            // drivable lane (the zones themselves already leave the other side clear).
+            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * geo.TrackWidth / 2f;
+            Vector3 position = geo.OffsetPointAt(theta, edgeOffset);
+            Vector3 tangent = geo.TangentAt(theta);
+
+            GameObject sign = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            sign.name = "AccidentWarningSign";
+            sign.transform.SetParent(parent);
+            sign.transform.position = position + Vector3.up * 1f;
+            sign.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
+            sign.transform.localScale = new Vector3(1.5f, 2f, 0.2f);
+            SafeDestroy(sign.GetComponent<BoxCollider>());
+            RendererColorUtil.ApplyColor(sign.GetComponent<Renderer>(), new Color(1f, 0.55f, 0f));
+        }
+
+        // Flat tinted slab matching a zone trigger's footprint exactly (same parent transform,
+        // so it inherits the zone's position/rotation) — makes an otherwise-invisible trigger
+        // box actually read as a hazard patch on the road, same "flat primitive" approach as
+        // LavaZone/OasisZone's visuals.
+        static void AddFlatGroundTint(Transform parent, TrackGeometry geo, float width, float depth, Color color)
+        {
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            visual.name = "GroundTint";
+            visual.transform.SetParent(parent);
+            // parent (the zone) sits at y = WallHeight/2 — bring the tint back down near the
+            // ground (matching the small +0.01~0.02 offsets TestTrackBuilder uses elsewhere to
+            // avoid z-fighting with the track surface).
+            visual.transform.localPosition = new Vector3(0f, 0.02f - geo.WallHeight / 2f, 0f);
+            visual.transform.localScale = new Vector3(width, 0.05f, depth);
+            SafeDestroy(visual.GetComponent<BoxCollider>());
+            RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), color);
         }
 
         // ---------------- Nether Fortress ----------------
@@ -228,6 +282,7 @@ namespace M2.Stage
             worldRoot.transform.SetParent(worldParent);
             LavaZone lavaZone = CreateLavaZone(worldRoot.transform, geo);
             CreateGhastFireball(worldRoot.transform, trackCenter, geo);
+            CreateOasisZone(worldRoot.transform, geo);
 
             NetherFortressTemperatureGauge gauge = vehicle.AddComponent<NetherFortressTemperatureGauge>();
             NetherFortressStageState stageState = vehicle.AddComponent<NetherFortressStageState>();
@@ -266,7 +321,13 @@ namespace M2.Stage
         static LavaZone CreateLavaZone(Transform parent, TrackGeometry geo)
         {
             const float theta = 0.35f * Mathf.PI * 2f;
-            Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * 0.2f);
+            // Was 0.6*TrackWidth square offset only 0.2*TrackWidth from center — on Nether's
+            // narrower track that covered most of the road with barely a sliver to dodge
+            // through. Shrunk + pushed further toward one edge so roughly half the track
+            // width stays clear on the other side (playtester feedback: "피하기 어려워").
+            const float sizeRatio = 0.3f;
+            const float offsetRatio = 0.32f;
+            Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * offsetRatio);
 
             GameObject lava = new GameObject("LavaZone");
             lava.transform.SetParent(parent);
@@ -274,7 +335,7 @@ namespace M2.Stage
 
             BoxCollider box = lava.AddComponent<BoxCollider>();
             box.isTrigger = true;
-            box.size = new Vector3(geo.TrackWidth * 0.6f, 2f, geo.TrackWidth * 0.6f);
+            box.size = new Vector3(geo.TrackWidth * sizeRatio, 2f, geo.TrackWidth * sizeRatio);
 
             // Visual placeholder so the lava patch actually reads on the track — a flat
             // tinted slab, terrain (3D mesh) rather than a billboard sprite per the 2.5D rule.
@@ -282,12 +343,51 @@ namespace M2.Stage
             visual.name = "LavaVisual";
             visual.transform.SetParent(lava.transform);
             visual.transform.localPosition = Vector3.zero;
-            visual.transform.localScale = new Vector3(geo.TrackWidth * 0.6f, 0.05f, geo.TrackWidth * 0.6f);
+            visual.transform.localScale = new Vector3(geo.TrackWidth * sizeRatio, 0.05f, geo.TrackWidth * sizeRatio);
             // SafeDestroy handles both editor-time builds and runtime hot-swaps.
             SafeDestroy(visual.GetComponent<BoxCollider>());
             RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(0.9f, 0.25f, 0f));
 
             return lava.AddComponent<LavaZone>();
+        }
+
+        static void CreateOasisZone(Transform parent, TrackGeometry geo)
+        {
+            // Opposite side of the lap from the lava zone (theta 0.35) / ghast fireball
+            // (theta 0.45) so cooling off doesn't sit right on top of a heat hazard.
+            const float theta = 0.75f * Mathf.PI * 2f;
+            // Narrow across the track (must swerve in on purpose, not something you clip by
+            // accident) but long along it (real time to cool if you commit to hugging this
+            // lane) — playtester ask: "세로로 길되 가로로 짧은 열을 식힐 수 있는 공간".
+            // depthRatio is relative to TrackWidth too (not a fixed meters value) so it scales
+            // down along with the width on a narrower stage instead of looking oversized.
+            const float widthRatio = 0.35f;
+            const float depthRatio = 1.4f;
+            const float offsetRatio = 0.3f;
+
+            Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * offsetRatio);
+            Vector3 tangent = geo.TangentAt(theta);
+
+            GameObject oasis = new GameObject("OasisZone");
+            oasis.transform.SetParent(parent);
+            oasis.transform.position = position + Vector3.up * (geo.WallHeight / 2f);
+            oasis.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
+
+            BoxCollider box = oasis.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.size = new Vector3(geo.TrackWidth * widthRatio, geo.WallHeight * 2f, geo.TrackWidth * depthRatio);
+
+            // Flat cool-blue slab so the cooling lane actually reads against the asphalt/lava,
+            // terrain (3D mesh) rather than a billboard sprite per the 2.5D rule.
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            visual.name = "OasisVisual";
+            visual.transform.SetParent(oasis.transform);
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localScale = new Vector3(geo.TrackWidth * widthRatio, 0.05f, geo.TrackWidth * depthRatio);
+            SafeDestroy(visual.GetComponent<BoxCollider>());
+            RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(0.2f, 0.6f, 0.85f));
+
+            oasis.AddComponent<OasisZone>();
         }
 
         static void CreateGhastFireball(Transform parent, Transform trackCenter, TrackGeometry geo)
@@ -391,9 +491,13 @@ namespace M2.Stage
             }
         }
 
-        static GameObject CreateZoneTrigger(Transform parent, string name, TrackGeometry geo, float theta, float depth)
+        // widthRatio/lateralOffsetRatio default to the original full-width/centered behavior —
+        // pass narrower/offset values (as CreateBroadcastAccidentZone now does) to leave part
+        // of the track clear so a zone is dodgeable instead of guaranteed to hit.
+        static GameObject CreateZoneTrigger(Transform parent, string name, TrackGeometry geo, float theta, float depth,
+            float widthRatio = 1f, float lateralOffsetRatio = 0f)
         {
-            Vector3 position = geo.PointAt(theta);
+            Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * lateralOffsetRatio);
             Vector3 tangent = geo.TangentAt(theta);
 
             GameObject zone = new GameObject(name);
@@ -403,7 +507,7 @@ namespace M2.Stage
 
             BoxCollider box = zone.AddComponent<BoxCollider>();
             box.isTrigger = true;
-            box.size = new Vector3(geo.TrackWidth, geo.WallHeight * 2f, depth);
+            box.size = new Vector3(geo.TrackWidth * widthRatio, geo.WallHeight * 2f, depth);
 
             return zone;
         }
