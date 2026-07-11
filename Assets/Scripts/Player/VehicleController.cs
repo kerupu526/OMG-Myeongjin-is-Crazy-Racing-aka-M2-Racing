@@ -66,6 +66,17 @@ namespace M2.Player
         // apart and back together within the same collision, which desynced a counter.
         public bool IsColliding => Time.time - lastCollisionTime < collisionMemory;
 
+        // --- Status-effect readouts (VehicleStatusHUD) ---
+        // Plain read-only mirrors of the private state fields below — polled once a frame by
+        // the HUD rather than adding a start/end event pair for each one, since none of these
+        // need anything fancier than "currently on or off".
+        public bool IsStunned => isStunned;
+        public bool IsSteeringInverted => steeringInverted;
+        public bool IsKnockedBack => isKnockedBack;
+        public bool HasShield => hasShield;
+        public bool HasSpeedBoost => itemSpeedBonus > 0f;
+        public bool HasDriftBoost => driftSpeedBonus > 0f;
+
         Rigidbody rb;
         InputAction steerAction;
         InputAction throttleAction;

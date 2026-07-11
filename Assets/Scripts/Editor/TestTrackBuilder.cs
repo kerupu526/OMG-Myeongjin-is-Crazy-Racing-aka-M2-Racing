@@ -742,6 +742,28 @@ namespace M2.Editor
             ItemUseNotifier notifier = canvasObject.AddComponent<ItemUseNotifier>();
             notifier.label = itemUseText;
             notifier.Bind(vehicle.GetComponent<ItemSlots>());
+
+            // Top-right status-effect list (기절/조향반전/넉백/방어막/부스트) — sits just below
+            // where a stage gauge label (oxygen/mental/temperature) gets placed at (-20,-20) by
+            // StageAssembler, so the two never overlap.
+            GameObject statusTextObject = new GameObject("VehicleStatusLabel");
+            statusTextObject.transform.SetParent(canvasObject.transform);
+            Text statusText = statusTextObject.AddComponent<Text>();
+            statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            statusText.fontSize = 22;
+            statusText.color = Color.yellow;
+            statusText.alignment = TextAnchor.UpperRight;
+
+            RectTransform statusRect = statusTextObject.GetComponent<RectTransform>();
+            statusRect.anchorMin = new Vector2(1f, 1f);
+            statusRect.anchorMax = new Vector2(1f, 1f);
+            statusRect.pivot = new Vector2(1f, 1f);
+            statusRect.anchoredPosition = new Vector2(-20f, -70f);
+            statusRect.sizeDelta = new Vector2(260f, 180f);
+
+            VehicleStatusHUD statusHud = canvasObject.AddComponent<VehicleStatusHUD>();
+            statusHud.vehicleController = vehicle.GetComponent<VehicleController>();
+            statusHud.label = statusText;
         }
 
         // ---- GameManager + RaceFlowUI + stage assembly ----
