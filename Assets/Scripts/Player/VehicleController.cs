@@ -42,10 +42,16 @@ namespace M2.Player
         public float driftSlipRecoverySpeed = 200f;
         [Tooltip("Minimum hold time before releasing grants any boost — stops accidental taps from giving a free boost.")]
         public float minDriftHoldTimeForBoost = 0.3f;
+        // Was 1.5s — playtester feedback: "홀드 타이밍이 조금 어색함", specifically that most
+        // corners aren't long enough to hold a drift for 1.5s, so full charge almost never
+        // happened in practice. 0.9s fits a typical corner's drift window much better while
+        // still rewarding a longer, more committed slide over a quick tap-drift.
         [Tooltip("Hold time (seconds) to reach the maximum boost bonus — charge scales linearly up to this.")]
-        public float driftBoostChargeTime = 1.5f;
+        public float driftBoostChargeTime = 0.9f;
+        // Was 8 — playtester feedback: "부스트 속도가 좀 약한 것 같음". 12 is +50%, closer to a
+        // third of maxSpeed's default 20 rather than a fifth, more of a genuine mini-turbo.
         [Tooltip("Speed bonus granted at max charge (same units as maxSpeed).")]
-        public float maxDriftBoostSpeed = 8f;
+        public float maxDriftBoostSpeed = 12f;
         [Tooltip("How long the release boost lasts.")]
         public float driftBoostDuration = 1f;
 
