@@ -770,6 +770,29 @@ namespace M2.Editor
             VehicleStatusHUD statusHud = canvasObject.AddComponent<VehicleStatusHUD>();
             statusHud.vehicleController = vehicle.GetComponent<VehicleController>();
             statusHud.label = statusText;
+
+            // Center-screen "반대 방향입니다!" flash — playtester feedback: driving backward
+            // past a checkpoint (long reverse, or turning around entirely) had no warning at
+            // all, which felt broken compared to how racing games normally handle it.
+            GameObject wrongWayTextObject = new GameObject("WrongWayLabel");
+            wrongWayTextObject.transform.SetParent(canvasObject.transform);
+            Text wrongWayText = wrongWayTextObject.AddComponent<Text>();
+            wrongWayText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            wrongWayText.fontSize = 40;
+            wrongWayText.color = Color.red;
+            wrongWayText.alignment = TextAnchor.MiddleCenter;
+            wrongWayText.fontStyle = FontStyle.Bold;
+
+            RectTransform wrongWayRect = wrongWayTextObject.GetComponent<RectTransform>();
+            wrongWayRect.anchorMin = new Vector2(0.5f, 0.5f);
+            wrongWayRect.anchorMax = new Vector2(0.5f, 0.5f);
+            wrongWayRect.pivot = new Vector2(0.5f, 0.5f);
+            wrongWayRect.anchoredPosition = new Vector2(0f, 150f);
+            wrongWayRect.sizeDelta = new Vector2(700f, 80f);
+
+            WrongWayWarning wrongWayWarning = canvasObject.AddComponent<WrongWayWarning>();
+            wrongWayWarning.label = wrongWayText;
+            wrongWayWarning.Bind(vehicle.GetComponent<LapTracker>());
         }
 
         // ---- GameManager + RaceFlowUI + stage assembly ----

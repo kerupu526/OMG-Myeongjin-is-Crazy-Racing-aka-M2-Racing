@@ -44,6 +44,12 @@ namespace M2.Stage
 
             SphereCollider collider = pickupObject.GetComponent<SphereCollider>();
             collider.isTrigger = true;
+            // Left at the primitive default (0.5, and this pickup's 1x visual scale never
+            // multiplied it up like ItemSpawner's 1.2x does) it was even tighter than the item
+            // pickups players already found too fiddly before that fix — playtester feedback:
+            // "산소 방울 같은 것도 아이템이랑 크기가 같아서 먹기가 어려워... 산소 방울만 크기
+            // 키워줘". Matches ItemSpawner's fixed radius so both feel equally forgiving.
+            collider.radius = 1.1f;
 
             OxygenBubblePickup pickup = pickupObject.AddComponent<OxygenBubblePickup>();
             pickup.owner = this;

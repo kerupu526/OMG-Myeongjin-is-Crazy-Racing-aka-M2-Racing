@@ -48,10 +48,10 @@ namespace M2.Player
         // still rewarding a longer, more committed slide over a quick tap-drift.
         [Tooltip("Hold time (seconds) to reach the maximum boost bonus — charge scales linearly up to this.")]
         public float driftBoostChargeTime = 0.9f;
-        // Was 8 — playtester feedback: "부스트 속도가 좀 약한 것 같음". 12 is +50%, closer to a
-        // third of maxSpeed's default 20 rather than a fifth, more of a genuine mini-turbo.
+        // Went 8 ("too weak") -> 12 ("too fast") -> 10, splitting the difference between the
+        // two playtester reports rather than overcorrecting to either extreme again.
         [Tooltip("Speed bonus granted at max charge (same units as maxSpeed).")]
-        public float maxDriftBoostSpeed = 12f;
+        public float maxDriftBoostSpeed = 10f;
         [Tooltip("How long the release boost lasts.")]
         public float driftBoostDuration = 1f;
 
