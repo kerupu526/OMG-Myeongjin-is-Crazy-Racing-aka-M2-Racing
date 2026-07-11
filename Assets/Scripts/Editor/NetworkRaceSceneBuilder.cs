@@ -149,6 +149,13 @@ namespace M2.Editor
                 72, Color.yellow);
             bannerLabel.fontStyle = FontStyle.Bold;
 
+            // These labels are display-only. Text defaults to raycastTarget=true, and the banner
+            // in particular stretches nearly full-screen — with this canvas' GraphicRaycaster it
+            // would swallow every click before it reached the host/join buttons underneath
+            // (playtester: "버튼이 안 눌리는데?"). Turn raycast off so pointer input passes through.
+            infoLabel.raycastTarget = false;
+            bannerLabel.raycastTarget = false;
+
             NetworkRaceHUD hud = canvasObject.AddComponent<NetworkRaceHUD>();
             hud.bannerLabel = bannerLabel;
             hud.infoLabel = infoLabel;
