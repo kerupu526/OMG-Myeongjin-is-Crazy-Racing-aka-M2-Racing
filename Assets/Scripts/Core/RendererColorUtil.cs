@@ -34,5 +34,20 @@ namespace M2.Core
                 material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
             }
         }
+
+        // Like ApplyColor, but also pushes an emission color so the surface reads as
+        // glowing/hot (lava, fire) even without a light source hitting it — emission is
+        // added to the final pixel regardless of scene lighting. No-ops on shaders without
+        // an _EmissionColor property instead of throwing.
+        public static void ApplyEmissiveColor(Renderer renderer, Color baseColor, Color emissionColor)
+        {
+            Material material = renderer.material;
+            ApplyColor(renderer, baseColor);
+            if (!material.HasProperty("_EmissionColor")) return;
+
+            material.EnableKeyword("_EMISSION");
+            material.SetColor("_EmissionColor", emissionColor);
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        }
     }
 }

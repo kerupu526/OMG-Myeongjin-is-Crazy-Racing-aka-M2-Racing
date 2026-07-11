@@ -245,6 +245,12 @@ namespace M2.Stage
             // reverses on you out of nowhere" the first time through (playtester feedback:
             // "표식이나 그런 게 없으니까 그냥 반전되는 느낌").
             CreateWarningSign(parent, geo, warningTheta - 0.03f * Mathf.PI * 2f, lateralOffsetRatio);
+
+            // A tripod camera standing right at the accident zone itself — sells "this is an
+            // active broadcast set, don't drive through it" better than a warning sign alone.
+            // No Kenney pack here has a camera/tripod model, so this is a composed low-poly
+            // prop built from primitives (same approach as LavaZone/GhastFireball's visuals).
+            CreateBroadcastCameraProp(parent, geo, accidentTheta, lateralOffsetRatio);
         }
 
         static void CreateWarningSign(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
@@ -255,14 +261,87 @@ namespace M2.Stage
             Vector3 position = geo.OffsetPointAt(theta, edgeOffset);
             Vector3 tangent = geo.TangentAt(theta);
 
-            GameObject sign = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            sign.name = "AccidentWarningSign";
+            GameObject sign = new GameObject("AccidentWarningSign");
             sign.transform.SetParent(parent);
-            sign.transform.position = position + Vector3.up * 1f;
+            sign.transform.position = position;
             sign.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
-            sign.transform.localScale = new Vector3(1.5f, 2f, 0.2f);
-            SafeDestroy(sign.GetComponent<BoxCollider>());
-            RendererColorUtil.ApplyColor(sign.GetComponent<Renderer>(), new Color(1f, 0.55f, 0f));
+
+            // Post: a thin cylinder standing up from the ground.
+            GameObject post = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            post.name = "Post";
+            post.transform.SetParent(sign.transform);
+            post.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+            post.transform.localScale = new Vector3(0.12f, 0.8f, 0.12f);
+            SafeDestroy(post.GetComponent<CapsuleCollider>());
+            RendererColorUtil.ApplyColor(post.GetComponent<Renderer>(), new Color(0.25f, 0.25f, 0.25f));
+
+            // Sign face: a cube rotated 45 degrees around the post's own forward axis (which
+            // faces oncoming traffic, per the LookRotation above) so it reads as a diamond
+            // road-warning plate instead of a plain flat rectangle — replaces the single flat
+            // cube this used to be.
+            GameObject face = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            face.name = "SignFace";
+            face.transform.SetParent(sign.transform);
+            face.transform.localPosition = new Vector3(0f, 1.75f, 0f);
+            face.transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            face.transform.localScale = new Vector3(0.9f, 0.9f, 0.08f);
+            SafeDestroy(face.GetComponent<BoxCollider>());
+            RendererColorUtil.ApplyColor(face.GetComponent<Renderer>(), new Color(1f, 0.55f, 0f));
+        }
+
+        // A tripod-mounted camera (legs + body + lens + a small "on air" tally light) built
+        // entirely from primitives — a composed low-poly prop stands in for a hand-modeled
+        // Blockbench asset here, same tradeoff already made for LavaZone/GhastFireball.
+        static void CreateBroadcastCameraProp(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
+        {
+            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * geo.TrackWidth / 2f;
+            Vector3 position = geo.OffsetPointAt(theta, edgeOffset);
+            Vector3 tangent = geo.TangentAt(theta);
+
+            GameObject camera = new GameObject("BroadcastCameraProp");
+            camera.transform.SetParent(parent);
+            camera.transform.position = position;
+            camera.transform.rotation = Quaternion.LookRotation(tangent, Vector3.up);
+
+            Color legColor = new Color(0.15f, 0.15f, 0.15f);
+            Color bodyColor = new Color(0.2f, 0.2f, 0.22f);
+
+            // Three legs splayed outward from ground-level feet up to a shared hub point,
+            // like a real tripod.
+            for (int i = 0; i < 3; i++)
+            {
+                float angle = i * 120f * Mathf.Deg2Rad;
+                Vector3 foot = new Vector3(Mathf.Cos(angle) * 0.4f, 0f, Mathf.Sin(angle) * 0.4f);
+                Vector3 hub = new Vector3(0f, 1.05f, 0f);
+                CreateCylinderBetween(camera.transform, $"TripodLeg_{i}", foot, hub, 0.045f, legColor);
+            }
+
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            body.name = "CameraBody";
+            body.transform.SetParent(camera.transform);
+            body.transform.localPosition = new Vector3(0f, 1.15f, 0f);
+            body.transform.localScale = new Vector3(0.4f, 0.3f, 0.6f);
+            SafeDestroy(body.GetComponent<BoxCollider>());
+            RendererColorUtil.ApplyColor(body.GetComponent<Renderer>(), bodyColor);
+
+            // Lens points toward the track, aimed at passing racers.
+            GameObject lens = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            lens.name = "Lens";
+            lens.transform.SetParent(camera.transform);
+            lens.transform.localPosition = new Vector3(0f, 1.15f, 0.42f);
+            lens.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            lens.transform.localScale = new Vector3(0.16f, 0.12f, 0.16f);
+            SafeDestroy(lens.GetComponent<CapsuleCollider>());
+            RendererColorUtil.ApplyColor(lens.GetComponent<Renderer>(), Color.black);
+
+            // Small red "on air" tally light on top.
+            GameObject tally = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            tally.name = "TallyLight";
+            tally.transform.SetParent(camera.transform);
+            tally.transform.localPosition = new Vector3(0f, 1.35f, 0f);
+            tally.transform.localScale = Vector3.one * 0.12f;
+            SafeDestroy(tally.GetComponent<SphereCollider>());
+            RendererColorUtil.ApplyEmissiveColor(tally.GetComponent<Renderer>(), Color.red, Color.red * 2f);
         }
 
         // Flat tinted slab matching a zone trigger's footprint exactly (same parent transform,
@@ -348,6 +427,7 @@ namespace M2.Stage
 
             // Visual placeholder so the lava patch actually reads on the track — a flat
             // tinted slab, terrain (3D mesh) rather than a billboard sprite per the 2.5D rule.
+            // Glowing (emissive) so it reads as hot rather than just a colored rectangle.
             GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cube);
             visual.name = "LavaVisual";
             visual.transform.SetParent(lava.transform);
@@ -355,7 +435,32 @@ namespace M2.Stage
             visual.transform.localScale = new Vector3(geo.TrackWidth * sizeRatio, 0.05f, geo.TrackWidth * sizeRatio);
             // SafeDestroy handles both editor-time builds and runtime hot-swaps.
             SafeDestroy(visual.GetComponent<BoxCollider>());
-            RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(0.9f, 0.25f, 0f));
+            RendererColorUtil.ApplyEmissiveColor(visual.GetComponent<Renderer>(),
+                new Color(0.9f, 0.25f, 0f), new Color(1.4f, 0.35f, 0f));
+
+            // A ring of jagged obsidian rocks framing the pool — composed from primitives
+            // (no Kenney lava/obsidian model available) so the hazard reads as a volcanic
+            // vent rather than a flat colored rectangle. Angle-derived, not Random, so a
+            // rebuild always produces the same layout.
+            float halfSize = geo.TrackWidth * sizeRatio * 0.5f;
+            const int rockCount = 8;
+            for (int i = 0; i < rockCount; i++)
+            {
+                float angle = (i / (float)rockCount) * 360f;
+                float rad = angle * Mathf.Deg2Rad;
+                float radiusJitter = 0.9f + 0.2f * Mathf.Sin(i * 2.7f);
+                float heightJitter = 0.35f + 0.25f * Mathf.Abs(Mathf.Cos(i * 1.9f));
+
+                GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rock.name = $"LavaRock_{i}";
+                rock.transform.SetParent(lava.transform);
+                rock.transform.localPosition = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)) * halfSize * radiusJitter
+                    + Vector3.down * 0.4f;
+                rock.transform.localRotation = Quaternion.Euler(angle * 0.3f, angle * 2.1f, angle * 0.7f);
+                rock.transform.localScale = new Vector3(0.5f, heightJitter, 0.5f);
+                SafeDestroy(rock.GetComponent<BoxCollider>());
+                RendererColorUtil.ApplyColor(rock.GetComponent<Renderer>(), new Color(0.12f, 0.08f, 0.08f));
+            }
 
             return lava.AddComponent<LavaZone>();
         }
@@ -396,6 +501,22 @@ namespace M2.Stage
             SafeDestroy(visual.GetComponent<BoxCollider>());
             RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(0.2f, 0.6f, 0.85f));
 
+            // A few reed-like stalks along the long edges (composed from thin cylinders — no
+            // Kenney reed/palm model available in the castle-kit pack this stage uses) so the
+            // cooling lane reads as an oasis strip rather than a flat blue rectangle.
+            float groundLocalY = -geo.WallHeight / 2f;
+            float halfWidth = geo.TrackWidth * widthRatio * 0.5f;
+            float halfLength = geo.TrackWidth * depthRatio * 0.5f;
+            const int reedCount = 6;
+            for (int i = 0; i < reedCount; i++)
+            {
+                float t = (i / (float)(reedCount - 1)) - 0.5f;
+                float side = (i % 2 == 0) ? 1f : -1f;
+                Vector3 foot = new Vector3(side * halfWidth * 0.9f, groundLocalY, t * halfLength * 1.8f);
+                Vector3 tip = foot + new Vector3(side * 0.15f, 0.9f + 0.2f * Mathf.Abs(Mathf.Sin(i)), 0.1f);
+                CreateCylinderBetween(oasis.transform, $"Reed_{i}", foot, tip, 0.05f, new Color(0.25f, 0.55f, 0.25f));
+            }
+
             oasis.AddComponent<OasisZone>();
         }
 
@@ -422,8 +543,9 @@ namespace M2.Stage
             collider.radius = 1.2f;
 
             // Was a bare invisible trigger before — no Kenney pack here has a fireball/ghast
-            // model, so a simple tinted sphere stands in (same "flat tinted primitive" approach
-            // as LavaZone's visual) rather than leaving the hazard completely unmarked.
+            // model, so a composed low-poly stand-in (glowing core + radiating spikes) reads
+            // as a fireball rather than leaving the hazard completely unmarked or looking like
+            // a plain sphere.
             GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             visual.name = "GhastFireballVisual";
             visual.transform.SetParent(fireball.transform);
@@ -431,7 +553,25 @@ namespace M2.Stage
             visual.transform.localScale = Vector3.one * 1.2f;
             // SafeDestroy handles both editor-time builds and runtime hot-swaps.
             SafeDestroy(visual.GetComponent<SphereCollider>());
-            RendererColorUtil.ApplyColor(visual.GetComponent<Renderer>(), new Color(1f, 0.45f, 0.1f));
+            RendererColorUtil.ApplyEmissiveColor(visual.GetComponent<Renderer>(),
+                new Color(1f, 0.45f, 0.1f), new Color(1.2f, 0.35f, 0f));
+
+            Vector3[] spikeDirections =
+            {
+                Vector3.up, Vector3.down, Vector3.forward, Vector3.back, Vector3.left, Vector3.right,
+                new Vector3(1f, 1f, 1f).normalized, new Vector3(-1f, 1f, -1f).normalized,
+            };
+            foreach (Vector3 dir in spikeDirections)
+            {
+                GameObject spike = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                spike.name = "FireSpike";
+                spike.transform.SetParent(fireball.transform);
+                spike.transform.localPosition = dir * 0.6f;
+                spike.transform.localScale = Vector3.one * 0.45f;
+                SafeDestroy(spike.GetComponent<SphereCollider>());
+                RendererColorUtil.ApplyEmissiveColor(spike.GetComponent<Renderer>(),
+                    new Color(1f, 0.75f, 0.15f), new Color(1.6f, 0.9f, 0.1f));
+            }
 
             GhastFireball ghast = fireball.AddComponent<GhastFireball>();
             ghast.trackCenter = trackCenter;
@@ -498,6 +638,30 @@ namespace M2.Stage
             {
                 RendererColorUtil.ApplyTexture(renderer, texture, Vector2.one);
             }
+        }
+
+        // Builds a cylinder primitive stretched and oriented to span two local points —
+        // used for tripod legs / reed stalks, anything that reads better as "a strut between
+        // two points" than a shape dropped at a single position+rotation.
+        static GameObject CreateCylinderBetween(Transform parent, string name, Vector3 localA, Vector3 localB, float radius, Color color)
+        {
+            GameObject cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cylinder.name = name;
+            cylinder.transform.SetParent(parent);
+
+            Vector3 delta = localB - localA;
+            float length = delta.magnitude;
+            cylinder.transform.localPosition = (localA + localB) * 0.5f;
+            cylinder.transform.localRotation = length > 0.0001f
+                ? Quaternion.FromToRotation(Vector3.up, delta.normalized)
+                : Quaternion.identity;
+            // Unit cylinder mesh is 2 units tall (radius 0.5), so half-length maps directly to
+            // the Y scale and radius maps directly to X/Z scale.
+            cylinder.transform.localScale = new Vector3(radius * 2f, length / 2f, radius * 2f);
+
+            SafeDestroy(cylinder.GetComponent<CapsuleCollider>());
+            RendererColorUtil.ApplyColor(cylinder.GetComponent<Renderer>(), color);
+            return cylinder;
         }
 
         // widthRatio/lateralOffsetRatio default to the original full-width/centered behavior —

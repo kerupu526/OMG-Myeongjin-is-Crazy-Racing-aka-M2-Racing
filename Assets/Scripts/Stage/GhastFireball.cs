@@ -21,11 +21,20 @@ namespace M2.Stage
             "보였던 문제 — 이 쿨다운으로 한 번 튕긴 뒤엔 확실히 벗어날 시간을 줌.")]
         public float hitCooldown = 1.5f;
 
+        [Tooltip("시각적 장식용 자전 속도(도/초). 콜라이더가 구형이라 판정에는 영향 없음 — 가만히 " +
+            "떠 있는 정지 오브젝트보다 불덩이답게 보이도록 하는 순수 장식.")]
+        public float visualSpinSpeed = 40f;
+
         float lastHitTime = -Mathf.Infinity;
 
         void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
+        }
+
+        void Update()
+        {
+            transform.Rotate(Vector3.up, visualSpinSpeed * Time.deltaTime, Space.Self);
         }
 
         void OnTriggerEnter(Collider other)
