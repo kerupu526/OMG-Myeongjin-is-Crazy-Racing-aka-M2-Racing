@@ -298,10 +298,12 @@ namespace M2.Editor
             float scaleZ = (maxAbsZ + currentTrackWidth) / 5f + 2f;
             ground.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 
-            // This plane is the off-track surface only — keep it a distinct, lighter
-            // "grass" color so the darker track ring (see CreateTrackSurface) reads clearly
-            // as the drivable path instead of blending into the rest of the ground.
-            RendererColorUtil.ApplyColor(ground.GetComponent<Renderer>(), new Color(0.25f, 0.4f, 0.22f));
+            // This plane is the off-track surface only — keep it a distinct, brighter color so
+            // the dark navy-purple track ring (see CreateTrackSurface, now palette-matched to
+            // "M2 레이싱 게임 UI 디자인"'s mockups) reads clearly as the drivable path instead of
+            // blending into the rest of the ground. #b6f36b lime green — the same UI mockup's
+            // most common accent after gold/pink, and a cheerful contrast against the track.
+            RendererColorUtil.ApplyColor(ground.GetComponent<Renderer>(), new Color(0.714f, 0.953f, 0.420f));
         }
 
         // How many times a track texture repeats around one full lap. Purely a look parameter —
