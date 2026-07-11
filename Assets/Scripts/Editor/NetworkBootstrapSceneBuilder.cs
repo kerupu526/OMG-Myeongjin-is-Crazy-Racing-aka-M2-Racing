@@ -69,12 +69,28 @@ namespace M2.Editor
 
         static NetworkBootstrapUI CreateNetworkManagerAndUi(Transform parent)
         {
+            GameObject vehiclePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VehiclePrefabPath);
+            if (vehiclePrefab == null)
+            {
+                Debug.LogWarning($"M2: NetworkVehicle prefab not found at {VehiclePrefabPath} — run " +
+                    "M2/Build Network Prefabs first. NetworkManager.PlayerPrefab left unset.");
+            }
+
+            NetworkManager networkManager = CreateNetworkManager(vehiclePrefab);
+            return AttachHostJoinUi(parent, networkManager);
+        }
+
+        // Creates the root NetworkManager GameObject (UnityTransport + a scene-management-off
+        // NetworkConfig, player prefab wired). Shared with NetworkRaceSceneBuilder so both
+        // networked scenes create the manager identically. `vehiclePrefab` may be null (a
+        // warning is logged by the caller) — PlayerPrefab just stays unset.
+        internal static NetworkManager CreateNetworkManager(GameObject vehiclePrefab)
+        {
             // NetworkManager must be a scene ROOT GameObject (no parent) — it calls
             // DontDestroyOnLoad on itself, which Unity only allows for root objects. Nesting it
-            // under the "NetworkBootstrap" root (as an earlier version of this did) triggers
-            // NGO's own "NetworkManager is nested under [X]" validation error the moment you
-            // enter Play mode (playtester feedback: "NetworkManager is nested under
-            // NetworkBootstrap.이라는데?").
+            // under another root (as an earlier version of this did) triggers NGO's own
+            // "NetworkManager is nested under [X]" validation error the moment you enter Play
+            // mode (playtester feedback: "NetworkManager is nested under NetworkBootstrap.이라는데?").
             GameObject nmObject = new GameObject("NetworkManager");
 
             NetworkManager networkManager = nmObject.AddComponent<NetworkManager>();
@@ -94,27 +110,30 @@ namespace M2.Editor
             // warning "The current scene was not found in the scenes in build..." and left
             // ownership-dependent state (e.g. NetworkVehicleSync.OnNetworkSpawn's isKinematic
             // assignment) unreliable for a client joining after the host, since NGO's
-            // scene-sync handshake never properly completed. Milestone 1 has exactly one static
-            // bootstrap scene and no scene transitions at all, so scene management isn't needed
-            // yet — turning it off sidesteps the whole requirement until a later milestone
-            // actually needs multi-scene sync (race flow, stage selection, etc.).
+            // scene-sync handshake never properly completed. Both networked scenes so far have a
+            // single static scene each side loads independently (no NGO scene transitions), so
+            // scene management isn't needed yet — turning it off sidesteps the whole requirement
+            // until a later milestone actually needs multi-scene sync.
             networkManager.NetworkConfig.EnableSceneManagement = false;
 
-            GameObject vehiclePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VehiclePrefabPath);
-            if (vehiclePrefab == null)
-            {
-                Debug.LogWarning($"M2: NetworkVehicle prefab not found at {VehiclePrefabPath} — run " +
-                    "M2/Build Network Prefabs first. NetworkManager.PlayerPrefab left unset.");
-            }
-            else
+            if (vehiclePrefab != null)
             {
                 networkManager.NetworkConfig.PlayerPrefab = vehiclePrefab;
             }
 
+            return networkManager;
+        }
+
+        // Adds the host/join UI (buttons + IP field + status text + EventSystem) to an existing
+        // NetworkManager. The NetworkBootstrapUI component goes on the NetworkManager object
+        // itself; the canvas/EventSystem go under `uiParent`. Shared with NetworkRaceSceneBuilder.
+        internal static NetworkBootstrapUI AttachHostJoinUi(Transform uiParent, NetworkManager networkManager)
+        {
+            GameObject nmObject = networkManager.gameObject;
             NetworkBootstrapUI bootstrapUi = nmObject.AddComponent<NetworkBootstrapUI>();
 
             GameObject canvasObject = new GameObject("BootstrapCanvas");
-            canvasObject.transform.SetParent(parent);
+            canvasObject.transform.SetParent(uiParent);
             Canvas canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvasObject.AddComponent<CanvasScaler>();
@@ -127,7 +146,7 @@ namespace M2.Editor
             if (Object.FindFirstObjectByType<EventSystem>() == null)
             {
                 GameObject eventSystemObject = new GameObject("EventSystem");
-                eventSystemObject.transform.SetParent(parent);
+                eventSystemObject.transform.SetParent(uiParent);
                 eventSystemObject.AddComponent<EventSystem>();
                 var uiModule = eventSystemObject.AddComponent<InputSystemUIInputModule>();
                 uiModule.AssignDefaultActions();

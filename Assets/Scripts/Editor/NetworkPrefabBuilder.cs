@@ -34,14 +34,16 @@ namespace M2.Editor
         const string PrefabDirectory = "Assets/Prefabs/Player";
         const string PrefabPath = PrefabDirectory + "/NetworkVehicle.prefab";
 
+        const string RaceManagerPrefabDirectory = "Assets/Prefabs/Network";
+        const string RaceManagerPrefabPath = RaceManagerPrefabDirectory + "/NetworkRaceManager.prefab";
+
         [MenuItem("M2/Build Network Prefabs")]
         public static void BuildNetworkVehiclePrefab()
         {
-            // Milestone 1 scope only: Rigidbody + VehicleController + the real visual model +
-            // the 3 networking components. No LapTracker/ItemSlots/tag-dependent gauge systems
-            // yet — race flow and items are explicitly out of scope for this round (see
-            // CLAUDE.md's Netcode section) and adding them here would need checkpoints/item
-            // spawners that don't exist in a bare network bootstrap scene anyway.
+            // Milestone 2a adds LapTracker (below) so the host's synced copy of each car counts
+            // laps by passing through the race scene's Checkpoint triggers — see
+            // NetworkRaceManager. ItemSlots (and the full item roster) stay out of scope until
+            // Milestone 2b's server-authoritative item sync.
             GameObject vehicle = GameObject.CreatePrimitive(PrimitiveType.Cube);
             vehicle.name = "NetworkVehicle";
             vehicle.tag = "Player";
@@ -57,6 +59,10 @@ namespace M2.Editor
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
             vehicle.AddComponent<VehicleController>();
+            // Milestone 2a: LapTracker lets the host authoritatively count this car's laps from
+            // its synced copy (checkpoints on the host fire for both cars). It also gives the
+            // owning client wrong-way detection for free (VehicleController reads it in Awake).
+            vehicle.AddComponent<M2.Core.LapTracker>();
             vehicle.AddComponent<NetworkObject>();
             vehicle.AddComponent<OwnerAuthoritativeNetworkTransform>();
             vehicle.AddComponent<NetworkVehicleSync>();
@@ -162,6 +168,51 @@ namespace M2.Editor
             }
 
             Debug.Log($"M2_NETWORK_PREFAB_BUILT: {PrefabPath} (GlobalObjectIdHash={hash})");
+        }
+
+        // Builds Assets/Prefabs/Network/NetworkRaceManager.prefab — the single NetworkObject the
+        // host spawns to run/replicate the race (see NetworkRaceManager / NetworkRaceBootstrap).
+        // Nothing visual: it's a bare logic object.
+        [MenuItem("M2/Build Network Race Manager Prefab")]
+        public static void BuildNetworkRaceManagerPrefab()
+        {
+            GameObject raceManager = new GameObject("NetworkRaceManager");
+            raceManager.AddComponent<NetworkObject>();
+            raceManager.AddComponent<NetworkRaceManager>();
+
+            if (!AssetDatabase.IsValidFolder(RaceManagerPrefabDirectory))
+            {
+                if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
+                {
+                    AssetDatabase.CreateFolder("Assets", "Prefabs");
+                }
+                AssetDatabase.CreateFolder("Assets/Prefabs", "Network");
+            }
+
+            GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(raceManager, RaceManagerPrefabPath);
+            Object.DestroyImmediate(raceManager);
+
+            uint hash = AssignAndReadGlobalObjectIdHash(savedPrefab);
+            Debug.Log($"M2_NETWORK_RACE_MANAGER_PREFAB_BUILT: {RaceManagerPrefabPath} (GlobalObjectIdHash={hash})");
+        }
+
+        // NetworkObject.GlobalObjectIdHash is only computed inside NetworkObject.OnValidate, an
+        // Editor-only callback Unity does NOT fire on its own in headless batch mode (confirmed
+        // for the vehicle prefab — see BuildNetworkVehiclePrefab's long comment). Invoke it via
+        // reflection on the saved asset, re-save, then read the (internal) hash back to confirm
+        // it's non-zero. Shared by both prefab builders so the workaround lives in one place.
+        static uint AssignAndReadGlobalObjectIdHash(GameObject savedPrefab)
+        {
+            NetworkObject savedNetworkObject = savedPrefab.GetComponent<NetworkObject>();
+            MethodInfo onValidate = typeof(NetworkObject).GetMethod("OnValidate", BindingFlags.NonPublic | BindingFlags.Instance);
+            onValidate.Invoke(savedNetworkObject, null);
+
+            PrefabUtility.SavePrefabAsset(savedPrefab);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            FieldInfo hashField = typeof(NetworkObject).GetField("GlobalObjectIdHash", BindingFlags.NonPublic | BindingFlags.Instance);
+            return (uint)hashField.GetValue(savedNetworkObject);
         }
     }
 }

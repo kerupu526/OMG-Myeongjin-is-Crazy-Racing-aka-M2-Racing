@@ -22,6 +22,8 @@ namespace M2.Core
         public int countdownSeconds = 3;
         [Tooltip("true면 briefingDuration 타이머 대신 RequestStart()가 호출될 때까지 Briefing 상태로 대기함. 테스트 트랙에서 수동으로 '시작' 버튼을 누르게 하기 위한 옵션 — 기본은 false(기존 타이머 방식 그대로).")]
         public bool waitForManualStart = false;
+        [Tooltip("true(기본)면 Start()에서 곧바로 레이스 흐름을 시작함 — 기존 로컬 씬 동작 그대로. 온라인(Netcode) 씬에서는 false로 두고, 호스트의 NetworkRaceManager가 두 플레이어가 모두 스폰된 뒤 BeginRaceFlow()를 직접 호출함.")]
+        public bool autoStartOnStart = true;
 
         [Header("Race Rules")]
         public int targetLapCount = 3;
@@ -46,6 +48,7 @@ namespace M2.Core
         public event Action<string> OnRaceDraw; // reason shown on the result screen (e.g. "제한시간 초과", "화상")
 
         bool raceEnded;
+        bool raceFlowStarted;
         bool startRequested;
         readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
 
@@ -72,7 +75,37 @@ namespace M2.Core
                 raceTimer = FindFirstObjectByType<RaceTimer>();
             }
 
+            // Local scenes (TestTrackBuilder / persisted Stage_*.unity) auto-start immediately,
+            // exactly as before. Networked scenes set autoStartOnStart=false and let the host's
+            // NetworkRaceManager call BeginRaceFlow() once both players have actually spawned —
+            // otherwise the race would start (and the timer would run) before the second player
+            // is even connected, and the client's own GameManager would run a second, divergent
+            // copy of the flow.
+            if (autoStartOnStart)
+            {
+                BeginRaceFlow();
+            }
+        }
+
+        // Starts the race flow coroutine (idempotent — a second call is a no-op). Public so a
+        // networked host can trigger the start after both players spawn; local scenes call it
+        // from Start() via autoStartOnStart.
+        public void BeginRaceFlow()
+        {
+            if (raceFlowStarted) return;
+            raceFlowStarted = true;
             StartCoroutine(RunRaceFlow());
+        }
+
+        // Adds a racer/vehicle pair before the flow starts — used by the networked host, whose
+        // vehicles spawn dynamically (NetworkVehicleSync) rather than being wired at build time
+        // like a local scene's single vehicle. Ignores duplicates and no-ops once racing has
+        // begun (the lap-event subscription in RunRaceFlow happens at Racing start, so racers
+        // must be registered before BeginRaceFlow).
+        public void RegisterRacer(LapTracker racer, VehicleController vehicle)
+        {
+            if (racer != null && !racers.Contains(racer)) racers.Add(racer);
+            if (vehicle != null && !vehicles.Contains(vehicle)) vehicles.Add(vehicle);
         }
 
         void Update()

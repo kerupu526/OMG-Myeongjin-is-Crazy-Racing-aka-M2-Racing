@@ -102,6 +102,7 @@ GameObject:
   - component: {fileID: 405008409849850683}
   - component: {fileID: 4773150874732082610}
   - component: {fileID: 1847688795146916759}
+  - component: {fileID: 4239778048488713076}
   - component: {fileID: 6753825407343901644}
   - component: {fileID: 926447431919002144}
   - component: {fileID: 7812917523075345037}
@@ -208,6 +209,18 @@ MonoBehaviour:
   maxDriftBoostSpeed: 10
   driftBoostDuration: 1
   maxWrongWayDistance: 15
+--- !u!114 &4239778048488713076
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1348012711100617852}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c44dbe32d0af1a45a41f1c0986e5c96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: M2.Runtime::M2.Core.LapTracker
 --- !u!114 &6753825407343901644
 MonoBehaviour:
   m_ObjectHideFlags: 0

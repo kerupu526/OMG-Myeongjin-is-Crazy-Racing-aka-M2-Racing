@@ -279,6 +279,38 @@ namespace M2.Editor
             Debug.Log($"M2 test track built ({initialStage}). Enter Play mode and drive with Arrow Keys/WASD.{switcherHint}");
         }
 
+        // Builds just the drivable track environment (ground, surface, start/finish line, walls,
+        // checkpoints, background decor) under `root` for the given stage, and returns the
+        // TrackGeometry so a caller can place things relative to the track (e.g. a network start
+        // grid / camera). Reused by NetworkRaceSceneBuilder so the online race scene gets the
+        // exact same hand-authored track as the local scenes instead of duplicating any of this.
+        // Deliberately omits the vehicle, HUD, GameManager, item spawners and stage hazards —
+        // the networked scene wires those up differently (dynamically spawned vehicles, a
+        // networked HUD, an idle-on-clients GameManager).
+        internal static TrackGeometry BuildTrackEnvironment(Transform root, StageType stage)
+        {
+            currentControlPoints = ControlPointsFor(stage);
+            currentTrackWidth = TrackWidthFor(stage);
+            Geometry = new TrackGeometry(currentControlPoints, currentTrackWidth, WallHeight);
+
+            CreateGround(root);
+            CreateTrackSurface(root);
+            CreateStartFinishLine(root);
+            CreateWallRing(root, "OuterWall", +1f);
+            CreateWallRing(root, "InnerWall", -1f);
+            CreateBackgroundDecor(root, stage);
+
+            var checkpointsRoot = new GameObject("Checkpoints").transform;
+            checkpointsRoot.SetParent(root);
+            CreateCheckpoints(checkpointsRoot);
+
+            return Geometry;
+        }
+
+        // Exposes the shared track width + vehicle spawn convention (see CreateVehicle) so a
+        // network scene builder can lay out its start grid the same way the local vehicle spawns.
+        internal static float CurrentTrackWidth => currentTrackWidth;
+
         static void CreateGround(Transform parent)
         {
             GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);

@@ -224,4 +224,137 @@ public static class BuildCheck
         Debug.Log("=== M2_NETWORK_BOOTSTRAP_SMOKE_TEST_OK ===");
         EditorApplication.Exit(0);
     }
+
+    // ---- Milestone 2a: server-authoritative race-state sync ----
+
+    /// <summary>
+    /// NetworkRaceManager.prefab(호스트가 스폰하는 레이스 상태 복제 오브젝트)을 생성/갱신.
+    /// </summary>
+    public static void BuildNetworkRaceManagerPrefab()
+    {
+        Debug.Log("=== M2_NETWORK_RACE_MANAGER_PREFAB_BUILD_START ===");
+        try
+        {
+            M2.Editor.NetworkPrefabBuilder.BuildNetworkRaceManagerPrefab();
+            Debug.Log("=== M2_NETWORK_RACE_MANAGER_PREFAB_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_NETWORK_RACE_MANAGER_PREFAB_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    /// <summary>
+    /// NetworkRaceManager.prefab이 NetworkObject + NetworkRaceManager를 갖췄고 GlobalObjectIdHash가
+    /// 0이 아닌지(스폰 가능 상태인지) 확인. BuildNetworkRaceManagerPrefab이 먼저 성공해야 함.
+    /// </summary>
+    public static void SmokeTestNetworkRaceManagerPrefab()
+    {
+        Debug.Log("=== M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_START ===");
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Network/NetworkRaceManager.prefab");
+        if (prefab == null)
+        {
+            Debug.LogError("M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_FAIL: 프리팹을 찾을 수 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        var networkObject = prefab.GetComponent<Unity.Netcode.NetworkObject>();
+        if (networkObject == null || prefab.GetComponent<M2.Network.NetworkRaceManager>() == null)
+        {
+            Debug.LogError("M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_FAIL: NetworkObject/NetworkRaceManager 중 하나가 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        var hashField = typeof(Unity.Netcode.NetworkObject).GetField("GlobalObjectIdHash",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        uint hash = (uint)hashField.GetValue(networkObject);
+        if (hash == 0)
+        {
+            Debug.LogError("M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_FAIL: GlobalObjectIdHash가 0 — 스폰 불가");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        Debug.Log($"=== M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_OK (GlobalObjectIdHash={hash}) ===");
+        EditorApplication.Exit(0);
+    }
+
+    /// <summary>
+    /// NetworkRace.unity(온라인 레이스 씬)을 생성/갱신. 차량/레이스매니저 프리팹이 먼저 빌드돼야
+    /// 각각 PlayerPrefab / NetworkConfig.Prefabs에 배선됨.
+    /// </summary>
+    public static void BuildNetworkRaceScene()
+    {
+        Debug.Log("=== M2_NETWORK_RACE_SCENE_BUILD_START ===");
+        try
+        {
+            M2.Editor.NetworkRaceSceneBuilder.BuildAndSaveScene();
+            Debug.Log("=== M2_NETWORK_RACE_SCENE_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_NETWORK_RACE_SCENE_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    /// <summary>
+    /// NetworkRace.unity가 NetworkManager(+PlayerPrefab / 레이스매니저 프리팹 등록) / GameManager
+    /// (autoStartOnStart=false) / RaceStartGrid / NetworkRaceBootstrap / NetworkRaceHUD를 다
+    /// 갖췄는지 확인. BuildNetworkRaceScene이 먼저 성공해야 함.
+    /// </summary>
+    public static void SmokeTestNetworkRaceScene()
+    {
+        Debug.Log("=== M2_NETWORK_RACE_SCENE_SMOKE_TEST_START ===");
+
+        UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/NetworkRace.unity");
+
+        var networkManager = Object.FindFirstObjectByType<Unity.Netcode.NetworkManager>();
+        if (networkManager == null || networkManager.transform.parent != null)
+        {
+            Debug.LogError("M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: NetworkManager가 없거나 씬 루트가 아님");
+            EditorApplication.Exit(1);
+            return;
+        }
+        if (networkManager.NetworkConfig.PlayerPrefab == null)
+        {
+            Debug.LogError("M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: PlayerPrefab이 비어있음");
+            EditorApplication.Exit(1);
+            return;
+        }
+        var gm = Object.FindFirstObjectByType<M2.Core.GameManager>();
+        if (gm == null || gm.autoStartOnStart)
+        {
+            Debug.LogError("M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: GameManager가 없거나 autoStartOnStart가 꺼져있지 않음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        // 레이스매니저 프리팹은 런타임(NetworkRaceBootstrap.AddNetworkPrefab)에 등록되므로 편집
+        // 시점 NetworkConfig.Prefabs에는 없음 — 대신 부트스트랩에 프리팹이 배선돼 있는지 확인.
+        var bootstrap = Object.FindFirstObjectByType<M2.Network.NetworkRaceBootstrap>();
+        if (bootstrap == null || bootstrap.raceManagerPrefab == null)
+        {
+            Debug.LogError("M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: NetworkRaceBootstrap가 없거나 raceManagerPrefab 배선이 비어있음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        if (Object.FindFirstObjectByType<M2.Network.RaceStartGrid>() == null ||
+            Object.FindFirstObjectByType<M2.Network.NetworkRaceHUD>() == null)
+        {
+            Debug.LogError("M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: RaceStartGrid/NetworkRaceHUD 중 하나가 없음");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        Debug.Log("=== M2_NETWORK_RACE_SCENE_SMOKE_TEST_OK ===");
+        EditorApplication.Exit(0);
+    }
 }

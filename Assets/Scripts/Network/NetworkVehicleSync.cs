@@ -46,8 +46,22 @@ namespace M2.Network
                 // position here, instead of on the server, is what actually replicates
                 // correctly to everyone else.
                 bool isServerOwned = OwnerClientId == NetworkManager.ServerClientId;
-                float side = isServerOwned ? -1f : 1f;
-                transform.position = new Vector3(side * spawnSideOffset, 0.5f, 0f);
+
+                // Milestone 2a: a real race scene bakes a RaceStartGrid at the start/finish line,
+                // so cars spawn on the grid facing down the track instead of at the world origin.
+                // The bare Milestone-1 bootstrap scene has no grid — fall back to the original
+                // left/right split around the origin there so that scene keeps working unchanged.
+                RaceStartGrid startGrid = FindFirstObjectByType<RaceStartGrid>();
+                if (startGrid != null)
+                {
+                    startGrid.GetSlot(isServerOwned, out Vector3 gridPos, out Quaternion gridRot);
+                    transform.SetPositionAndRotation(gridPos, gridRot);
+                }
+                else
+                {
+                    float side = isServerOwned ? -1f : 1f;
+                    transform.position = new Vector3(side * spawnSideOffset, 0.5f, 0f);
+                }
 
                 // With 2 networked vehicles now dynamically spawned, the scene's one
                 // Camera.main needs to be told which one is actually "mine" — unlike the local

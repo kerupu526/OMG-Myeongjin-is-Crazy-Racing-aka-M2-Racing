@@ -146,6 +146,42 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(RaceState.Racing, gm.CurrentState, "RequestStart() should let the flow proceed to Countdown then Racing.");
         }
 
+        [UnityTest]
+        public IEnumerator AutoStartDisabled_Waits_For_BeginRaceFlow()
+        {
+            // The networked scene (NetworkRaceManager) sets autoStartOnStart=false and starts the
+            // flow itself once both players spawn, registering their racers via RegisterRacer.
+            // Replace SetUp's auto-starting GameManager with one in that networked configuration.
+            // DestroyImmediate before yielding so SetUp's gm never runs its (auto-started) flow.
+            Object.DestroyImmediate(gmObject);
+
+            gmObject = new GameObject("NetworkedGameManager");
+            gm = gmObject.AddComponent<GameManager>();
+            gm.autoStartOnStart = false; // set before Start() runs (Start fires next frame)
+            gm.raceTimer = raceTimer;
+            gm.briefingDuration = 0.05f;
+            gm.countdownSeconds = 1;
+            gm.targetLapCount = 1;
+
+            // No racers registered yet, autoStart off — must stay in PreRace across several frames.
+            for (int i = 0; i < 10; i++) yield return null;
+            Assert.AreEqual(RaceState.PreRace, gm.CurrentState,
+                "With autoStartOnStart=false and no BeginRaceFlow() call, the race must not start on its own.");
+
+            // Register the racer the way the host's NetworkRaceManager does, then start the flow.
+            gm.RegisterRacer(lapTracker, vehicle);
+            Assert.Contains(lapTracker, gm.racers, "RegisterRacer should add the racer to the GameManager's list.");
+
+            gm.BeginRaceFlow();
+            yield return WaitForState(RaceState.Racing);
+            Assert.AreEqual(RaceState.Racing, gm.CurrentState,
+                "BeginRaceFlow() should drive the flow through briefing/countdown into Racing.");
+
+            // Idempotent: a second BeginRaceFlow() must not restart or double-run the flow.
+            gm.BeginRaceFlow();
+            Assert.AreEqual(RaceState.Racing, gm.CurrentState, "A repeated BeginRaceFlow() should be a no-op.");
+        }
+
         IEnumerator WaitForState(RaceState state)
         {
             float timeout = Time.time + 3f;
