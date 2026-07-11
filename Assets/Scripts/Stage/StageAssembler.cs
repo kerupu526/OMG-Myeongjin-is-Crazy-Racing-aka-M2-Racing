@@ -215,11 +215,20 @@ namespace M2.Stage
             // Narrowed + pushed to one side instead of spanning the full track width — a
             // player who reacts to the warning can dodge past on the clear side instead of
             // being guaranteed to clip it (playtester feedback: "무조건 닿는 게 아닐 수 있도록").
-            // 0.55 read as too small on a second pass (playtester: "크기만 좀 키워줘") — widened
-            // back up to 0.8 while keeping the same lateral offset, so there's still a clear
-            // ~5.6m lane on the far side to dodge through.
-            const float widthRatio = 0.8f;
-            const float lateralOffsetRatio = 0.25f;
+            //
+            // BUG (found on a later playtest — "왜 자꾸 조향 반전이 되는 거지? 난 피해갔는데?"):
+            // widthRatio=0.8f/lateralOffsetRatio=0.25f (TrackWidth=16) put the zone's far edge
+            // at offset 4.0+6.4=10.4, which is PAST the actual outer wall at 8.0 — the "far
+            // side" everyone assumed was a dodge lane didn't exist; the zone butted right up
+            // against (and overshot) the wall, so only the near/inner side had any clearance at
+            // all. A player taking the natural wide racing line on the far side had zero room
+            // and always clipped it. (The original 0.55f/0.25f version had the same flaw, just
+            // a smaller 0.4m overshoot — not zero, but still not the "avoidable" gap the comment
+            // above claimed.) Recomputed so the near edge sits 4.5m off the inner wall (a real,
+            // comfortable lane for the 1.2m-wide car) and the far edge stops 0.5m short of the
+            // outer wall (never overshoots) — width 11.0m, centered at offset 2.0.
+            const float widthRatio = 11f / 16f;
+            const float lateralOffsetRatio = 2f / 16f;
 
             GameObject accidentZone = CreateZoneTrigger(parent, "BroadcastAccidentZone", geo, accidentTheta, depth: 3f,
                 widthRatio: widthRatio, lateralOffsetRatio: lateralOffsetRatio);
