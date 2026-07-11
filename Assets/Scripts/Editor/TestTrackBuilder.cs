@@ -448,7 +448,10 @@ namespace M2.Editor
             }
         }
 
-        const int BackgroundDecorCount = 10;
+        // Was 10 — playtester feedback ("빈 배경") plus only 3 model variants per stage made
+        // the background outside the track read as sparse/empty. Bumped alongside adding more
+        // model variety per stage (below) rather than just repeating the same 3 props more often.
+        const int BackgroundDecorCount = 18;
         const float BackgroundDecorMargin = 8f; // how far outside the outer wall decor sits
 
         static void CreateBackgroundDecor(Transform parent, StageType stage)
@@ -459,14 +462,23 @@ namespace M2.Editor
             switch (stage)
             {
                 case StageType.BikiniCity:
-                    // No colormap.png in kenney_nature-kit — it relies on baked vertex colors,
-                    // which URP's default Lit shader doesn't read. Left in as a real test: if
-                    // these render blank/white in Play mode, swap to a texture-atlas pack instead.
+                    // No colormap.png in kenney_nature-kit (confirmed — the pack ships no
+                    // Textures folder at all, unlike the other two kits below) — it relies on
+                    // baked vertex colors, which URP's default Lit shader doesn't read without
+                    // extra material setup this project hasn't done. Rather than leave these
+                    // renderers with whatever default material Unity assigns (risking a blank/
+                    // white look), FallbackColorFor below applies a flat rock/foliage tint as a
+                    // safe substitute. Palm trees swapped in for tree_detailed — reads as a
+                    // beach much more than a generic forest tree.
                     modelPaths = new[]
                     {
                         "Assets/Art/Models/kenney_nature-kit/Models/FBX format/cliff_blockCave_rock.fbx",
                         "Assets/Art/Models/kenney_nature-kit/Models/FBX format/rock_largeA.fbx",
-                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/tree_detailed.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/rock_largeC.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/rock_tallB.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/tree_palm.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/tree_palmBend.fbx",
+                        "Assets/Art/Models/kenney_nature-kit/Models/FBX format/tree_palmDetailedTall.fbx",
                     };
                     texturePath = null;
                     break;
@@ -476,6 +488,10 @@ namespace M2.Editor
                         "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-a.fbx",
                         "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-e.fbx",
                         "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-j.fbx",
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-b.fbx",
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-d.fbx",
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-skyscraper-a.fbx",
+                        "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/building-skyscraper-c.fbx",
                     };
                     texturePath = "Assets/Art/Models/kenney_city-kit-commercial_2.1/Models/FBX format/Textures/colormap.png";
                     break;
@@ -485,6 +501,9 @@ namespace M2.Editor
                         "Assets/Art/Models/kenney_castle-kit/Models/FBX format/tower-hexagon-base.fbx",
                         "Assets/Art/Models/kenney_castle-kit/Models/FBX format/tower-hexagon-mid.fbx",
                         "Assets/Art/Models/kenney_castle-kit/Models/FBX format/bridge-straight.fbx",
+                        "Assets/Art/Models/kenney_castle-kit/Models/FBX format/tower-square-base.fbx",
+                        "Assets/Art/Models/kenney_castle-kit/Models/FBX format/tower-square-top-roof.fbx",
+                        "Assets/Art/Models/kenney_castle-kit/Models/FBX format/wall-corner-half-tower.fbx",
                     };
                     texturePath = "Assets/Art/Models/kenney_castle-kit/Models/FBX format/Textures/colormap.png";
                     break;
@@ -521,7 +540,26 @@ namespace M2.Editor
                         RendererColorUtil.ApplyTexture(renderer, texture, Vector2.one);
                     }
                 }
+                else
+                {
+                    Color fallback = FallbackColorFor(path);
+                    foreach (Renderer renderer in instance.GetComponentsInChildren<Renderer>())
+                    {
+                        RendererColorUtil.ApplyColor(renderer, fallback);
+                    }
+                }
             }
+        }
+
+        // Flat tint for models with no texture atlas to fall back on (currently only
+        // BikiniCity's kenney_nature-kit props) — rock/cliff props read as stone gray, everything
+        // else (palm trees) as foliage green. A crude heuristic on the filename, but the two
+        // categories are the only ones in play here.
+        static Color FallbackColorFor(string modelPath)
+        {
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(modelPath);
+            bool isRock = fileName.Contains("rock") || fileName.Contains("cliff");
+            return isRock ? new Color(0.55f, 0.53f, 0.5f) : new Color(0.25f, 0.55f, 0.2f);
         }
 
         static void CreateCheckpoints(Transform parent)
