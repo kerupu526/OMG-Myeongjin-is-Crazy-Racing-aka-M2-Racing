@@ -49,12 +49,16 @@ namespace M2.Editor
         // hand-tweaked again, re-verify rather than assuming a small nudge is safe.
         // Applied uniformly to every stage's control points below. Playtester feedback after
         // the per-stage-width tuning pass: "맵 길이가 전체적으로 짧은 거 같기도... 아주 조금만
-        // 넓히자" (AfricaTV's ~444m lap took only ~1 minute chaining gasoline boosts). A uniform
-        // scale preserves every already-verified property exactly (self-intersection-free,
-        // curvature-to-TrackWidth ratio) since neither depends on absolute scale — re-verified
-        // anyway via the same Node.js port before committing this (0 self-intersections on all
-        // 3 stages at the new size).
-        const float TrackLengthScale = 1.2f;
+        // 넓히자" (AfricaTV's ~444m lap took only ~1 minute chaining gasoline boosts) — first
+        // bumped to 1.2x. Still felt short (네더요새 특히), so raised again to 1.5x with an
+        // explicit target this time: a fast/boosted 3-lap AfricaTV run should take about 1:30.
+        // At the ~22.2 m/s sustained boosted speed the original 1-minute report implies, 1.5x
+        // puts AfricaTV's 3-lap time at ~90s (444m * 1.5 * 3 / 22.2 ≈ 90.1s) — confirmed via the
+        // same Node.js port used for self-intersection checks. A uniform scale preserves every
+        // already-verified property exactly (self-intersection-free, curvature-to-TrackWidth
+        // ratio) since neither depends on absolute scale — re-verified anyway before committing
+        // this (0 self-intersections on all 3 stages at the new size).
+        const float TrackLengthScale = 1.5f;
 
         static Vector3[] Scale(Vector3[] points, float factor)
         {
