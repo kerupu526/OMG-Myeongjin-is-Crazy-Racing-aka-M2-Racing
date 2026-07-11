@@ -19,6 +19,9 @@ namespace M2.Network
     [RequireComponent(typeof(OwnerAuthoritativeNetworkTransform))]
     public class NetworkVehicleSync : NetworkBehaviour
     {
+        [Tooltip("두 플레이어가 스폰 시 겹치지 않도록 좌우로 벌려두는 거리(미터). Milestone 1 한정 — 실제 트랙/스폰 지점은 다음 라운드 범위.")]
+        public float spawnSideOffset = 3f;
+
         Rigidbody rb;
 
         void Awake()
@@ -30,13 +33,28 @@ namespace M2.Network
         {
             rb.isKinematic = !IsOwner;
 
-            // With 2 networked vehicles now dynamically spawned, the scene's one Camera.main
-            // needs to be told which one is actually "mine" — unlike the local test flow, where
-            // TestTrackBuilder wires VehicleCameraFollow.target once at editor-build-time
-            // because there's only ever a single vehicle. Only the owner retargets the camera;
-            // a remote player's spawn shouldn't steal the local camera away from ours.
             if (IsOwner)
             {
+                // Deterministic left/right placement so 2 players don't spawn stacked on each
+                // other. This used to be set by the SERVER via
+                // ConnectionApprovalResponse.Position, but that value's replication to remote
+                // observers turned out unreliable in practice — playtester feedback: "스폰
+                // 위치는 안고쳐졌어" (both cars still spawned in the same spot after the
+                // server-side fix). Movement here is owner-authoritative
+                // (OwnerAuthoritativeNetworkTransform), so the OWNING client is the only one
+                // whose transform writes are actually treated as authoritative — setting
+                // position here, instead of on the server, is what actually replicates
+                // correctly to everyone else.
+                bool isServerOwned = OwnerClientId == NetworkManager.ServerClientId;
+                float side = isServerOwned ? -1f : 1f;
+                transform.position = new Vector3(side * spawnSideOffset, 0.5f, 0f);
+
+                // With 2 networked vehicles now dynamically spawned, the scene's one
+                // Camera.main needs to be told which one is actually "mine" — unlike the local
+                // test flow, where TestTrackBuilder wires VehicleCameraFollow.target once at
+                // editor-build-time because there's only ever a single vehicle. Only the owner
+                // retargets the camera; a remote player's spawn shouldn't steal the local
+                // camera away from ours.
                 VehicleCameraFollow cameraFollow = Camera.main != null ? Camera.main.GetComponent<VehicleCameraFollow>() : null;
                 if (cameraFollow != null) cameraFollow.target = transform;
             }

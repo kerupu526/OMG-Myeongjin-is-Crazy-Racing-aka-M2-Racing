@@ -79,7 +79,26 @@ namespace M2.Editor
 
             NetworkManager networkManager = nmObject.AddComponent<NetworkManager>();
             UnityTransport transport = nmObject.AddComponent<UnityTransport>();
+            // NetworkManager.NetworkConfig has no field initializer in NGO's source
+            // (`public NetworkConfig NetworkConfig;`) — the Inspector's normal "add component"
+            // flow populates it with a default instance via Unity's serialization system, but
+            // that never happens for a component added purely through an editor script like
+            // this one, leaving it null (confirmed directly via a NullReferenceException on the
+            // next line without this).
+            networkManager.NetworkConfig = new NetworkConfig();
             networkManager.NetworkConfig.NetworkTransport = transport;
+
+            // NGO's scene management (on by default) requires every scene a connected client
+            // needs to synchronize into be registered in File > Build Settings > Scenes In
+            // Build — this project has never added any scene there, which produced the runtime
+            // warning "The current scene was not found in the scenes in build..." and left
+            // ownership-dependent state (e.g. NetworkVehicleSync.OnNetworkSpawn's isKinematic
+            // assignment) unreliable for a client joining after the host, since NGO's
+            // scene-sync handshake never properly completed. Milestone 1 has exactly one static
+            // bootstrap scene and no scene transitions at all, so scene management isn't needed
+            // yet — turning it off sidesteps the whole requirement until a later milestone
+            // actually needs multi-scene sync (race flow, stage selection, etc.).
+            networkManager.NetworkConfig.EnableSceneManagement = false;
 
             GameObject vehiclePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VehiclePrefabPath);
             if (vehiclePrefab == null)

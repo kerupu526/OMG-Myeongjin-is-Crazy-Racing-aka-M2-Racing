@@ -10,10 +10,15 @@ namespace M2.Network
     // instances (or an Editor + a Development Build) on the same machine can connect to each
     // other for manual testing.
     //
-    // Also owns spawn placement: with ConnectionApproval off (the NGO default), both players'
-    // NetworkVehicle instances would spawn stacked on top of each other at the origin. Turning
-    // ConnectionApproval on and placing each connecting client on alternating sides is enough to
-    // avoid that for exactly 2 players.
+    // ConnectionApproval is turned on purely so a connecting client can be approved/create its
+    // player object at all under this project's config — NOT for spawn placement. Placement
+    // (left/right so 2 players don't spawn stacked on each other) used to be set here via
+    // ConnectionApprovalResponse.Position, but that value's replication to remote observers
+    // turned out unreliable in practice (playtester feedback: "스폰 위치는 안고쳐졌어" — both
+    // cars kept spawning in the same spot even after fixing the side-selection logic itself).
+    // Movement is owner-authoritative (see OwnerAuthoritativeNetworkTransform), so only the
+    // OWNING client's transform writes are treated as authoritative — NetworkVehicleSync.
+    // OnNetworkSpawn sets the actual spawn position now, since it runs on the owner.
     public class NetworkBootstrapUI : MonoBehaviour
     {
         public InputField ipInputField;
@@ -23,9 +28,6 @@ namespace M2.Network
 
         [Tooltip("UnityTransport 포트. 방화벽에서 이 포트가 막혀 있으면 같은 기기가 아닌 경우 연결이 안 될 수 있음.")]
         public ushort port = 7777;
-
-        [Tooltip("두 플레이어가 스폰 시 겹치지 않도록 좌우로 벌려두는 거리(미터). Milestone 1 한정 — 실제 트랙/스폰 지점은 다음 라운드 범위.")]
-        public float spawnSideOffset = 3f;
 
         void Awake()
         {
@@ -42,16 +44,8 @@ namespace M2.Network
 
         void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
-            NetworkManager networkManager = NetworkManager.Singleton;
-            // ConnectedClientsIds doesn't yet include the client currently being approved, so
-            // the first approval sees 0 already-connected clients (→ left side), the second
-            // sees 1 (→ right side) — exactly the alternation 2 players need.
-            float side = networkManager.ConnectedClientsIds.Count % 2 == 0 ? -1f : 1f;
-
             response.Approved = true;
             response.CreatePlayerObject = true;
-            response.Position = new Vector3(side * spawnSideOffset, 0.5f, 0f);
-            response.Rotation = Quaternion.identity;
         }
 
         void StartHost()

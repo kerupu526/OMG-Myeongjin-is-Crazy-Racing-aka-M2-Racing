@@ -63,6 +63,27 @@ namespace M2.Editor
 
             TestTrackBuilder.CreateVehicleModel(vehicle.transform);
 
+            // Playtester feedback: the networked vehicle rendered with no material at all
+            // (empty slots) — confirmed by inspecting the saved .prefab's YAML directly
+            // (m_Materials: [{fileID: 0}] on every renderer). CreateVehicleModel silently skips
+            // its texture-apply loop if the texture asset failed to load, so this had no
+            // visible failure anywhere in the build log until now. Fail loudly instead of
+            // producing a silently-broken prefab.
+            Renderer[] modelRenderers = vehicle.GetComponentsInChildren<Renderer>();
+            if (modelRenderers.Length == 0)
+            {
+                throw new System.Exception("NetworkVehicle model has zero renderers — " +
+                    $"CreateVehicleModel likely failed to load {TestTrackBuilder.VehicleModelPath}.");
+            }
+            foreach (Renderer renderer in modelRenderers)
+            {
+                if (renderer.sharedMaterial == null || renderer.sharedMaterial.mainTexture == null)
+                {
+                    throw new System.Exception($"NetworkVehicle renderer '{renderer.name}' has no material/texture " +
+                        $"— CreateVehicleModel likely failed to load {TestTrackBuilder.VehicleModelTexturePath}.");
+                }
+            }
+
             if (!AssetDatabase.IsValidFolder(PrefabDirectory))
             {
                 if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
@@ -71,6 +92,31 @@ namespace M2.Editor
                 }
                 AssetDatabase.CreateFolder("Assets/Prefabs", "Player");
             }
+
+            // The REAL root cause of the empty-material bug (the previous "use sharedMaterial
+            // instead of material" fix in RendererColorUtil.cs was necessary but not
+            // sufficient): CreateVehicleModel's RendererColorUtil.ApplyTexture calls create
+            // loose, in-memory Material instances — never saved as their own asset file.
+            // PrefabUtility.SaveAsPrefabAsset silently serializes any component reference to
+            // such a "loose" object as {fileID: 0} (null) — confirmed by rebuilding after the
+            // sharedMaterial fix and finding the exact same empty slots in the saved YAML.
+            // Scene saves don't have this problem (a loose Material embeds directly into a
+            // .unity file fine), which is exactly why this only ever surfaced here — this is
+            // the one place in the project saving a prefab ASSET. Giving each material a real,
+            // separate identity via AssetDatabase.CreateAsset — BEFORE the prefab save — is
+            // what makes SaveAsPrefabAsset able to serialize a real reference to it instead of
+            // dropping it.
+            const string MaterialsDirectory = PrefabDirectory + "/Materials";
+            if (!AssetDatabase.IsValidFolder(MaterialsDirectory))
+            {
+                AssetDatabase.CreateFolder(PrefabDirectory, "Materials");
+            }
+            foreach (Renderer renderer in modelRenderers)
+            {
+                string materialPath = $"{MaterialsDirectory}/NetworkVehicle_{renderer.name}.mat";
+                AssetDatabase.CreateAsset(renderer.sharedMaterial, materialPath);
+            }
+            AssetDatabase.SaveAssets();
 
             GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(vehicle, PrefabPath);
             Object.DestroyImmediate(vehicle);
@@ -100,6 +146,21 @@ namespace M2.Editor
             // reflection too, purely to confirm in the log that it actually ended up non-zero.
             FieldInfo hashField = typeof(NetworkObject).GetField("GlobalObjectIdHash", BindingFlags.NonPublic | BindingFlags.Instance);
             uint hash = (uint)hashField.GetValue(savedNetworkObject);
+
+            // Re-check materials on the SAVED prefab asset itself (not the pre-save in-memory
+            // GameObject checked above) — that in-memory check alone previously passed while the
+            // actual saved file still ended up with every material slot empty, exactly the class
+            // of bug this is meant to catch going forward.
+            foreach (Renderer savedRenderer in savedPrefab.GetComponentsInChildren<Renderer>())
+            {
+                if (savedRenderer.sharedMaterial == null || savedRenderer.sharedMaterial.mainTexture == null)
+                {
+                    throw new System.Exception($"NetworkVehicle.prefab renderer '{savedRenderer.name}' has no " +
+                        "material/texture on the SAVED asset even though the pre-save check passed — the " +
+                        "loose-Material-reference issue this method works around may have reappeared.");
+                }
+            }
+
             Debug.Log($"M2_NETWORK_PREFAB_BUILT: {PrefabPath} (GlobalObjectIdHash={hash})");
         }
     }
