@@ -83,6 +83,7 @@ namespace M2.Stage
 
             BikiniCityOxygenGauge gauge = vehicle.AddComponent<BikiniCityOxygenGauge>();
             BikiniCityStageState stageState = vehicle.AddComponent<BikiniCityStageState>();
+            stageState.oxygenGauge = gauge;
             flowUI.bikiniCityStageState = stageState;
 
             GameObject uiRoot = new GameObject("BikiniCity_UI");

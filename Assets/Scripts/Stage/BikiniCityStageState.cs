@@ -1,14 +1,17 @@
+using M2.Core;
 using M2.Player;
 using UnityEngine;
 
 namespace M2.Stage
 {
     // Tracks 비키니시티-specific race progress that isn't part of the shared gauge:
-    // "비법" drops (missed-collectible count) and the resulting star rating.
+    // "비법" drops (missed-collectible count) and the resulting star rating, plus ending
+    // the race when the oxygen gauge's game over fires.
     // CLAUDE.md: 목표(3★) 비법 놓친 횟수 10/3/0회 이하, 추가목표(3★) 완주시간 1:45/2:00/2:30 이내.
     public class BikiniCityStageState : MonoBehaviour
     {
         public VehicleController vehicleController;
+        public BikiniCityOxygenGauge oxygenGauge;
 
         [Header("놓친 비법 개수 별점 기준 (이하일 때 별 획득, 오름차순)")]
         public int missedThreshold1Star = 10;
@@ -22,12 +25,15 @@ namespace M2.Stage
 
         public int MissedRecipeCount { get; private set; }
 
+        GameManager gameManager;
+
         void Awake()
         {
             if (vehicleController == null)
             {
                 vehicleController = GetComponentInParent<VehicleController>();
             }
+            gameManager = FindFirstObjectByType<GameManager>();
         }
 
         void OnEnable()
@@ -36,6 +42,10 @@ namespace M2.Stage
             {
                 vehicleController.OnHitByAttackItem += HandleHitByAttackItem;
                 vehicleController.OnWallHit += HandleWallHit;
+            }
+            if (oxygenGauge != null)
+            {
+                oxygenGauge.OnOxygenGameOver += HandleOxygenGameOver;
             }
             // 지형지물(장애물) 충돌은 TerrainHazard가 자체적으로 감지해서
             // NotifyRecipeDropped()를 직접 호출한다 (여긴 구독할 이벤트가 없음).
@@ -48,10 +58,24 @@ namespace M2.Stage
                 vehicleController.OnHitByAttackItem -= HandleHitByAttackItem;
                 vehicleController.OnWallHit -= HandleWallHit;
             }
+            if (oxygenGauge != null)
+            {
+                oxygenGauge.OnOxygenGameOver -= HandleOxygenGameOver;
+            }
         }
 
         void HandleHitByAttackItem() => NotifyRecipeDropped();
         void HandleWallHit() => NotifyRecipeDropped();
+
+        // Mirrors the Nether Fortress burn-game-over fix — before this, oxygen depletion
+        // only showed BikiniCityStageUI's small overlay and GameManager never learned the
+        // race was over, so the real result screen (RaceFlowUI) never appeared. Real
+        // per-racer win/loss doesn't exist yet (CLAUDE.md 우선순위 5), so this is a draw
+        // for now, same as the Nether Fortress case.
+        void HandleOxygenGameOver()
+        {
+            if (gameManager != null) gameManager.EndRaceAsDraw("산소 부족");
+        }
 
         public void NotifyRecipeDropped()
         {
