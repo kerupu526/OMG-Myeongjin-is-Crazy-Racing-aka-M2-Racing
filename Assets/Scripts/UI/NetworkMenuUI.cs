@@ -22,6 +22,7 @@ namespace M2.UI
             JoinSetup,
             Lobby,
             Avatar,
+            Settings,
             Hidden,
         }
 
@@ -45,6 +46,7 @@ namespace M2.UI
         GameObject joinScreen;
         GameObject lobbyScreen;
         GameObject avatarScreen;
+        GameObject settingsScreen;
         Transform hostSettingsSlot;
         Transform joinCard;
 
@@ -68,6 +70,10 @@ namespace M2.UI
         InputField avatarNameInput;
         Text avatarFeedback;
         int draftAvatarColorIndex;
+        Slider settingsVolumeSlider;
+        Text settingsVolumeValue;
+        Toggle settingsFullscreenToggle;
+        Text settingsFeedback;
 
         /// <summary>Small inspection hook used by presentation tests and UI diagnostics.</summary>
         public string CurrentScreenName => currentScreen.ToString();
@@ -75,6 +81,7 @@ namespace M2.UI
         void Awake()
         {
             ConfigureCanvasScaler();
+            M2GameSettings.ApplyRuntime();
         }
 
         void Start()
@@ -156,6 +163,25 @@ namespace M2.UI
             if (avatarNameInput != null) avatarNameInput.text = M2PlayerProfile.DisplayName;
             RefreshAvatarPreview();
             SetFeedback(avatarFeedback, "색과 이름을 고른 뒤 저장하세요.", Ink);
+        }
+
+        public void ShowSettings()
+        {
+            EnsureBuilt();
+            SetScreen(Screen.Settings);
+            SetLegacyControlVisibility(false, false, false);
+            roomSettingsUi?.SetVisible(false);
+
+            if (settingsVolumeSlider != null)
+            {
+                settingsVolumeSlider.SetValueWithoutNotify(M2GameSettings.MasterVolume);
+            }
+            if (settingsFullscreenToggle != null)
+            {
+                settingsFullscreenToggle.SetIsOnWithoutNotify(M2GameSettings.Fullscreen);
+            }
+            RefreshSettingsPresentation();
+            SetFeedback(settingsFeedback, "변경한 뒤 저장하면 다음 실행에도 유지됩니다.", Ink);
         }
 
         public void ShowLobby(string roomCode, bool isHost)
@@ -243,6 +269,7 @@ namespace M2.UI
             joinScreen = CreateJoinScreen(root.transform);
             lobbyScreen = CreateLobbyScreen(root.transform);
             avatarScreen = CreateAvatarScreen(root.transform);
+            settingsScreen = CreateSettingsScreen(root.transform);
             root.transform.SetAsLastSibling();
 
             ConfigureRoomSettingsPresentation();
@@ -329,6 +356,7 @@ namespace M2.UI
             SetActive(joinScreen, nextScreen == Screen.JoinSetup);
             SetActive(lobbyScreen, nextScreen == Screen.Lobby);
             SetActive(avatarScreen, nextScreen == Screen.Avatar);
+            SetActive(settingsScreen, nextScreen == Screen.Settings);
         }
 
         static void SetActive(GameObject target, bool value)
@@ -358,8 +386,7 @@ namespace M2.UI
             CreateButton(screen.transform, "AvatarButton", "아바타", new Vector2(286f, -164f),
                 new Vector2(198f, 70f), Mint, Ink, ShowAvatar);
             CreateButton(screen.transform, "SettingsButton", "설정", new Vector2(508f, -164f),
-                new Vector2(198f, 70f), Color.white, Ink,
-                () => SetFeedback(mainFeedback, "설정 화면은 다음 UI 구현 단위에서 연결됩니다.", Color.white));
+                new Vector2(198f, 70f), Color.white, Ink, ShowSettings);
 
             mainFeedback = CreateText(screen.transform, "Feedback", "", 20, Color.white, TextAnchor.MiddleCenter);
             SetAnchored(mainFeedback.rectTransform, new Vector2(0f, 42f), new Vector2(1000f, 44f), new Vector2(0.5f, 0f));
@@ -467,6 +494,75 @@ namespace M2.UI
             avatarFeedback = CreateText(editor.transform, "Feedback", "", 18, Ink, TextAnchor.MiddleCenter);
             SetAnchored(avatarFeedback.rectTransform, new Vector2(0f, -172f), new Vector2(420f, 30f));
             return screen;
+        }
+
+        GameObject CreateSettingsScreen(Transform parent)
+        {
+            GameObject screen = CreateScreen(parent, "Screen_Settings");
+            CreateBackButton(screen.transform, ShowMain);
+            CreateScreenTitle(screen.transform, "환경설정", "사운드와 화면 표시를 내 취향에 맞게 조절하세요.");
+
+            GameObject card = CreateCard(screen.transform, "SettingsCard", new Vector2(0f, -28f),
+                new Vector2(700f, 400f), Color.white, Ink);
+            Text heading = CreateText(card.transform, "Heading", "게임 환경", 36, Ink, TextAnchor.MiddleCenter,
+                UiFontRole.Display);
+            SetAnchored(heading.rectTransform, new Vector2(0f, 150f), new Vector2(580f, 52f));
+
+            Text volumeLabel = CreateText(card.transform, "VolumeLabel", "마스터 볼륨", 24, Ink,
+                TextAnchor.MiddleLeft, UiFontRole.Body);
+            SetAnchored(volumeLabel.rectTransform, new Vector2(-252f, 76f), new Vector2(210f, 38f));
+            settingsVolumeSlider = CreateSettingsSlider(card.transform, "MasterVolumeSlider", new Vector2(18f, 72f),
+                new Vector2(410f, 48f));
+            settingsVolumeSlider.onValueChanged.AddListener(_ => RefreshSettingsPresentation());
+            settingsVolumeValue = CreateText(card.transform, "VolumeValue", "80%", 24, Purple, TextAnchor.MiddleRight,
+                UiFontRole.Metric);
+            SetAnchored(settingsVolumeValue.rectTransform, new Vector2(272f, 76f), new Vector2(94f, 38f));
+
+            Text fullscreenLabel = CreateText(card.transform, "FullscreenLabel", "전체 화면", 24, Ink,
+                TextAnchor.MiddleLeft, UiFontRole.Body);
+            SetAnchored(fullscreenLabel.rectTransform, new Vector2(-252f, -12f), new Vector2(210f, 38f));
+            settingsFullscreenToggle = CreateSettingsToggle(card.transform, "FullscreenToggle", new Vector2(210f, -12f),
+                "게임 실행 시 전체 화면 사용");
+
+            CreateButton(card.transform, "ResetSettingsButton", "기본값", new Vector2(-132f, -112f),
+                new Vector2(246f, 70f), Mint, Ink, ResetSettingsDraft);
+            CreateButton(card.transform, "SaveSettingsButton", "저장하기", new Vector2(132f, -112f),
+                new Vector2(246f, 70f), Yellow, Ink, SaveSettings);
+            settingsFeedback = CreateText(card.transform, "Feedback", "", 19, Ink, TextAnchor.MiddleCenter);
+            SetAnchored(settingsFeedback.rectTransform, new Vector2(0f, -164f), new Vector2(620f, 32f));
+            return screen;
+        }
+
+        void ResetSettingsDraft()
+        {
+            if (settingsVolumeSlider != null)
+            {
+                settingsVolumeSlider.SetValueWithoutNotify(M2GameSettings.DefaultMasterVolume);
+            }
+            if (settingsFullscreenToggle != null)
+            {
+                settingsFullscreenToggle.SetIsOnWithoutNotify(M2GameSettings.DefaultFullscreen);
+            }
+            RefreshSettingsPresentation();
+            SetFeedback(settingsFeedback, "기본값을 불러왔습니다. 저장하면 적용됩니다.", Purple);
+        }
+
+        void SaveSettings()
+        {
+            float volume = settingsVolumeSlider != null ? settingsVolumeSlider.value : M2GameSettings.MasterVolume;
+            bool fullscreen = settingsFullscreenToggle == null || settingsFullscreenToggle.isOn;
+            M2GameSettings.Save(volume, fullscreen);
+            RefreshSettingsPresentation();
+            SetFeedback(settingsFeedback, "환경설정을 저장했습니다.", Purple);
+        }
+
+        void RefreshSettingsPresentation()
+        {
+            if (settingsVolumeValue != null)
+            {
+                float volume = settingsVolumeSlider != null ? settingsVolumeSlider.value : M2GameSettings.MasterVolume;
+                settingsVolumeValue.text = $"{Mathf.RoundToInt(M2GameSettings.NormalizeVolume(volume) * 100f)}%";
+            }
         }
 
         void SelectAvatarColor(int index)
@@ -641,6 +737,80 @@ namespace M2.UI
             field.placeholder = placeholder;
             field.text = M2PlayerProfile.DisplayName;
             return field;
+        }
+
+        static Slider CreateSettingsSlider(Transform parent, string name, Vector2 position, Vector2 size)
+        {
+            GameObject sliderObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Slider));
+            sliderObject.transform.SetParent(parent, false);
+            SetAnchored(sliderObject.GetComponent<RectTransform>(), position, size);
+            sliderObject.GetComponent<Image>().color = Color.clear;
+
+            GameObject background = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            background.transform.SetParent(sliderObject.transform, false);
+            Stretch(background.GetComponent<RectTransform>(), new Vector2(8f, 15f), new Vector2(-8f, -15f));
+            Image backgroundImage = background.GetComponent<Image>();
+            backgroundImage.color = new Color(0.84f, 0.76f, 0.95f);
+            AddOutline(backgroundImage, Ink, new Vector2(2f, -2f));
+
+            GameObject fillArea = new GameObject("Fill Area", typeof(RectTransform));
+            fillArea.transform.SetParent(sliderObject.transform, false);
+            Stretch(fillArea.GetComponent<RectTransform>(), new Vector2(10f, 16f), new Vector2(-10f, -16f));
+            GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            fill.transform.SetParent(fillArea.transform, false);
+            Stretch(fill.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero);
+            fill.GetComponent<Image>().color = Pink;
+
+            GameObject handleArea = new GameObject("Handle Slide Area", typeof(RectTransform));
+            handleArea.transform.SetParent(sliderObject.transform, false);
+            Stretch(handleArea.GetComponent<RectTransform>(), new Vector2(4f, 2f), new Vector2(-4f, -2f));
+            GameObject handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handle.transform.SetParent(handleArea.transform, false);
+            RectTransform handleRect = handle.GetComponent<RectTransform>();
+            handleRect.anchorMin = new Vector2(0.5f, 0.5f);
+            handleRect.anchorMax = new Vector2(0.5f, 0.5f);
+            handleRect.pivot = new Vector2(0.5f, 0.5f);
+            handleRect.sizeDelta = new Vector2(32f, 42f);
+            Image handleImage = handle.GetComponent<Image>();
+            handleImage.color = Yellow;
+            AddOutline(handleImage, Ink, new Vector2(2f, -2f));
+
+            Slider slider = sliderObject.GetComponent<Slider>();
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.wholeNumbers = false;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.fillRect = fill.GetComponent<RectTransform>();
+            slider.handleRect = handleRect;
+            slider.targetGraphic = handleImage;
+            return slider;
+        }
+
+        static Toggle CreateSettingsToggle(Transform parent, string name, Vector2 position, string label)
+        {
+            GameObject toggleObject = new GameObject(name, typeof(RectTransform), typeof(Toggle));
+            toggleObject.transform.SetParent(parent, false);
+            SetAnchored(toggleObject.GetComponent<RectTransform>(), position, new Vector2(326f, 48f));
+
+            GameObject box = new GameObject("Box", typeof(RectTransform), typeof(Image));
+            box.transform.SetParent(toggleObject.transform, false);
+            SetAnchored(box.GetComponent<RectTransform>(), new Vector2(-142f, 0f), new Vector2(38f, 38f));
+            Image boxImage = box.GetComponent<Image>();
+            boxImage.color = new Color(0.957f, 0.925f, 1f);
+            AddOutline(boxImage, Ink, new Vector2(2f, -2f));
+
+            GameObject check = new GameObject("Checkmark", typeof(RectTransform), typeof(Image));
+            check.transform.SetParent(box.transform, false);
+            Stretch(check.GetComponent<RectTransform>(), new Vector2(8f, 8f), new Vector2(-8f, -8f));
+            check.GetComponent<Image>().color = Mint;
+
+            Text text = CreateText(toggleObject.transform, "Label", label, 20, Purple, TextAnchor.MiddleLeft);
+            SetAnchored(text.rectTransform, new Vector2(36f, 0f), new Vector2(238f, 42f));
+
+            Toggle toggle = toggleObject.GetComponent<Toggle>();
+            toggle.targetGraphic = boxImage;
+            toggle.graphic = check.GetComponent<Image>();
+            return toggle;
         }
 
         void CreateScreenTitle(Transform parent, string titleValue, string subtitleValue)

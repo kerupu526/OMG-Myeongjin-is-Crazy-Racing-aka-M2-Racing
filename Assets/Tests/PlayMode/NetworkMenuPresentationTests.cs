@@ -44,6 +44,12 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual("Avatar", menu.CurrentScreenName);
             Assert.IsTrue(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar").gameObject.activeSelf);
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar/AvatarEditorCard/AvatarNameInput"));
+
+            menu.ShowSettings();
+            Assert.AreEqual("Settings", menu.CurrentScreenName);
+            Assert.IsTrue(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings").gameObject.activeSelf);
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/MasterVolumeSlider"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/FullscreenToggle"));
         }
 
         [UnityTest]
