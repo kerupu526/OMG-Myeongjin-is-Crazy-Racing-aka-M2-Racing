@@ -13,6 +13,7 @@ namespace M2.UI
     public class RaceHUD : MonoBehaviour
     {
         public static readonly Vector2 GameplayReferenceResolution = new Vector2(1280f, 720f);
+        public const float GameplayHudScale = 0.9f;
 
         static readonly Color Ink = new Color(0.102f, 0.063f, 0.188f, 0.94f);
         static readonly Color Yellow = new Color(1f, 0.851f, 0.239f);
@@ -98,8 +99,8 @@ namespace M2.UI
             int targetLap = gameManager != null ? gameManager.targetLapCount : 3;
             float timeLeft = gameManager != null ? gameManager.TimeRemaining : 0f;
 
-            lapLabel.text = $"<size=22>LAP · 바퀴</size>\n<size=48><color=#{ColorUtility.ToHtmlStringRGB(Yellow)}>{lap}</color> / {targetLap}</size>";
-            timeLabel.text = $"<size=22>TIME · 남은 시간</size>\n<size=48>{FormatTime(timeLeft)}</size>";
+            lapLabel.text = $"<size={ScaleGameplayHudFont(22)}>LAP · 바퀴</size>\n<size={ScaleGameplayHudFont(48)}><color=#{ColorUtility.ToHtmlStringRGB(Yellow)}>{lap}</color> / {targetLap}</size>";
+            timeLabel.text = $"<size={ScaleGameplayHudFont(22)}>TIME · 남은 시간</size>\n<size={ScaleGameplayHudFont(48)}>{FormatTime(timeLeft)}</size>";
             versusLabel.text = BuildVersusText(lap);
 
             if (gameManager != null && gameManager.IsSpeedMode)
@@ -138,9 +139,9 @@ namespace M2.UI
             GameObject detailCard = CreateCard(transform, "RaceHud_ItemDetailCard", Ink, Yellow);
             presentationRoots.Add(detailCard);
             SetRect(detailCard.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(216f, 130f), new Vector2(590f, 138f));
+                ScaleGameplayHud(new Vector2(216f, 130f)), ScaleGameplayHud(new Vector2(590f, 138f)));
             itemDetailLabel = CreateText("ItemDetail", detailCard.transform, 22, Color.white, TextAnchor.MiddleLeft);
-            Stretch(itemDetailLabel.rectTransform, new Vector2(20f, 12f), new Vector2(-20f, -12f));
+            Stretch(itemDetailLabel.rectTransform, ScaleGameplayHud(new Vector2(20f, 12f)), ScaleGameplayHud(new Vector2(-20f, -12f)));
 
             GameObject slotHint = new GameObject("RaceHud_ItemHint", typeof(RectTransform));
             slotHint.transform.SetParent(transform, false);
@@ -148,27 +149,32 @@ namespace M2.UI
             itemHintLabel = slotHint.AddComponent<Text>();
             ConfigureText(itemHintLabel, 22, new Color(1f, 1f, 1f, 0.85f), TextAnchor.LowerLeft);
             itemHintLabel.text = "아이템 슬롯 · Ctrl 가속 · E 사용 · P C4 기폭";
-            SetRect(itemHintLabel.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(216f, 282f), new Vector2(620f, 30f));
+            SetRect(itemHintLabel.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                ScaleGameplayHud(new Vector2(216f, 282f)), ScaleGameplayHud(new Vector2(620f, 30f)));
         }
 
         void CreateItemCard(string name, Vector2 position, out Image icon, out Text itemName, string slotNumber)
         {
             GameObject card = CreateCard(transform, name, Ink, Yellow);
             presentationRoots.Add(card);
-            SetRect(card.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero, position, new Vector2(170f, 170f));
+            SetRect(card.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero, ScaleGameplayHud(position),
+                ScaleGameplayHud(new Vector2(170f, 170f)));
 
             GameObject iconObject = new GameObject("Icon", typeof(RectTransform));
             iconObject.transform.SetParent(card.transform, false);
             icon = iconObject.AddComponent<Image>();
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            SetRect(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 14f), new Vector2(106f, 106f));
+            SetRect(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                ScaleGameplayHud(new Vector2(0f, 14f)), ScaleGameplayHud(new Vector2(106f, 106f)));
 
             itemName = CreateText("Name", card.transform, 20, Color.white, TextAnchor.LowerCenter);
-            SetRect(itemName.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 6f), new Vector2(-12f, 42f));
+            SetRect(itemName.rectTransform, Vector2.zero, Vector2.one, ScaleGameplayHud(new Vector2(12f, 6f)),
+                ScaleGameplayHud(new Vector2(-12f, 42f)));
 
             GameObject badge = CreateCard(card.transform, "SlotNumber", Yellow, Ink);
-            SetRect(badge.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(-8f, 8f), new Vector2(36f, 36f));
+            SetRect(badge.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f),
+                ScaleGameplayHud(new Vector2(-8f, 8f)), ScaleGameplayHud(new Vector2(36f, 36f)));
             Text badgeText = CreateText("Text", badge.transform, 22, Ink, TextAnchor.MiddleCenter, UiFontRole.Metric);
             badgeText.text = slotNumber;
             Stretch(badgeText.rectTransform, Vector2.zero, Vector2.zero);
@@ -258,7 +264,7 @@ namespace M2.UI
             if (notifier != null && notifier.label != null)
             {
                 UiTypography.Apply(notifier.label, UiFontRole.Display);
-                notifier.label.fontSize = 32;
+                notifier.label.fontSize = ScaleGameplayHudFont(32);
                 notifier.label.color = Ink;
                 AddOutline(notifier.label.gameObject, Ink, new Vector2(2f, -2f));
             }
@@ -267,11 +273,11 @@ namespace M2.UI
             if (status != null && status.label != null)
             {
                 UiTypography.Apply(status.label);
-                status.label.fontSize = 22;
+                status.label.fontSize = ScaleGameplayHudFont(22);
                 status.label.color = Mint;
                 status.label.alignment = TextAnchor.LowerRight;
                 SetRect(status.label.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                    new Vector2(-32f, 132f), new Vector2(380f, 104f));
+                    ScaleGameplayHud(new Vector2(-32f, 132f)), ScaleGameplayHud(new Vector2(380f, 104f)));
                 AddOutline(status.label.gameObject, Ink, new Vector2(1.5f, -1.5f));
             }
         }
@@ -312,7 +318,7 @@ namespace M2.UI
             UiFontRole role = UiFontRole.Body)
         {
             UiTypography.Apply(text, role);
-            text.fontSize = size;
+            text.fontSize = ScaleGameplayHudFont(size);
             text.color = color;
             text.alignment = alignment;
             text.supportRichText = true;
@@ -325,10 +331,10 @@ namespace M2.UI
             Vector2 position, Vector2 size, Color border, UiFontRole role = UiFontRole.Body)
         {
             GameObject card = CreateCard(cardParent, cardName, Ink, border);
-            SetRect(card.GetComponent<RectTransform>(), anchor, anchor, position, size);
+            SetRect(card.GetComponent<RectTransform>(), anchor, anchor, ScaleGameplayHud(position), ScaleGameplayHud(size));
             text.transform.SetParent(card.transform, false);
             ConfigureText(text, 24, Color.white, TextAnchor.MiddleCenter, role);
-            Stretch(text.rectTransform, new Vector2(12f, 8f), new Vector2(-12f, -8f));
+            Stretch(text.rectTransform, ScaleGameplayHud(new Vector2(12f, 8f)), ScaleGameplayHud(new Vector2(-12f, -8f)));
             return card;
         }
 
@@ -354,7 +360,7 @@ namespace M2.UI
             Outline outline = target.GetComponent<Outline>();
             if (outline == null) outline = target.AddComponent<Outline>();
             outline.effectColor = color;
-            outline.effectDistance = distance;
+            outline.effectDistance = ScaleGameplayHud(distance);
             outline.useGraphicAlpha = false;
         }
 
@@ -364,6 +370,21 @@ namespace M2.UI
             int minutes = Mathf.FloorToInt(seconds / 60f);
             float remainder = seconds - minutes * 60f;
             return $"{minutes:00}:{remainder:00}";
+        }
+
+        public static Vector2 ScaleGameplayHud(Vector2 value)
+        {
+            return value * GameplayHudScale;
+        }
+
+        public static float ScaleGameplayHud(float value)
+        {
+            return value * GameplayHudScale;
+        }
+
+        public static int ScaleGameplayHudFont(int size)
+        {
+            return Mathf.RoundToInt(size * GameplayHudScale);
         }
     }
 }

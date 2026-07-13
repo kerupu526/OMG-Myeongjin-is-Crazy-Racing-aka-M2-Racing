@@ -13,6 +13,12 @@ namespace M2.UI
     /// </summary>
     public class RaceFlowUI : MonoBehaviour
     {
+        const int ResultBodyFontSize = 32;
+        const int ResultTitleFontSize = 44;
+        const float ResultLineSpacing = 0.86f;
+        static readonly Vector2 ResultCardSize = new Vector2(760f, 620f);
+        static readonly Vector2 ResultContentPadding = new Vector2(42f, 28f);
+
         [Header("References")]
         public GameManager gameManager;
         public RaceTimer raceTimer;
@@ -134,9 +140,10 @@ namespace M2.UI
 
             string stats = BuildStatsString();
             string starLine = BuildStarLine();
-            resultText.text = $"<size=48><color=#FFD93D>🏆 승리!</color></size>\n" +
-                $"<size=28>{winner.gameObject.name}</size>\n" +
-                $"<color=#B6F36B>{BuildRuleLine()}</color>\n\n{BuildPlacings()}\n{stats}{starLine}";
+            resultText.text = $"<size={ResultTitleFontSize}><color=#FFD93D>🏆 승리!</color></size>\n" +
+                $"<size=26>{winner.gameObject.name}</size>\n" +
+                $"<size=28><color=#B6F36B>{BuildRuleLine()}</color></size>\n\n" +
+                $"{BuildPlacings()}\n\n{stats}{(string.IsNullOrEmpty(starLine) ? string.Empty : $"\n{starLine}")}";
         }
 
         string BuildStarLine()
@@ -147,21 +154,21 @@ namespace M2.UI
             {
                 int missedStars = bikiniCityStageState.ComputeMissedStars();
                 int timeStars = bikiniCityStageState.ComputeTimeStars(raceTimer.ElapsedTime);
-                return $"\n★ {missedStars + timeStars}/6 (비법 {missedStars}★ + 시간 {timeStars}★, 놓친 비법 {bikiniCityStageState.MissedRecipeCount}회)";
+                return $"<size=28>★ {missedStars + timeStars}/6 (비법 {missedStars}★ + 시간 {timeStars}★, 놓친 비법 {bikiniCityStageState.MissedRecipeCount}회)</size>";
             }
 
             if (africaTvStageState != null)
             {
                 int missedStars = africaTvStageState.ComputeMissedStars();
                 int timeStars = africaTvStageState.ComputeTimeStars(raceTimer.ElapsedTime);
-                return $"\n★ {missedStars + timeStars}/6 (별풍선 {missedStars}★ + 시간 {timeStars}★, 놓친 별풍선 {africaTvStageState.MissedStarBalloonCount}회)";
+                return $"<size=28>★ {missedStars + timeStars}/6 (별풍선 {missedStars}★ + 시간 {timeStars}★, 놓친 별풍선 {africaTvStageState.MissedStarBalloonCount}회)</size>";
             }
 
             if (netherFortressStageState != null)
             {
                 int warningStars = netherFortressStageState.ComputeWarningStars();
                 int timeStars = netherFortressStageState.ComputeTimeStars(raceTimer.ElapsedTime);
-                return $"\n★ {warningStars + timeStars}/6 (화상경고 {warningStars}★ + 시간 {timeStars}★, 화상 경고 {netherFortressStageState.BurnWarningCount}회)";
+                return $"<size=28>★ {warningStars + timeStars}/6 (화상경고 {warningStars}★ + 시간 {timeStars}★, 화상 경고 {netherFortressStageState.BurnWarningCount}회)</size>";
             }
 
             return "";
@@ -173,9 +180,9 @@ namespace M2.UI
             if (resultText == null) return;
 
             string stats = BuildStatsString();
-            resultText.text = $"<size=48><color=#FF6BAA>무승부</color></size>\n" +
+            resultText.text = $"<size={ResultTitleFontSize}><color=#FF6BAA>무승부</color></size>\n" +
                 $"<size=24>{reason}</size>\n<color=#B6F36B>{BuildRuleLine()}</color>\n\n" +
-                $"{BuildPlacings()}\n{stats}";
+                $"{BuildPlacings()}\n\n{stats}";
         }
 
         string BuildRuleLine()
@@ -199,14 +206,14 @@ namespace M2.UI
                 return left.finishTime.CompareTo(right.finishTime);
             });
 
-            var builder = new StringBuilder("<color=#FFD93D>최종 순위</color>\n");
+            var builder = new StringBuilder("<color=#FFD93D>최종 순위</color>");
             for (int i = 0; i < results.Count; i++)
             {
                 RaceFinishResult result = results[i];
                 string name = result.racer != null ? result.racer.gameObject.name : "알 수 없는 레이서";
                 string finish = result.finished ? FormatTime(result.finishTime) : "미완주";
                 string star = gameManager.victoryCondition == VictoryCondition.StarBet ? $" · ★ {result.stars}/6" : string.Empty;
-                builder.AppendLine($"{i + 1}위  {name} · {finish}{star}");
+                builder.Append($"\n{i + 1}위  {name} · {finish}{star}");
             }
             return builder.ToString();
         }
@@ -216,12 +223,12 @@ namespace M2.UI
             if (raceTimer == null) return "";
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"총 시간: {FormatTime(raceTimer.ElapsedTime)}");
+            sb.Append($"총 시간: {FormatTime(raceTimer.ElapsedTime)}");
 
             var splits = raceTimer.LapSplits;
             for (int i = 0; i < splits.Count; i++)
             {
-                sb.AppendLine($"Lap {i + 1}: {FormatTime(splits[i])}");
+                sb.Append($"\nLap {i + 1}: {FormatTime(splits[i])}");
             }
             return sb.ToString();
         }
@@ -246,9 +253,15 @@ namespace M2.UI
 
             StyleText(briefingText, 30, Color.white, Color.black);
             StyleText(countdownText, 112, new Color(1f, 0.851f, 0.239f), new Color(0.102f, 0.063f, 0.188f), UiFontRole.Display);
-            StyleText(resultText, 38, Color.white, new Color(0.102f, 0.063f, 0.188f));
+            StyleText(resultText, ResultBodyFontSize, Color.white, new Color(0.102f, 0.063f, 0.188f));
+            if (resultText != null)
+            {
+                resultText.lineSpacing = ResultLineSpacing;
+                resultText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                resultText.verticalOverflow = VerticalWrapMode.Overflow;
+            }
             briefingCard = EnsureModalCard(briefingPanel, briefingText, "BriefingCard", new Vector2(720f, 460f));
-            resultCard = EnsureModalCard(resultPanel, resultText, "ResultCard", new Vector2(760f, 560f));
+            resultCard = EnsureModalCard(resultPanel, resultText, "ResultCard", ResultCardSize, ResultContentPadding);
             PlaceBriefingButtonInsideCard();
 
             if (startButton != null)
@@ -295,7 +308,8 @@ namespace M2.UI
             startButton.transform.SetAsLastSibling();
         }
 
-        static GameObject EnsureModalCard(GameObject panel, Text content, string name, Vector2 size)
+        static GameObject EnsureModalCard(GameObject panel, Text content, string name, Vector2 size,
+            Vector2? contentPadding = null)
         {
             if (panel == null || content == null) return null;
             Transform existing = panel.transform.Find(name);
@@ -311,8 +325,9 @@ namespace M2.UI
             if (content.transform.parent != card.transform) content.transform.SetParent(card.transform, false);
             content.rectTransform.anchorMin = Vector2.zero;
             content.rectTransform.anchorMax = Vector2.one;
-            content.rectTransform.offsetMin = new Vector2(42f, 38f);
-            content.rectTransform.offsetMax = new Vector2(-42f, -38f);
+            Vector2 padding = contentPadding ?? new Vector2(42f, 38f);
+            content.rectTransform.offsetMin = padding;
+            content.rectTransform.offsetMax = -padding;
             content.alignment = TextAnchor.MiddleCenter;
             return card;
         }

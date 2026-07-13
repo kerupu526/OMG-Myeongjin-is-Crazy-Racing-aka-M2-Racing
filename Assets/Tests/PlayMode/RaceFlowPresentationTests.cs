@@ -47,5 +47,36 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(UiTypography.Body, label.font);
             Assert.AreEqual(new Vector2(320f, 76f), startButton.GetComponent<RectTransform>().sizeDelta);
         }
+
+        [UnityTest]
+        public IEnumerator ResultCard_ContainsTheLongestSupportedLocalRaceSummary()
+        {
+            canvasObject = new GameObject("RaceFlowCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+            GameObject resultPanel = SimpleUIFactory.CreateFullscreenPanel(canvasObject.transform, "ResultPanel", Color.black);
+            Text resultText = SimpleUIFactory.CreateCenteredText(resultPanel.transform, "ResultText", 28, Color.white);
+
+            RaceFlowUI flow = canvasObject.AddComponent<RaceFlowUI>();
+            flow.resultPanel = resultPanel;
+            flow.resultText = resultText;
+            yield return null;
+
+            resultPanel.SetActive(true);
+            resultText.text = "<size=44><color=#FFD93D>🏆 승리!</color></size>\n" +
+                "<size=26>Vehicle_Placeholder</size>\n" +
+                "<size=28><color=#B6F36B>아이템전 · 별점 내기</color></size>\n\n" +
+                "<color=#FFD93D>최종 순위</color>\n" +
+                "1위  Vehicle_Placeholder · 01:59.37 · ★ 6/6\n" +
+                "2위  Vehicle_Placeholder 2 · 02:00.00 · ★ 5/6\n\n" +
+                "총 시간: 01:59.37\nLap 1: 00:18.09\nLap 2: 00:23.38\nLap 3: 00:17.90\nLap 4: 00:18.00\nLap 5: 00:18.00\n" +
+                "<size=28>★ 6/6 (비법 3★ + 시간 3★, 놓친 비법 0회)</size>";
+            Canvas.ForceUpdateCanvases();
+
+            RectTransform card = resultPanel.transform.Find("ResultCard").GetComponent<RectTransform>();
+            Assert.AreEqual(new Vector2(760f, 620f), card.sizeDelta);
+            Assert.AreEqual(32, resultText.fontSize);
+            Assert.AreEqual(0.86f, resultText.lineSpacing);
+            Assert.LessOrEqual(resultText.preferredHeight, resultText.rectTransform.rect.height,
+                "A five-lap two-player result must remain inside the result card.");
+        }
     }
 }

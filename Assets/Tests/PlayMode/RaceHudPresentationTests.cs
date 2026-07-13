@@ -41,12 +41,13 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(UiTypography.Display, legacyLabel.GetComponent<Text>().font);
             Assert.IsNotNull(canvasObject.GetComponent<StageGaugeHUD>());
 
-            AssertReadableCard("RaceHud_LapCard", new Vector2(166f, 112f));
-            AssertReadableCard("RaceHud_VersusCard", new Vector2(300f, 112f));
-            AssertReadableCard("RaceHud_TimeCard", new Vector2(198f, 112f));
-            AssertReadableCard("RaceHud_PrimarySlot", new Vector2(170f, 170f));
-            AssertReadableCard("RaceHud_SecondarySlot", new Vector2(170f, 170f));
-            AssertReadableCard("RaceHud_ItemDetailCard", new Vector2(590f, 138f));
+            Assert.AreEqual(0.9f, RaceHUD.GameplayHudScale);
+            AssertReadableCard("RaceHud_LapCard", RaceHUD.ScaleGameplayHud(new Vector2(166f, 112f)));
+            AssertReadableCard("RaceHud_VersusCard", RaceHUD.ScaleGameplayHud(new Vector2(300f, 112f)));
+            AssertReadableCard("RaceHud_TimeCard", RaceHUD.ScaleGameplayHud(new Vector2(198f, 112f)));
+            AssertReadableCard("RaceHud_PrimarySlot", RaceHUD.ScaleGameplayHud(new Vector2(170f, 170f)));
+            AssertReadableCard("RaceHud_SecondarySlot", RaceHUD.ScaleGameplayHud(new Vector2(170f, 170f)));
+            AssertReadableCard("RaceHud_ItemDetailCard", RaceHUD.ScaleGameplayHud(new Vector2(590f, 138f)));
         }
 
         [UnityTest]
