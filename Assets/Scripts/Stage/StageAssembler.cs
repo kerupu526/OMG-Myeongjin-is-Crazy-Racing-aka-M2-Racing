@@ -154,9 +154,12 @@ namespace M2.Stage
                 // during editor time we call DestroyImmediate().
                 SafeDestroy(hazard.GetComponent<MeshRenderer>());
                 SafeDestroy(hazard.GetComponent<MeshFilter>());
-                // 4x is a first guess, not measured — nudge further if it still reads too
-                // small/large once you see it in Play mode.
-                AttachVisualModel(hazard.transform, "KenneyProps/rock-sand-b", "KenneyProps/survivalkit_colormap", modelScale: 4f);
+                // The authored rock prefab replaces the former runtime-only resource model.
+                // Keep it separate from the collider proxy so the collision footprint remains
+                // deterministic while art can be changed without altering gameplay.
+                AttachStagePrefabVisual(hazard.transform, StageArtPrefabId.BikiniTerrainRock,
+                    new Color(0.52f, 0.48f, 0.42f), modelScale: 1.4f,
+                    localPosition: new Vector3(0f, -0.5f, 0f));
 
                 hazard.AddComponent<TerrainHazard>();
             }
@@ -252,6 +255,18 @@ namespace M2.Stage
             // No Kenney pack here has a camera/tripod model, so this is a composed low-poly
             // prop built from primitives (same approach as LavaZone/GhastFireball's visuals).
             CreateBroadcastCameraProp(parent, geo, accidentTheta, lateralOffsetRatio);
+            CreateBroadcastTowerProp(parent, geo, accidentTheta, lateralOffsetRatio);
+        }
+
+        static void CreateBroadcastTowerProp(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
+        {
+            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * (geo.TrackWidth / 2f + 4f);
+            GameObject tower = new GameObject("BroadcastTowerProp");
+            tower.transform.SetParent(parent);
+            tower.transform.position = geo.OffsetPointAt(theta + 0.04f * Mathf.PI * 2f, edgeOffset);
+            tower.transform.rotation = Quaternion.LookRotation(geo.TangentAt(theta), Vector3.up);
+            AttachStagePrefabVisual(tower.transform, StageArtPrefabId.AfricaBroadcastTower,
+                new Color(0.34f, 0.34f, 0.42f), modelScale: 0.55f);
         }
 
         static void CreateWarningSign(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
@@ -439,10 +454,8 @@ namespace M2.Stage
             RendererColorUtil.ApplyEmissiveColor(visual.GetComponent<Renderer>(),
                 new Color(0.9f, 0.25f, 0f), new Color(1.4f, 0.35f, 0f));
 
-            // A ring of jagged obsidian rocks framing the pool — composed from primitives
-            // (no Kenney lava/obsidian model available) so the hazard reads as a volcanic
-            // vent rather than a flat colored rectangle. Angle-derived, not Random, so a
-            // rebuild always produces the same layout.
+            // A ring of authored castle-rock prefabs frames the pool. Angle-derived, not
+            // Random, so rebuilding or hot-switching keeps the same readable race line.
             float halfSize = geo.TrackWidth * sizeRatio * 0.5f;
             const int rockCount = 8;
             for (int i = 0; i < rockCount; i++)
@@ -452,15 +465,14 @@ namespace M2.Stage
                 float radiusJitter = 0.9f + 0.2f * Mathf.Sin(i * 2.7f);
                 float heightJitter = 0.35f + 0.25f * Mathf.Abs(Mathf.Cos(i * 1.9f));
 
-                GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                GameObject rock = new GameObject($"LavaRock_{i}");
                 rock.name = $"LavaRock_{i}";
                 rock.transform.SetParent(lava.transform);
                 rock.transform.localPosition = new Vector3(Mathf.Cos(rad), 0f, Mathf.Sin(rad)) * halfSize * radiusJitter
                     + Vector3.down * 0.4f;
                 rock.transform.localRotation = Quaternion.Euler(angle * 0.3f, angle * 2.1f, angle * 0.7f);
-                rock.transform.localScale = new Vector3(0.5f, heightJitter, 0.5f);
-                SafeDestroy(rock.GetComponent<BoxCollider>());
-                RendererColorUtil.ApplyColor(rock.GetComponent<Renderer>(), new Color(0.12f, 0.08f, 0.08f));
+                AttachStagePrefabVisual(rock.transform, StageArtPrefabId.NetherLavaRock,
+                    new Color(0.12f, 0.08f, 0.08f), modelScale: 0.5f + heightJitter * 0.55f);
             }
 
             return lava.AddComponent<LavaZone>();
@@ -517,6 +529,14 @@ namespace M2.Stage
                 Vector3 tip = foot + new Vector3(side * 0.15f, 0.9f + 0.2f * Mathf.Abs(Mathf.Sin(i)), 0.1f);
                 CreateCylinderBetween(oasis.transform, $"Reed_{i}", foot, tip, 0.05f, new Color(0.25f, 0.55f, 0.25f));
             }
+
+            // A single authored arch at the end gives the oasis lane a fortress landmark;
+            // its trigger remains the deliberately narrow lane above, not the decorative mesh.
+            GameObject arch = new GameObject("CoolingArchProp");
+            arch.transform.SetParent(oasis.transform);
+            arch.transform.localPosition = new Vector3(0f, groundLocalY, halfLength * 0.85f);
+            AttachStagePrefabVisual(arch.transform, StageArtPrefabId.NetherCoolingArch,
+                new Color(0.24f, 0.34f, 0.36f), modelScale: 0.45f);
 
             oasis.AddComponent<OasisZone>();
         }
@@ -639,6 +659,36 @@ namespace M2.Stage
             {
                 RendererColorUtil.ApplyTexture(renderer, texture, Vector2.one);
             }
+        }
+
+        // Stage prefabs live in Assets/Prefabs/Stage and are referenced by a resource library,
+        // avoiding Resources-only prefab duplication while keeping runtime stage switching safe.
+        static GameObject AttachStagePrefabVisual(Transform parent, StageArtPrefabId id, Color tint,
+            float modelScale = 1f, Vector3? localPosition = null)
+        {
+            StageArtPrefabLibrary library = StageArtPrefabLibrary.Load();
+            GameObject source = library != null ? library.Get(id) : null;
+            if (source == null)
+            {
+                Debug.LogWarning($"M2: stage art prefab missing for {id}.");
+                return null;
+            }
+
+            GameObject model = Object.Instantiate(source, parent);
+            model.name = "Visual";
+            Vector3 proxyScale = parent.localScale;
+            model.transform.localScale = new Vector3(
+                modelScale / Mathf.Max(0.0001f, proxyScale.x),
+                modelScale / Mathf.Max(0.0001f, proxyScale.y),
+                modelScale / Mathf.Max(0.0001f, proxyScale.z));
+            model.transform.localPosition = localPosition ?? Vector3.zero;
+
+            foreach (Renderer renderer in model.GetComponentsInChildren<Renderer>())
+            {
+                RendererColorUtil.ApplyColor(renderer, tint);
+            }
+
+            return model;
         }
 
         // Builds a cylinder primitive stretched and oriented to span two local points —

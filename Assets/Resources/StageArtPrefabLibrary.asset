@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7efdda7ae84e83f41a7eef6abb470cbe, type: 3}
+  m_Name: StageArtPrefabLibrary
+  m_EditorClassIdentifier: M2.Runtime::M2.Stage.StageArtPrefabLibrary
+  bikiniTerrainRock: {fileID: 2193301975835294399, guid: f832f0d1f6f92364abb8566bb57088ea, type: 3}
+  africaBroadcastTower: {fileID: 1646420735130273499, guid: 82577692fb035314a93cfaafa69af240, type: 3}
+  netherLavaRock: {fileID: 2368894853535745, guid: d877acb3c8daf224a88cf413e35941d5, type: 3}
+  netherCoolingArch: {fileID: 8343909709969379674, guid: 24b3ad03a1a87ba479a1b962b74da870, type: 3}

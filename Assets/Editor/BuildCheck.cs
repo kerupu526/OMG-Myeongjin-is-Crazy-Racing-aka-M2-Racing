@@ -40,6 +40,49 @@ public static class BuildCheck
         }
     }
 
+    public static void BuildStageArtPrefabs()
+    {
+        Debug.Log("=== M2_STAGE_ART_PREFAB_BUILD_START ===");
+        try
+        {
+            M2.Editor.StageArtPrefabBuilder.Build();
+            Debug.Log("=== M2_STAGE_ART_PREFAB_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_STAGE_ART_PREFAB_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    public static void SmokeTestStageArtPrefabs()
+    {
+        Debug.Log("=== M2_STAGE_ART_PREFAB_SMOKE_TEST_START ===");
+        var library = AssetDatabase.LoadAssetAtPath<M2.Stage.StageArtPrefabLibrary>(
+            "Assets/Resources/StageArtPrefabLibrary.asset");
+        if (library == null)
+        {
+            Debug.LogError("M2_STAGE_ART_PREFAB_SMOKE_TEST_FAIL: library missing");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        foreach (M2.Stage.StageArtPrefabId id in System.Enum.GetValues(typeof(M2.Stage.StageArtPrefabId)))
+        {
+            GameObject prefab = library.Get(id);
+            if (prefab == null || prefab.GetComponentInChildren<Renderer>(true) == null)
+            {
+                Debug.LogError($"M2_STAGE_ART_PREFAB_SMOKE_TEST_FAIL: {id} prefab missing renderer");
+                EditorApplication.Exit(1);
+                return;
+            }
+        }
+
+        Debug.Log("=== M2_STAGE_ART_PREFAB_SMOKE_TEST_OK ===");
+        EditorApplication.Exit(0);
+    }
+
     public static void SmokeTestItemSpriteLibrary()
     {
         Debug.Log("=== M2_ITEM_ART_SMOKE_TEST_START ===");
