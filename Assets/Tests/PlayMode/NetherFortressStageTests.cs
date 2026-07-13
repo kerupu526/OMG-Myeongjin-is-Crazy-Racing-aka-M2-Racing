@@ -20,7 +20,7 @@ namespace M2.Tests.PlayMode
         public override void Setup()
         {
             base.Setup();
-            InputSystem.AddDevice<Keyboard>();
+            AddTestKeyboard();
 
             vehicleObject = new GameObject("TestVehicle");
             vehicleObject.tag = "Player";
@@ -56,8 +56,8 @@ namespace M2.Tests.PlayMode
 
         public override void TearDown()
         {
-            if (vehicleObject != null) Object.Destroy(vehicleObject);
-            if (lavaZoneObject != null) Object.Destroy(lavaZoneObject);
+            if (vehicleObject != null) Object.DestroyImmediate(vehicleObject);
+            if (lavaZoneObject != null) Object.DestroyImmediate(lavaZoneObject);
             base.TearDown();
         }
 

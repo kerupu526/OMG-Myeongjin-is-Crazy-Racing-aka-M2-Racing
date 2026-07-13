@@ -23,7 +23,7 @@ namespace M2.Tests.PlayMode
         public override void Setup()
         {
             base.Setup();
-            keyboard = InputSystem.AddDevice<Keyboard>();
+            keyboard = AddTestKeyboard();
 
             Directory.CreateDirectory(ShotDirectory);
 
@@ -81,7 +81,7 @@ namespace M2.Tests.PlayMode
 
         public override void TearDown()
         {
-            if (root != null) Object.Destroy(root);
+            if (root != null) Object.DestroyImmediate(root);
             base.TearDown();
         }
 
@@ -103,9 +103,8 @@ namespace M2.Tests.PlayMode
             Capture("02_turning");
             yield return null;
 
-            // No explicit Release() here: see VehicleControllerTests for why releasing a
-            // captured control late in a test can throw from the Input System's own test
-            // fixture — base.TearDown() resets all test-added devices regardless.
+            // The fixture removes its synthetic keyboard during teardown, so an explicit
+            // release is unnecessary here.
 
             bool anyShotWritten = Directory.Exists(ShotDirectory) && Directory.GetFiles(ShotDirectory, "*.png").Length > 0;
             if (!anyShotWritten)

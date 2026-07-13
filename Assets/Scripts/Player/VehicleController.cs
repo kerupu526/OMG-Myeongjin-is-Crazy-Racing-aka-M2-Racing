@@ -236,6 +236,25 @@ namespace M2.Player
             remoteItemAction.Disable();
         }
 
+        void OnDestroy()
+        {
+            // These actions are created at runtime rather than through a shared input asset.
+            // Dispose them with the vehicle so a destroyed racer never leaves an Input System
+            // callback registered for a later scene or PlayMode test.
+            DisposeInputAction(steerAction);
+            DisposeInputAction(throttleAction);
+            DisposeInputAction(driftAction);
+            DisposeInputAction(useAccelItemAction);
+            DisposeInputAction(useAttackDefenseItemAction);
+            DisposeInputAction(remoteItemAction);
+        }
+
+        static void DisposeInputAction(InputAction action)
+        {
+            if (action != null)
+                action.Dispose();
+        }
+
         void HandleAccelItemUsed(InputAction.CallbackContext ctx) => OnAccelItemUsed?.Invoke();
         void HandleAttackDefenseItemUsed(InputAction.CallbackContext ctx) => OnAttackDefenseItemUsed?.Invoke();
         void HandleRemoteItemTriggered(InputAction.CallbackContext ctx) => OnRemoteItemTriggered?.Invoke();

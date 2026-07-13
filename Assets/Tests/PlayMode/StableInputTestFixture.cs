@@ -1,21 +1,56 @@
+using System.Collections.Generic;
+using NUnit.Framework;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace M2.Tests.PlayMode
 {
     /// <summary>
-    /// InputTestFixture enables an experimental, package-internal cache consistency diagnostic.
-    /// In the current Unity 6 editor it can log a false-positive error while a PlayMode test
-    /// moves between frames, which makes otherwise valid input tests fail through LogAssert.
-    /// Keep input-value caching enabled and turn off only that diagnostic check.
+    /// Provides deterministic synthetic input devices without replacing the editor's global
+    /// Input System state. InputTestFixture.SaveAndReset can leave the active UI input module
+    /// with a stale state buffer in Unity 6 PlayMode tests, which then produces a false error
+    /// from InputActionState.OnBeforeInitialUpdate.
     /// </summary>
-    public abstract class StableInputTestFixture : InputTestFixture
+    public abstract class StableInputTestFixture
     {
-        const string ParanoidReadValueCachingChecks = "PARANOID_READ_VALUE_CACHING_CHECKS";
+        readonly List<InputDevice> testDevices = new List<InputDevice>();
 
-        public override void Setup()
+        [SetUp]
+        public virtual void Setup()
         {
-            base.Setup();
-            InputSystem.settings.SetInternalFeatureFlag(ParanoidReadValueCachingChecks, false);
+        }
+
+        [TearDown]
+        public virtual void TearDown()
+        {
+            for (int i = testDevices.Count - 1; i >= 0; i--)
+            {
+                InputDevice device = testDevices[i];
+                if (device != null && device.added)
+                    InputSystem.RemoveDevice(device);
+            }
+
+            testDevices.Clear();
+        }
+
+        protected Keyboard AddTestKeyboard()
+        {
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>();
+            testDevices.Add(keyboard);
+            return keyboard;
+        }
+
+        protected void Press(ButtonControl button)
+        {
+            // Keyboard keys are bitfield controls, so QueueDeltaStateEvent cannot address
+            // them directly. Build the delta event the same way InputTestFixture does.
+            using (DeltaStateEvent.From(button, out var eventPtr))
+            {
+                eventPtr.time = InputState.currentTime;
+                button.WriteValueIntoEvent(1f, eventPtr);
+                InputSystem.QueueEvent(eventPtr);
+            }
         }
     }
 }

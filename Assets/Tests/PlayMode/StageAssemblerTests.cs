@@ -47,9 +47,9 @@ namespace M2.Tests.PlayMode
         [TearDown]
         public void TearDown()
         {
-            Object.Destroy(vehicleObject);
-            Object.Destroy(canvasObject);
-            Object.Destroy(worldParentObject);
+            if (vehicleObject != null) Object.DestroyImmediate(vehicleObject);
+            if (canvasObject != null) Object.DestroyImmediate(canvasObject);
+            if (worldParentObject != null) Object.DestroyImmediate(worldParentObject);
         }
 
         [UnityTest]

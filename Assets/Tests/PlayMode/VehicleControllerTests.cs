@@ -15,7 +15,7 @@ namespace M2.Tests.PlayMode
         public override void Setup()
         {
             base.Setup();
-            InputSystem.AddDevice<Keyboard>();
+            AddTestKeyboard();
 
             vehicleObject = new GameObject("TestVehicle");
             vehicleObject.AddComponent<Rigidbody>();
@@ -25,7 +25,7 @@ namespace M2.Tests.PlayMode
 
         public override void TearDown()
         {
-            if (vehicleObject != null) Object.Destroy(vehicleObject);
+            if (vehicleObject != null) Object.DestroyImmediate(vehicleObject);
             base.TearDown();
         }
 
@@ -42,11 +42,8 @@ namespace M2.Tests.PlayMode
 
             Assert.Greater(vehicle.CurrentSpeed, 0f, "Vehicle should have gained forward speed while throttle is held.");
 
-            // No explicit Release() here: by this point in the test, releasing the captured
-            // control throws ArgumentNullException from the Input System's own test fixture
-            // ("does not have an associated state") — base.TearDown() already resets all
-            // test-added devices/state regardless, so this cleanup call is both unnecessary
-            // and unreliable.
+            // The fixture removes its synthetic keyboard during teardown, so an explicit
+            // release is unnecessary here.
         }
 
         [UnityTest]

@@ -51,11 +51,11 @@ namespace M2.Tests.PlayMode
         {
             foreach (var cp in Object.FindObjectsByType<Checkpoint>(FindObjectsSortMode.None))
             {
-                Object.Destroy(cp.gameObject);
+                Object.DestroyImmediate(cp.gameObject);
             }
-            Object.Destroy(vehicleObject);
-            Object.Destroy(timerObject);
-            Object.Destroy(gmObject);
+            if (vehicleObject != null) Object.DestroyImmediate(vehicleObject);
+            if (timerObject != null) Object.DestroyImmediate(timerObject);
+            if (gmObject != null) Object.DestroyImmediate(gmObject);
         }
 
         static void CreateCheckpoint(int index)
