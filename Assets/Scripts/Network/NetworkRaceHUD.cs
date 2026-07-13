@@ -2,6 +2,8 @@ using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 using M2.Core;
+using M2.Items;
+using M2.Player;
 
 namespace M2.Network
 {
@@ -18,6 +20,11 @@ namespace M2.Network
         public Text infoLabel;
 
         NetworkRaceManager raceManager;
+
+        // Milestone 2b: the local player's own inventory/status, resolved lazily once its
+        // PlayerObject exists (it spawns a few frames after scene load, like the race manager).
+        NetworkItemSlots localSlots;
+        VehicleController localVehicle;
 
         void Update()
         {
@@ -86,7 +93,53 @@ namespace M2.Network
                 $"상태: {StateLabel(raceManager.State)}\n" +
                 $"남은 시간: {FormatTime(raceManager.TimeRemaining)}\n" +
                 $"내 바퀴: {myLaps}\n" +
-                $"상대 바퀴: {theirLaps}";
+                $"상대 바퀴: {theirLaps}\n" +
+                ItemStatusLines();
+        }
+
+        // Local player's two item slots plus any active shield/boost, read straight off the
+        // owned vehicle's replicated slots and its status mirrors.
+        string ItemStatusLines()
+        {
+            EnsureLocalRefs();
+
+            string slot1 = "-";
+            string slot2 = "-";
+            if (localSlots != null)
+            {
+                slot1 = ItemName(localSlots.Primary);
+                slot2 = ItemName(localSlots.Secondary);
+            }
+
+            string status = "";
+            if (localVehicle != null)
+            {
+                if (localVehicle.HasShield) status += " 방어막";
+                if (localVehicle.HasSpeedBoost) status += " 부스트";
+            }
+
+            return $"아이템 1: {slot1}\n아이템 2: {slot2}" +
+                   (status.Length > 0 ? $"\n상태:{status}" : "");
+        }
+
+        void EnsureLocalRefs()
+        {
+            if (localSlots != null && localVehicle != null) return;
+
+            var manager = NetworkManager.Singleton;
+            NetworkObject playerObject = manager != null && manager.LocalClient != null
+                ? manager.LocalClient.PlayerObject
+                : null;
+            if (playerObject == null) return;
+
+            localSlots = playerObject.GetComponent<NetworkItemSlots>();
+            localVehicle = playerObject.GetComponent<VehicleController>();
+        }
+
+        static string ItemName(NetItemId id)
+        {
+            ItemDefinition def = ItemCatalog.CreateFromId(id);
+            return def != null ? def.itemName : "-";
         }
 
         bool LocalIsHost()
