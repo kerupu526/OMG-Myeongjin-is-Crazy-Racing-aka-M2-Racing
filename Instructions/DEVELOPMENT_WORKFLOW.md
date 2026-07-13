@@ -26,7 +26,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\check_playtest.ps1 -Projec
 - 결과는 `playtest_results.xml`, 로그는 `playtest.log`에 있다.
 - 헤드리스 스크린샷 테스트의 `Inconclusive` 1개는 정상이다. 그 외 실패는 허용하지 않는다.
 - 코드로 트리거 콜라이더를 추가하면 `Reset()`이 호출되지 않으므로 `isTrigger = true`를 직접 지정한다.
-- Input System 테스트는 `InputTestFixture`와 `InputSystem.AddDevice<Keyboard>()`를 사용한다. `WaitForFixedUpdate()` 뒤에 `Press()`를 호출하지 말고, 여러 키 입력 사이에는 프레임을 하나 둔다.
+- Input System PlayMode 테스트는 `StableInputTestFixture`의 `AddTestKeyboard()`와 `Press()`를 사용한다. 활성 UI 입력 모듈이 있는 Unity 6 에디터에서는 전역 상태를 교체하는 `InputTestFixture`를 사용하지 않는다. `WaitForFixedUpdate()` 뒤에 `Press()`를 호출하지 말고, 여러 키 입력 사이에는 프레임을 하나 둔다.
 
 ## Unity 편집기와 씬
 
