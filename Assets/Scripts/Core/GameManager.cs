@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using M2.Items;
 using M2.Player;
 using UnityEngine;
 
@@ -32,6 +33,13 @@ namespace M2.Core
         [Tooltip("Bonus seconds added on completing laps 2, 3, 4 respectively.")]
         public float[] lapBonusSeconds = { 45f, 30f, 15f };
 
+        [Header("Room Mode Settings")]
+        public RaceMode raceMode = RaceMode.Item;
+        [Tooltip("스피드전의 절대 최고 속도(km/h). 아이템·드리프트 가속도 이 값을 넘을 수 없음.")]
+        public float speedModeMaximumKph = RaceModeRules.SpeedModeMaximumKph;
+        [Tooltip("스피드전에서 각 레이서에게 기본 휘발유를 자동 지급하는 간격(초).")]
+        public float speedModeGasolineInterval = 15f;
+
         [Header("References (auto-collected if empty)")]
         public List<LapTracker> racers = new List<LapTracker>();
         public List<VehicleController> vehicles = new List<VehicleController>();
@@ -54,6 +62,14 @@ namespace M2.Core
         bool startRequested;
         readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
         readonly Dictionary<LapTracker, RaceFinishResult> finishResults = new Dictionary<LapTracker, RaceFinishResult>();
+
+        public bool IsSpeedMode => raceMode == RaceMode.Speed;
+
+        void Awake()
+        {
+            if (GetComponent<SpeedModeGasolineDistributor>() == null)
+                gameObject.AddComponent<SpeedModeGasolineDistributor>();
+        }
 
         // Called by UI (a "시작" button) or a key press to end the Briefing wait when
         // waitForManualStart is true. Harmless no-op otherwise/at any other time.
@@ -78,6 +94,8 @@ namespace M2.Core
                 raceTimer = FindFirstObjectByType<RaceTimer>();
             }
 
+            ApplyRaceModeRules();
+
             // Local scenes (TestTrackBuilder / persisted Stage_*.unity) auto-start immediately,
             // exactly as before. Networked scenes set autoStartOnStart=false and let the host's
             // NetworkRaceManager call BeginRaceFlow() once both players have actually spawned —
@@ -96,8 +114,38 @@ namespace M2.Core
         public void BeginRaceFlow()
         {
             if (raceFlowStarted) return;
+            ApplyRaceModeRules();
             raceFlowStarted = true;
             StartCoroutine(RunRaceFlow());
+        }
+
+        public void ConfigureRoomSettings(RaceMode selectedMode, int requestedLapCount,
+            VictoryCondition requestedVictoryCondition)
+        {
+            raceMode = selectedMode;
+            if (raceMode == RaceMode.Speed)
+            {
+                targetLapCount = RaceModeRules.SpeedModeLapCount;
+                victoryCondition = VictoryCondition.SimpleFinish;
+            }
+            else
+            {
+                targetLapCount = RaceModeRules.NormalizeItemLapCount(requestedLapCount);
+                victoryCondition = requestedVictoryCondition;
+            }
+
+            ApplyRaceModeRules();
+        }
+
+        public void ApplyRaceModeRules()
+        {
+            if (raceMode == RaceMode.Speed)
+            {
+                targetLapCount = RaceModeRules.SpeedModeLapCount;
+                victoryCondition = VictoryCondition.SimpleFinish;
+            }
+
+            for (int i = 0; i < vehicles.Count; i++) ApplyModeToVehicle(vehicles[i]);
         }
 
         // Adds a racer/vehicle pair before the flow starts — used by the networked host, whose
@@ -109,6 +157,14 @@ namespace M2.Core
         {
             if (racer != null && !racers.Contains(racer)) racers.Add(racer);
             if (vehicle != null && !vehicles.Contains(vehicle)) vehicles.Add(vehicle);
+            ApplyModeToVehicle(vehicle);
+        }
+
+        void ApplyModeToVehicle(VehicleController vehicle)
+        {
+            if (vehicle == null) return;
+            if (raceMode == RaceMode.Speed) vehicle.SetAbsoluteSpeedLimitKph(speedModeMaximumKph);
+            else vehicle.ClearAbsoluteSpeedLimit();
         }
 
         void Update()

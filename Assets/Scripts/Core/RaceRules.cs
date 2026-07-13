@@ -8,6 +8,26 @@ namespace M2.Core
         StarBet,
     }
 
+    public enum RaceMode
+    {
+        Item,
+        Speed,
+    }
+
+    public static class RaceModeRules
+    {
+        public const int SpeedModeLapCount = 5;
+        public const float SpeedModeMaximumKph = 100f;
+        public const float KphToMetersPerSecond = 1f / 3.6f;
+
+        public static int NormalizeItemLapCount(int requestedLapCount)
+        {
+            if (requestedLapCount <= 1) return 1;
+            if (requestedLapCount <= 3) return 3;
+            return 5;
+        }
+    }
+
     public interface IRaceStarProvider
     {
         int ComputeTotalStars(float finishTimeSeconds);

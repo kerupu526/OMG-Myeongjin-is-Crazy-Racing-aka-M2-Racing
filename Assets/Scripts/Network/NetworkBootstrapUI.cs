@@ -7,6 +7,7 @@ using Unity.Services.Multiplayer;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
+using M2.UI;
 
 namespace M2.Network
 {
@@ -26,10 +27,17 @@ namespace M2.Network
         bool subscribed;
         bool busy;
         ISession activeSession;
+        RoomSettingsUI roomSettingsUi;
 
         void Awake()
         {
             ConfigureVisibleUi();
+            Canvas canvas = FindFirstObjectByType<Canvas>();
+            if (canvas != null)
+            {
+                roomSettingsUi = canvas.GetComponent<RoomSettingsUI>();
+                if (roomSettingsUi == null) roomSettingsUi = canvas.gameObject.AddComponent<RoomSettingsUI>();
+            }
             if (hostButton != null) hostButton.onClick.AddListener(StartHost);
             if (joinButton != null) joinButton.onClick.AddListener(StartClient);
         }
@@ -94,6 +102,7 @@ namespace M2.Network
             if (busy) return;
             await RunSessionOperation(async () =>
             {
+                roomSettingsUi?.ApplyTo(FindFirstObjectByType<M2.Core.GameManager>());
                 SetStatus("온라인 서비스 연결 중...");
                 await EnsureServicesReadyAsync();
 
@@ -110,6 +119,7 @@ namespace M2.Network
                 if (hostButton != null) hostButton.gameObject.SetActive(false);
                 if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
                 if (joinButton != null) joinButton.gameObject.SetActive(false);
+                roomSettingsUi?.SetVisible(false);
             });
         }
 
@@ -131,6 +141,7 @@ namespace M2.Network
                 await EnsureServicesReadyAsync();
                 SetStatus($"방 {code} 참가 중...");
                 activeSession = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
+                roomSettingsUi?.SetVisible(false);
             });
         }
 
@@ -223,6 +234,7 @@ namespace M2.Network
             if (joinButton != null) joinButton.gameObject.SetActive(false);
             if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
             if (statusText != null) statusText.gameObject.SetActive(false);
+            roomSettingsUi?.SetVisible(false);
         }
 
         void ShowConnectionUi()
@@ -231,6 +243,7 @@ namespace M2.Network
             if (joinButton != null) joinButton.gameObject.SetActive(true);
             if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(true);
             if (statusText != null) statusText.gameObject.SetActive(true);
+            roomSettingsUi?.SetVisible(true);
             SetButtonsInteractable(true);
         }
 

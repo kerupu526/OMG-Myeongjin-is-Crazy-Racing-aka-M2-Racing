@@ -11,6 +11,8 @@ namespace M2.Player
     {
         [Header("Speed")]
         public float maxSpeed = 20f;
+        [Tooltip("0이면 제한 없음. 스피드전은 아이템/드리프트를 포함한 실제 속도를 이 값 이하로 제한한다 (m/s).")]
+        public float absoluteSpeedLimit;
         public float acceleration = 12f;
         public float deceleration = 8f;
         public float reverseSpeed = 8f;
@@ -88,6 +90,7 @@ namespace M2.Player
 
         // --- Debug/test readouts ---
         public float CurrentSpeed => currentSpeed;
+        public float AbsoluteSpeedLimit => absoluteSpeedLimit;
         public float CurrentAcceleration { get; private set; }
         // Time-window based rather than an Enter/Exit counter: physics contacts can flicker
         // apart and back together within the same collision, which desynced a counter.
@@ -380,6 +383,7 @@ namespace M2.Player
         void ApplyThrottle(float throttleInput, bool isDrifting, bool touchingWall, Vector3 wallNormal, bool carFacesTowardCheckpoint)
         {
             float effectiveMaxSpeed = maxSpeed + itemSpeedBonus + driftSpeedBonus;
+            if (absoluteSpeedLimit > 0f) effectiveMaxSpeed = Mathf.Min(effectiveMaxSpeed, absoluteSpeedLimit);
 
             if (Mathf.Approximately(throttleInput, 0f))
             {
@@ -524,6 +528,20 @@ namespace M2.Player
                 currentSpeed = 0f;
                 rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
             }
+        }
+
+        public void SetAbsoluteSpeedLimitKph(float kilometersPerHour)
+        {
+            absoluteSpeedLimit = kilometersPerHour > 0f ? kilometersPerHour / 3.6f : 0f;
+            if (absoluteSpeedLimit > 0f)
+            {
+                currentSpeed = Mathf.Clamp(currentSpeed, -absoluteSpeedLimit, absoluteSpeedLimit);
+            }
+        }
+
+        public void ClearAbsoluteSpeedLimit()
+        {
+            absoluteSpeedLimit = 0f;
         }
 
         // --- Steering invert (아프리카TV 방송사고 존) ---

@@ -47,6 +47,9 @@ namespace M2.Network
         readonly NetworkVariable<int> netCountdown = new NetworkVariable<int>(-1);
         readonly NetworkVariable<int> netHostLaps = new NetworkVariable<int>(0);
         readonly NetworkVariable<int> netClientLaps = new NetworkVariable<int>(0);
+        readonly NetworkVariable<int> netRaceMode = new NetworkVariable<int>((int)RaceMode.Item);
+        readonly NetworkVariable<int> netTargetLapCount = new NetworkVariable<int>(3);
+        readonly NetworkVariable<float> netSpeedModeMaximumKph = new NetworkVariable<float>(RaceModeRules.SpeedModeMaximumKph);
         // 0 = no result yet, 1 = someone won, 2 = draw.
         readonly NetworkVariable<int> netResult = new NetworkVariable<int>(0);
         readonly NetworkVariable<ulong> netWinnerClientId = new NetworkVariable<ulong>(0);
@@ -58,6 +61,9 @@ namespace M2.Network
         public int Countdown => netCountdown.Value;
         public int HostLaps => netHostLaps.Value;
         public int ClientLaps => netClientLaps.Value;
+        public RaceMode Mode => (RaceMode)netRaceMode.Value;
+        public int TargetLapCount => netTargetLapCount.Value;
+        public float SpeedModeMaximumKph => netSpeedModeMaximumKph.Value;
         public int Result => netResult.Value;
         public ulong WinnerClientId => netWinnerClientId.Value;
         public string DrawReason => netDrawReason.Value.ToString();
@@ -83,12 +89,17 @@ namespace M2.Network
             // SetAllInputLocked, so on the host this is a harmless double-set; on a pure client
             // it's the only thing that locks/unlocks the local car (its GameManager never runs).
             netState.OnValueChanged += HandleStateChangedForInputLock;
+            netRaceMode.OnValueChanged += HandleRaceRulesChanged;
+            netSpeedModeMaximumKph.OnValueChanged += HandleSpeedLimitChanged;
             ApplyLocalInputLock((RaceState)netState.Value);
+            ApplyLocalRaceRules();
         }
 
         public override void OnNetworkDespawn()
         {
             netState.OnValueChanged -= HandleStateChangedForInputLock;
+            netRaceMode.OnValueChanged -= HandleRaceRulesChanged;
+            netSpeedModeMaximumKph.OnValueChanged -= HandleSpeedLimitChanged;
             UnhookGameManagerEvents();
         }
 
@@ -116,7 +127,13 @@ namespace M2.Network
 
         void Update()
         {
-            if (!IsServer) return;
+            if (!IsServer)
+            {
+                ApplyLocalRaceRules();
+                return;
+            }
+
+            SyncRoomSettings();
 
             if (!flowBegun)
             {
@@ -128,6 +145,14 @@ namespace M2.Network
             netTimeRemaining.Value = gameManager != null ? gameManager.TimeRemaining : 0f;
             if (hostTracker != null) netHostLaps.Value = hostTracker.LapCount;
             if (clientTracker != null) netClientLaps.Value = clientTracker.LapCount;
+        }
+
+        void SyncRoomSettings()
+        {
+            if (gameManager == null) return;
+            netRaceMode.Value = (int)gameManager.raceMode;
+            netTargetLapCount.Value = gameManager.targetLapCount;
+            netSpeedModeMaximumKph.Value = gameManager.speedModeMaximumKph;
         }
 
         // Waits until both players' vehicles exist, then registers them with the host GameManager
@@ -215,11 +240,23 @@ namespace M2.Network
             ApplyLocalInputLock((RaceState)newValue);
         }
 
+        void HandleRaceRulesChanged(int _, int __) => ApplyLocalRaceRules();
+
+        void HandleSpeedLimitChanged(float _, float __) => ApplyLocalRaceRules();
+
         void ApplyLocalInputLock(RaceState state)
         {
             VehicleController localVehicle = LocalOwnedVehicle();
             if (localVehicle == null) return;
             localVehicle.SetInputLocked(state != RaceState.Racing);
+        }
+
+        void ApplyLocalRaceRules()
+        {
+            VehicleController localVehicle = LocalOwnedVehicle();
+            if (localVehicle == null) return;
+            if (Mode == RaceMode.Speed) localVehicle.SetAbsoluteSpeedLimitKph(SpeedModeMaximumKph);
+            else localVehicle.ClearAbsoluteSpeedLimit();
         }
 
         VehicleController LocalOwnedVehicle()

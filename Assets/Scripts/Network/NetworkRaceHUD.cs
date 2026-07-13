@@ -90,6 +90,10 @@ namespace M2.Network
             int theirLaps = localIsHost ? raceManager.ClientLaps : raceManager.HostLaps;
 
             infoLabel.text =
+                $"모드: {ModeLabel(raceManager.Mode)} · {raceManager.TargetLapCount}바퀴\n" +
+                (raceManager.Mode == RaceMode.Speed
+                    ? $"최고 {raceManager.SpeedModeMaximumKph:0}km/h · 휘발유 자동 지급\n"
+                    : "") +
                 $"상태: {StateLabel(raceManager.State)}\n" +
                 $"남은 시간: {FormatTime(raceManager.TimeRemaining)}\n" +
                 $"내 바퀴: {myLaps}\n" +
@@ -163,6 +167,8 @@ namespace M2.Network
             RaceState.Finished => "종료",
             _ => state.ToString(),
         };
+
+        static string ModeLabel(RaceMode mode) => mode == RaceMode.Speed ? "스피드전" : "아이템전";
 
         static string FormatTime(float seconds)
         {
