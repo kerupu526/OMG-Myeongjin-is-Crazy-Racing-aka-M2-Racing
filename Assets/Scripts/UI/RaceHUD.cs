@@ -92,8 +92,8 @@ namespace M2.UI
             int targetLap = gameManager != null ? gameManager.targetLapCount : 3;
             float timeLeft = gameManager != null ? gameManager.TimeRemaining : 0f;
 
-            lapLabel.text = $"<size=14>LAP · 바퀴</size>\n<size=34><color=#{ColorUtility.ToHtmlStringRGB(Yellow)}>{lap}</color> / {targetLap}</size>";
-            timeLabel.text = $"<size=14>TIME · 남은 시간</size>\n<size=34>{FormatTime(timeLeft)}</size>";
+            lapLabel.text = $"<size=22>LAP · 바퀴</size>\n<size=48><color=#{ColorUtility.ToHtmlStringRGB(Yellow)}>{lap}</color> / {targetLap}</size>";
+            timeLabel.text = $"<size=22>TIME · 남은 시간</size>\n<size=48>{FormatTime(timeLeft)}</size>";
             versusLabel.text = BuildVersusText(lap);
 
             if (gameManager != null && gameManager.IsSpeedMode)
@@ -115,55 +115,55 @@ namespace M2.UI
 
             lapLabel = label != null ? label : CreateText("RaceHud_LapText", transform, 24, Color.white, TextAnchor.MiddleCenter);
             presentationRoots.Add(PlaceTextInCard(lapLabel, transform, "RaceHud_LapCard", new Vector2(0f, 1f), new Vector2(16f, -16f),
-                new Vector2(82f, 64f), Yellow));
+                new Vector2(166f, 112f), Yellow));
 
             timeLabel = CreateText("RaceHud_TimeText", transform, 24, Color.white, TextAnchor.MiddleCenter);
             presentationRoots.Add(PlaceTextInCard(timeLabel, transform, "RaceHud_TimeCard", new Vector2(1f, 1f), new Vector2(-16f, -16f),
-                new Vector2(94f, 64f), Pink));
+                new Vector2(198f, 112f), Pink));
 
-            versusLabel = CreateText("RaceHud_VersusText", transform, 18, Color.white, TextAnchor.MiddleCenter);
+            versusLabel = CreateText("RaceHud_VersusText", transform, 24, Color.white, TextAnchor.MiddleCenter);
             presentationRoots.Add(PlaceTextInCard(versusLabel, transform, "RaceHud_VersusCard", new Vector2(0.5f, 1f), new Vector2(0f, -16f),
-                new Vector2(116f, 64f), Color.white));
-            ConfigureText(versusLabel, 16, Color.white, TextAnchor.MiddleCenter);
+                new Vector2(300f, 112f), Color.white));
+            ConfigureText(versusLabel, 24, Color.white, TextAnchor.MiddleCenter);
 
-            CreateItemCard("RaceHud_PrimarySlot", new Vector2(16f, 196f), out primaryIcon, out primaryNameLabel, "1");
-            CreateItemCard("RaceHud_SecondarySlot", new Vector2(16f, 104f), out secondaryIcon, out secondaryNameLabel, "2");
+            CreateItemCard("RaceHud_PrimarySlot", new Vector2(24f, 358f), out primaryIcon, out primaryNameLabel, "1");
+            CreateItemCard("RaceHud_SecondarySlot", new Vector2(24f, 164f), out secondaryIcon, out secondaryNameLabel, "2");
 
             GameObject detailCard = CreateCard(transform, "RaceHud_ItemDetailCard", Ink, Yellow);
             presentationRoots.Add(detailCard);
             SetRect(detailCard.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(112f, 104f), new Vector2(300f, 84f));
-            itemDetailLabel = CreateText("ItemDetail", detailCard.transform, 16, Color.white, TextAnchor.MiddleLeft);
-            Stretch(itemDetailLabel.rectTransform, new Vector2(16f, 8f), new Vector2(-16f, -8f));
+                new Vector2(216f, 130f), new Vector2(590f, 138f));
+            itemDetailLabel = CreateText("ItemDetail", detailCard.transform, 22, Color.white, TextAnchor.MiddleLeft);
+            Stretch(itemDetailLabel.rectTransform, new Vector2(20f, 12f), new Vector2(-20f, -12f));
 
             GameObject slotHint = new GameObject("RaceHud_ItemHint", typeof(RectTransform));
             slotHint.transform.SetParent(transform, false);
             presentationRoots.Add(slotHint);
             itemHintLabel = slotHint.AddComponent<Text>();
-            ConfigureText(itemHintLabel, 14, new Color(1f, 1f, 1f, 0.85f), TextAnchor.LowerLeft);
+            ConfigureText(itemHintLabel, 22, new Color(1f, 1f, 1f, 0.85f), TextAnchor.LowerLeft);
             itemHintLabel.text = "아이템 슬롯 · Ctrl 가속 · E 사용 · P C4 기폭";
-            SetRect(itemHintLabel.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(16f, 82f), new Vector2(390f, 20f));
+            SetRect(itemHintLabel.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(216f, 282f), new Vector2(620f, 30f));
         }
 
         void CreateItemCard(string name, Vector2 position, out Image icon, out Text itemName, string slotNumber)
         {
             GameObject card = CreateCard(transform, name, Ink, Yellow);
             presentationRoots.Add(card);
-            SetRect(card.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero, position, new Vector2(86f, 86f));
+            SetRect(card.GetComponent<RectTransform>(), Vector2.zero, Vector2.zero, position, new Vector2(170f, 170f));
 
             GameObject iconObject = new GameObject("Icon", typeof(RectTransform));
             iconObject.transform.SetParent(card.transform, false);
             icon = iconObject.AddComponent<Image>();
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            SetRect(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 7f), new Vector2(54f, 54f));
+            SetRect(icon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 14f), new Vector2(106f, 106f));
 
-            itemName = CreateText("Name", card.transform, 12, Color.white, TextAnchor.LowerCenter);
-            SetRect(itemName.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 3f), new Vector2(-8f, 23f));
+            itemName = CreateText("Name", card.transform, 20, Color.white, TextAnchor.LowerCenter);
+            SetRect(itemName.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 6f), new Vector2(-12f, 42f));
 
             GameObject badge = CreateCard(card.transform, "SlotNumber", Yellow, Ink);
-            SetRect(badge.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(-6f, 6f), new Vector2(24f, 24f));
-            Text badgeText = CreateText("Text", badge.transform, 16, Ink, TextAnchor.MiddleCenter);
+            SetRect(badge.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(-8f, 8f), new Vector2(36f, 36f));
+            Text badgeText = CreateText("Text", badge.transform, 22, Ink, TextAnchor.MiddleCenter);
             badgeText.text = slotNumber;
             Stretch(badgeText.rectTransform, Vector2.zero, Vector2.zero);
         }
@@ -251,7 +251,7 @@ namespace M2.UI
             ItemUseNotifier notifier = FindFirstObjectByType<ItemUseNotifier>();
             if (notifier != null && notifier.label != null)
             {
-                notifier.label.fontSize = 28;
+                notifier.label.fontSize = 32;
                 notifier.label.color = Ink;
                 AddOutline(notifier.label.gameObject, Ink, new Vector2(2f, -2f));
             }
@@ -259,11 +259,11 @@ namespace M2.UI
             VehicleStatusHUD status = FindFirstObjectByType<VehicleStatusHUD>();
             if (status != null && status.label != null)
             {
-                status.label.fontSize = 16;
+                status.label.fontSize = 22;
                 status.label.color = Mint;
                 status.label.alignment = TextAnchor.LowerRight;
                 SetRect(status.label.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                    new Vector2(-28f, 112f), new Vector2(280f, 84f));
+                    new Vector2(-32f, 132f), new Vector2(380f, 104f));
                 AddOutline(status.label.gameObject, Ink, new Vector2(1.5f, -1.5f));
             }
         }
@@ -316,8 +316,8 @@ namespace M2.UI
             GameObject card = CreateCard(cardParent, cardName, Ink, border);
             SetRect(card.GetComponent<RectTransform>(), anchor, anchor, position, size);
             text.transform.SetParent(card.transform, false);
-            ConfigureText(text, 22, Color.white, TextAnchor.MiddleCenter);
-            Stretch(text.rectTransform, new Vector2(8f, 6f), new Vector2(-8f, -6f));
+            ConfigureText(text, 24, Color.white, TextAnchor.MiddleCenter);
+            Stretch(text.rectTransform, new Vector2(12f, 8f), new Vector2(-12f, -8f));
             return card;
         }
 

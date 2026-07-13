@@ -25,7 +25,7 @@ namespace M2.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator RaceHud_Builds_Compact_Item_And_Gauge_Presentation()
+        public IEnumerator RaceHud_Builds_Readable_Item_And_Gauge_Presentation()
         {
             canvasObject = new GameObject("RaceHudCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             GameObject legacyLabel = new GameObject("RaceLabel", typeof(RectTransform), typeof(Text));
@@ -40,12 +40,12 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(new Vector2(1920f, 1080f), scaler.referenceResolution);
             Assert.IsNotNull(canvasObject.GetComponent<StageGaugeHUD>());
 
-            AssertCompactCard("RaceHud_LapCard", new Vector2(82f, 64f));
-            AssertCompactCard("RaceHud_VersusCard", new Vector2(116f, 64f));
-            AssertCompactCard("RaceHud_TimeCard", new Vector2(94f, 64f));
-            AssertCompactCard("RaceHud_PrimarySlot", new Vector2(86f, 86f));
-            AssertCompactCard("RaceHud_SecondarySlot", new Vector2(86f, 86f));
-            AssertCompactCard("RaceHud_ItemDetailCard", new Vector2(300f, 84f));
+            AssertReadableCard("RaceHud_LapCard", new Vector2(166f, 112f));
+            AssertReadableCard("RaceHud_VersusCard", new Vector2(300f, 112f));
+            AssertReadableCard("RaceHud_TimeCard", new Vector2(198f, 112f));
+            AssertReadableCard("RaceHud_PrimarySlot", new Vector2(170f, 170f));
+            AssertReadableCard("RaceHud_SecondarySlot", new Vector2(170f, 170f));
+            AssertReadableCard("RaceHud_ItemDetailCard", new Vector2(590f, 138f));
         }
 
         [UnityTest]
@@ -86,11 +86,11 @@ namespace M2.Tests.PlayMode
             StringAssert.Contains(gasoline.description, detail.text);
         }
 
-        void AssertCompactCard(string name, Vector2 expectedSize)
+        void AssertReadableCard(string name, Vector2 expectedSize)
         {
             Transform card = canvasObject.transform.Find(name);
             Assert.IsNotNull(card, $"{name} should be part of the formal race HUD.");
-            Assert.AreEqual(expectedSize, card.GetComponent<RectTransform>().sizeDelta, $"{name} should retain the compact game-view layout.");
+            Assert.AreEqual(expectedSize, card.GetComponent<RectTransform>().sizeDelta, $"{name} should retain the readable game-view layout.");
         }
     }
 }

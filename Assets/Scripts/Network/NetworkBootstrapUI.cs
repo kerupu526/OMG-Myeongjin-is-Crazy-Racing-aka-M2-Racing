@@ -68,6 +68,12 @@ namespace M2.Network
         {
             SetButtonLabel(hostButton, "방 만들기");
             SetButtonLabel(joinButton, "방 참가");
+            if (statusText != null)
+            {
+                statusText.rectTransform.sizeDelta = new Vector2(900f, 84f);
+                statusText.fontSize = 30;
+                statusText.alignment = TextAnchor.UpperCenter;
+            }
             if (joinCodeInputField == null) return;
 
             joinCodeInputField.text = string.Empty;
@@ -255,7 +261,13 @@ namespace M2.Network
 
         void SetStatus(string message)
         {
-            if (statusText != null) statusText.text = message;
+            if (statusText == null) return;
+
+            bool hasRoomCode = message != null && message.StartsWith("방 코드:", StringComparison.Ordinal);
+            statusText.fontSize = hasRoomCode ? 42 : 30;
+            statusText.fontStyle = hasRoomCode ? FontStyle.Bold : FontStyle.Normal;
+            statusText.color = hasRoomCode ? new Color(1f, 0.851f, 0.239f) : Color.white;
+            statusText.text = message;
         }
     }
 }

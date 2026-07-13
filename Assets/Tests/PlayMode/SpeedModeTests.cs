@@ -113,8 +113,9 @@ namespace M2.Tests.PlayMode
             Assert.IsNotNull(canvasObject.transform.Find("RoomSettingsPanel/LapButton"));
             Assert.IsNotNull(canvasObject.transform.Find("RoomSettingsPanel/VictoryButton"));
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            Assert.AreEqual(CanvasScaler.ScaleMode.ScaleWithScreenSize, scaler.uiScaleMode);
-            Assert.AreEqual(new Vector2(1920f, 1080f), scaler.referenceResolution);
+            Assert.AreEqual(CanvasScaler.ScaleMode.ConstantPixelSize, scaler.uiScaleMode);
+            Assert.AreEqual(24, canvasObject.transform.Find("RoomSettingsPanel/Title").GetComponent<Text>().fontSize);
+            Assert.AreEqual(24, canvasObject.transform.Find("RoomSettingsPanel/ModeButton/Label").GetComponent<Text>().fontSize);
 
             settings.ToggleMode();
             Assert.AreEqual(RaceMode.Speed, gameManager.raceMode);

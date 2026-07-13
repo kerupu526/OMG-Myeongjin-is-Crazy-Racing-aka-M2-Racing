@@ -25,7 +25,6 @@ namespace M2.UI
 
         void Start()
         {
-            ConfigureCanvasScaling();
             if (gameManager == null) gameManager = FindFirstObjectByType<GameManager>();
             if (gameManager != null)
             {
@@ -35,19 +34,6 @@ namespace M2.UI
             }
             BuildLayout();
             RefreshLabels();
-        }
-
-        // NetworkBootstrap has no RaceHUD, so it cannot rely on RaceHUD's CanvasScaler setup.
-        // Scaling at the Canvas level keeps the host/join controls and this panel together on
-        // narrow Free Aspect previews as well as the final 16:9 build.
-        void ConfigureCanvasScaling()
-        {
-            CanvasScaler scaler = GetComponent<CanvasScaler>();
-            if (scaler == null) return;
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
         }
 
         public void ApplyTo(GameManager manager)
@@ -103,29 +89,29 @@ namespace M2.UI
             rect.anchorMin = new Vector2(1f, 0f);
             rect.anchorMax = new Vector2(1f, 0f);
             rect.pivot = new Vector2(1f, 0f);
-            rect.anchoredPosition = new Vector2(-20f, 92f);
-            rect.sizeDelta = new Vector2(390f, 170f);
+            rect.anchoredPosition = new Vector2(-20f, 118f);
+            rect.sizeDelta = new Vector2(430f, 222f);
 
-            title = CreateText(panel.transform, "Title", 16, Yellow, TextAnchor.UpperCenter);
+            title = CreateText(panel.transform, "Title", 24, Yellow, TextAnchor.UpperCenter);
             title.rectTransform.anchorMin = new Vector2(0f, 1f);
             title.rectTransform.anchorMax = new Vector2(1f, 1f);
-            title.rectTransform.offsetMin = new Vector2(12f, -38f);
-            title.rectTransform.offsetMax = new Vector2(-12f, -8f);
+            title.rectTransform.offsetMin = new Vector2(16f, -54f);
+            title.rectTransform.offsetMax = new Vector2(-16f, -10f);
 
-            modeButton = CreateSettingButton("ModeButton", 34f, ToggleMode);
-            lapButton = CreateSettingButton("LapButton", -10f, CycleItemLapCount);
-            victoryButton = CreateSettingButton("VictoryButton", -54f, CycleItemVictoryCondition);
+            modeButton = CreateSettingButton("ModeButton", 64f, ToggleMode);
+            lapButton = CreateSettingButton("LapButton", 6f, CycleItemLapCount);
+            victoryButton = CreateSettingButton("VictoryButton", -52f, CycleItemVictoryCondition);
         }
 
         Button CreateSettingButton(string name, float y, UnityEngine.Events.UnityAction action)
         {
-            Button button = SimpleUIFactory.CreateButton(panel.transform, name, "", new Vector2(0f, y), new Vector2(350f, 34f));
+            Button button = SimpleUIFactory.CreateButton(panel.transform, name, "", new Vector2(0f, y), new Vector2(390f, 46f));
             Image image = button.GetComponent<Image>();
             if (image != null) image.color = Pink;
             Text buttonText = button.GetComponentInChildren<Text>(true);
             if (buttonText != null)
             {
-                buttonText.fontSize = 17;
+                buttonText.fontSize = 24;
                 buttonText.color = Color.white;
                 buttonText.raycastTarget = false;
                 buttonText.rectTransform.offsetMin = Vector2.zero;
@@ -140,7 +126,7 @@ namespace M2.UI
             if (title != null)
             {
                 title.text = selectedMode == RaceMode.Speed
-                    ? "방 설정 · 스피드전\n5바퀴 · 최고 100km/h · 휘발유 자동 지급"
+                    ? "방 설정 · 스피드전\n5바퀴 · 최고 100km/h · 5초 자동 분사"
                     : "방 설정 · 아이템전";
             }
 

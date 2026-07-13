@@ -136,11 +136,9 @@ namespace M2.Editor
             canvasObject.transform.SetParent(uiParent);
             Canvas canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+            // Keep this lobby canvas in constant pixels. A 1920px reference scaler made the
+            // room code and the freshly added room rules unreadable in the small Game preview.
+            canvasObject.AddComponent<CanvasScaler>();
             canvasObject.AddComponent<GraphicRaycaster>();
 
             // Same InputSystemUIInputModule requirement TestTrackBuilder.SetupHud already
@@ -157,13 +155,14 @@ namespace M2.Editor
             }
 
             Button hostButton = SimpleUIFactory.CreateButton(canvasObject.transform, "HostButton", "방 만들기",
-                new Vector2(-100f, 40f), new Vector2(180f, 60f));
+                new Vector2(-140f, 72f), new Vector2(240f, 72f));
             Button joinButton = SimpleUIFactory.CreateButton(canvasObject.transform, "JoinButton", "방 참가",
-                new Vector2(100f, 40f), new Vector2(180f, 60f));
+                new Vector2(140f, 72f), new Vector2(240f, 72f));
             InputField joinCodeInputField = CreateJoinCodeInputField(canvasObject.transform);
             Text statusText = SimpleUIFactory.CreateCornerText(canvasObject.transform, "StatusText",
-                new Vector2(0.5f, 0f), new Vector2(0f, 20f), TextAnchor.LowerCenter);
+                new Vector2(0.5f, 1f), new Vector2(0f, -28f), TextAnchor.UpperCenter);
             statusText.color = Color.white;
+            statusText.rectTransform.sizeDelta = new Vector2(900f, 84f);
 
             bootstrapUi.hostButton = hostButton;
             bootstrapUi.joinButton = joinButton;
@@ -185,8 +184,8 @@ namespace M2.Editor
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0f, -60f);
-            rect.sizeDelta = new Vector2(260f, 50f);
+            rect.anchoredPosition = new Vector2(0f, -48f);
+            rect.sizeDelta = new Vector2(420f, 72f);
 
             Image bg = fieldObject.AddComponent<Image>();
             bg.color = new Color(1f, 1f, 1f, 0.9f);
@@ -197,7 +196,7 @@ namespace M2.Editor
             textObject.transform.SetParent(fieldObject.transform, false);
             Text text = textObject.AddComponent<Text>();
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.fontSize = 24;
+            text.fontSize = 32;
             text.color = Color.black;
             text.alignment = TextAnchor.MiddleCenter;
             RectTransform textRect = textObject.GetComponent<RectTransform>();
@@ -210,7 +209,7 @@ namespace M2.Editor
             placeholderObject.transform.SetParent(fieldObject.transform, false);
             Text placeholder = placeholderObject.AddComponent<Text>();
             placeholder.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            placeholder.fontSize = 24;
+            placeholder.fontSize = 32;
             placeholder.fontStyle = FontStyle.Italic;
             placeholder.color = new Color(0f, 0f, 0f, 0.4f);
             placeholder.alignment = TextAnchor.MiddleCenter;

@@ -65,26 +65,26 @@ namespace M2.UI
             containerRect.anchorMin = new Vector2(0f, 0f);
             containerRect.anchorMax = new Vector2(1f, 0f);
             containerRect.offsetMin = new Vector2(28f, 26f);
-            containerRect.offsetMax = new Vector2(-28f, 82f);
+            containerRect.offsetMax = new Vector2(-28f, 104f);
             AddOutline(container, Color.white, new Vector2(2f, -2f));
 
-            titleLabel = CreateText("Title", container.transform, 16, Color.white, TextAnchor.UpperLeft);
+            titleLabel = CreateText("Title", container.transform, 22, Color.white, TextAnchor.UpperLeft);
             titleLabel.rectTransform.anchorMin = new Vector2(0f, 1f);
             titleLabel.rectTransform.anchorMax = new Vector2(0.65f, 1f);
-            titleLabel.rectTransform.offsetMin = new Vector2(14f, -26f);
+            titleLabel.rectTransform.offsetMin = new Vector2(16f, -34f);
             titleLabel.rectTransform.offsetMax = new Vector2(0f, -4f);
-            valueLabel = CreateText("Value", container.transform, 16, new Color(1f, 0.851f, 0.239f), TextAnchor.UpperRight);
+            valueLabel = CreateText("Value", container.transform, 22, new Color(1f, 0.851f, 0.239f), TextAnchor.UpperRight);
             valueLabel.rectTransform.anchorMin = new Vector2(0.65f, 1f);
             valueLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
-            valueLabel.rectTransform.offsetMin = new Vector2(0f, -26f);
-            valueLabel.rectTransform.offsetMax = new Vector2(-14f, -4f);
+            valueLabel.rectTransform.offsetMin = new Vector2(0f, -34f);
+            valueLabel.rectTransform.offsetMax = new Vector2(-16f, -4f);
 
             GameObject barBackground = CreateImage("BarBackground", container.transform, new Color(0.04f, 0.02f, 0.08f));
             RectTransform barRect = barBackground.GetComponent<RectTransform>();
             barRect.anchorMin = new Vector2(0f, 0f);
             barRect.anchorMax = new Vector2(1f, 0f);
-            barRect.offsetMin = new Vector2(14f, 8f);
-            barRect.offsetMax = new Vector2(-14f, 30f);
+            barRect.offsetMin = new Vector2(16f, 10f);
+            barRect.offsetMax = new Vector2(-16f, 38f);
 
             GameObject fillObject = CreateImage("Fill", barBackground.transform, Oxygen);
             fill = fillObject.GetComponent<Image>();
