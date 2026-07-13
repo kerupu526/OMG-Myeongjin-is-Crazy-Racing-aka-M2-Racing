@@ -5,5 +5,6 @@
 - [CURRENT_STATUS.md](CURRENT_STATUS.md): 지금 구현된 기능, 31차 작업 결과, 다음 우선순위
 - [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md): 컴파일·스모크·PlayMode·커밋 절차
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md): 해결 이력, 남은 제약, 실제 화면 확인 결과
+- [NEXT_WORK.md](NEXT_WORK.md): 다음 구현 범위와 보류·결정 대기 사항
 
 새 작업을 시작할 때는 `CLAUDE.md` → `CURRENT_STATUS.md` → `DEVELOPMENT_WORKFLOW.md` 순서로 읽는다.
