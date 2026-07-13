@@ -22,6 +22,7 @@ namespace M2.Items
         // Attack: delay before it explodes (s) / explosion radius (m).
         public float armTime;
         public float attackRadius;
+        public float triggerDistance;
     }
 
     public enum ItemBehavior

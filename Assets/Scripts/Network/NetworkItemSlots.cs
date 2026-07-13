@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using M2.Items;
 using M2.Player;
 using Unity.Netcode;
@@ -32,6 +33,9 @@ namespace M2.Network
         [Tooltip("폭탄 피격 시 기절(정지) 지속시간(초). 로컬 기본 0.6초보다 살짝 길게 잡아 온라인에서도 확실히 보이게.")]
         public float bombStunDuration = 1.0f;
 
+        [Tooltip("기본 폭탄을 사용하지 않고 보유하면 원자폭탄으로 변하는 시간(초).")]
+        public float atomicUpgradeDelay = 150f;
+
         // Server-written, everyone-read (default write permission = Server). None = empty.
         readonly NetworkVariable<byte> netPrimary = new NetworkVariable<byte>((byte)NetItemId.None);
         readonly NetworkVariable<byte> netSecondary = new NetworkVariable<byte>((byte)NetItemId.None);
@@ -40,6 +44,17 @@ namespace M2.Network
         public NetItemId Secondary => (NetItemId)netSecondary.Value;
 
         VehicleController vehicleController;
+        readonly List<Vector3> serverC4Positions = new List<Vector3>();
+        readonly List<AttackVisual> attackVisuals = new List<AttackVisual>();
+        float primaryHeldTime;
+        float secondaryHeldTime;
+
+        class AttackVisual
+        {
+            public NetItemId id;
+            public Vector3 position;
+            public GameObject gameObject;
+        }
 
         void Awake()
         {
@@ -53,6 +68,7 @@ namespace M2.Network
             {
                 vehicleController.OnAccelItemUsed += HandleAccelItemUsed;
                 vehicleController.OnAttackDefenseItemUsed += HandleAttackDefenseItemUsed;
+                vehicleController.OnRemoteItemTriggered += HandleRemoteItemTriggered;
             }
         }
 
@@ -61,6 +77,27 @@ namespace M2.Network
             // Unconditional unsubscribe (no-op if never subscribed) — safe even if ownership moved.
             vehicleController.OnAccelItemUsed -= HandleAccelItemUsed;
             vehicleController.OnAttackDefenseItemUsed -= HandleAttackDefenseItemUsed;
+            vehicleController.OnRemoteItemTriggered -= HandleRemoteItemTriggered;
+        }
+
+        void Update()
+        {
+            if (!IsServer || !IsSpawned) return;
+            TickAtomicUpgrade(netPrimary, ref primaryHeldTime);
+            TickAtomicUpgrade(netSecondary, ref secondaryHeldTime);
+        }
+
+        void TickAtomicUpgrade(NetworkVariable<byte> slot, ref float heldTime)
+        {
+            if ((NetItemId)slot.Value != NetItemId.Bomb)
+            {
+                heldTime = 0f;
+                return;
+            }
+            heldTime += Time.deltaTime;
+            if (heldTime < atomicUpgradeDelay) return;
+            slot.Value = (byte)NetItemId.AtomicBomb;
+            heldTime = 0f;
         }
 
         // ---- Server: inventory ----
@@ -72,8 +109,12 @@ namespace M2.Network
             if (!IsServer || id == NetItemId.None) return;
 
             ApplyCollect(Primary, Secondary, id, out NetItemId newPrimary, out NetItemId newSecondary);
+            bool primaryChanged = newPrimary != Primary;
+            bool secondaryChanged = newSecondary != Secondary;
             netPrimary.Value = (byte)newPrimary;
             netSecondary.Value = (byte)newSecondary;
+            if (primaryChanged) primaryHeldTime = 0f;
+            if (secondaryChanged) secondaryHeldTime = 0f;
         }
 
         void ClearSlot(ItemSlotChoice choice)
@@ -86,6 +127,7 @@ namespace M2.Network
 
         void HandleAccelItemUsed() => UseAccelItemRpc();
         void HandleAttackDefenseItemUsed() => UseAttackDefenseItemRpc();
+        void HandleRemoteItemTriggered() => DetonateC4Rpc();
 
         [Rpc(SendTo.Server)]
         void UseAccelItemRpc()
@@ -113,57 +155,153 @@ namespace M2.Network
             if (def.type == ItemType.Attack)
             {
                 Vector3 pos = transform.position;
-                SpawnBombVisualRpc(pos, (byte)used);
-                StartCoroutine(ResolveBombServer(pos, def));
+                SpawnAttackVisualRpc(pos, (byte)used);
+                switch (def.behavior)
+                {
+                    case ItemBehavior.RemoteC4:
+                        serverC4Positions.Add(pos);
+                        break;
+                    case ItemBehavior.ProximityGrenade:
+                        StartCoroutine(ResolveProximityServer(pos, def));
+                        break;
+                    default:
+                        StartCoroutine(ResolveAttackServer(pos, def));
+                        break;
+                }
             }
             else
             {
                 // Shield state is authoritative on the host's synced copy (checked at explosion
                 // time), and mirrored to the owner's copy for its HUD.
-                vehicleController.ActivateShield(def.duration);
-                ActivateShieldOwnerRpc(def.duration);
+                vehicleController.ActivateShield(def.duration, def.shieldStrength);
+                ActivateShieldOwnerRpc(def.duration, (byte)def.shieldStrength);
             }
         }
 
-        // ---- Server: authoritative bomb explosion ----
-
-        IEnumerator ResolveBombServer(Vector3 position, ItemDefinition def)
+        [Rpc(SendTo.Server)]
+        void DetonateC4Rpc()
         {
-            yield return new WaitForSeconds(def.armTime);
+            ItemDefinition def = ItemCatalog.CreateFromId(NetItemId.C4);
+            foreach (Vector3 position in serverC4Positions)
+            {
+                ResolveAttackAtServer(position, def);
+                RemoveAttackVisualRpc((byte)NetItemId.C4, position);
+            }
+            serverC4Positions.Clear();
+        }
 
+        // ---- Server: authoritative attack resolution ----
+
+        IEnumerator ResolveAttackServer(Vector3 position, ItemDefinition def)
+        {
+            if (def.armTime > 0f) yield return new WaitForSeconds(def.armTime);
+            ResolveAttackAtServer(position, def);
+            if (def.heartEffect) SpawnHeartEffectRpc(position);
+            if (def.behavior != ItemBehavior.TimedBomb)
+                RemoveAttackVisualRpc((byte)def.id, position);
+        }
+
+        IEnumerator ResolveProximityServer(Vector3 position, ItemDefinition def)
+        {
+            while (!HasOpponentNear(position, def.triggerDistance)) yield return new WaitForFixedUpdate();
+            ResolveAttackAtServer(position, def);
+            RemoveAttackVisualRpc((byte)def.id, position);
+        }
+
+        bool HasOpponentNear(Vector3 position, float distance)
+        {
+            foreach (Collider hit in Physics.OverlapSphere(position, distance))
+            {
+                NetworkItemSlots other = hit.GetComponentInParent<NetworkItemSlots>();
+                if (other != null && other != this) return true;
+            }
+            return false;
+        }
+
+        void ResolveAttackAtServer(Vector3 position, ItemDefinition def)
+        {
+            var resolved = new HashSet<NetworkItemSlots>();
             foreach (Collider hit in Physics.OverlapSphere(position, def.attackRadius))
             {
                 if (!hit.CompareTag("Player")) continue;
 
                 NetworkItemSlots victim = hit.GetComponentInParent<NetworkItemSlots>();
-                if (victim == null) continue;
+                if (victim == null || !resolved.Add(victim)) continue;
 
                 // TryConsumeShield reads/consumes the shield on the host's copy of the victim — the
                 // single authoritative shield state (kept in sync by ActivateShield above running on
                 // that same host copy). No owner exclusion, matching the local BombRunner (a placer
                 // can catch its own blast).
-                if (victim.vehicleController.TryConsumeShield())
+                if (victim.vehicleController.TryBlockAttack(def, out bool reflected))
                 {
                     victim.ConsumeShieldOwnerRpc();
+                    if (reflected && victim != this) ApplyHitStunOwnerRpc(bombStunDuration);
                 }
                 else
                 {
-                    victim.ApplyHitStunOwnerRpc(victim.bombStunDuration);
+                    victim.TriggerChargingBombServer();
+                    float duration = def.behavior == ItemBehavior.AtomicBomb ? 3f : victim.bombStunDuration;
+                    victim.ApplyHitStunOwnerRpc(duration);
                 }
             }
+        }
+
+        void TriggerChargingBombServer()
+        {
+            ItemSlotChoice choice = Primary == NetItemId.Bomb
+                ? ItemSlotChoice.Primary
+                : Secondary == NetItemId.Bomb ? ItemSlotChoice.Secondary : ItemSlotChoice.None;
+            if (choice == ItemSlotChoice.None) return;
+
+            ClearSlot(choice);
+            if (choice == ItemSlotChoice.Primary) primaryHeldTime = 0f;
+            else secondaryHeldTime = 0f;
+
+            ItemDefinition atomic = ItemCatalog.CreateFromId(NetItemId.AtomicBomb);
+            Vector3 position = transform.position;
+            SpawnAttackVisualRpc(position, (byte)atomic.id);
+            ResolveAttackAtServer(position, atomic);
+            RemoveAttackVisualRpc((byte)atomic.id, position);
         }
 
         // ---- Cosmetic bomb marker on every peer (host included) ----
 
         [Rpc(SendTo.Everyone)]
-        void SpawnBombVisualRpc(Vector3 position, byte itemId)
+        void SpawnAttackVisualRpc(Vector3 position, byte itemId)
         {
             ItemDefinition def = ItemCatalog.CreateFromId((NetItemId)itemId);
             if (def == null) return;
 
             GameObject marker = ItemEffects.SpawnBombVisual(position, def);
-            StartCoroutine(DestroyAfter(marker, def.armTime));
+            if (def.behavior == ItemBehavior.TimedBomb)
+            {
+                StartCoroutine(DestroyAfter(marker, def.armTime));
+            }
+            else
+            {
+                attackVisuals.Add(new AttackVisual { id = def.id, position = position, gameObject = marker });
+            }
         }
+
+        [Rpc(SendTo.Everyone)]
+        void RemoveAttackVisualRpc(byte itemId, Vector3 position)
+        {
+            NetItemId id = (NetItemId)itemId;
+            for (int i = 0; i < attackVisuals.Count; i++)
+            {
+                AttackVisual visual = attackVisuals[i];
+                if (visual.id != id || Vector3.SqrMagnitude(visual.position - position) > 0.01f) continue;
+                if (visual.gameObject != null) Destroy(visual.gameObject);
+                attackVisuals.RemoveAt(i);
+                break;
+            }
+
+            ItemDefinition def = ItemCatalog.CreateFromId(id);
+            if (def != null && def.heartEffect) ItemEffects.SpawnHeartEffect(position);
+        }
+
+        [Rpc(SendTo.Everyone)]
+        void SpawnHeartEffectRpc(Vector3 position) => ItemEffects.SpawnHeartEffect(position);
 
         static IEnumerator DestroyAfter(GameObject go, float seconds)
         {
@@ -180,9 +318,9 @@ namespace M2.Network
         }
 
         [Rpc(SendTo.Owner)]
-        void ActivateShieldOwnerRpc(float duration)
+        void ActivateShieldOwnerRpc(float duration, byte strength)
         {
-            vehicleController.ActivateShield(duration);
+            vehicleController.ActivateShield(duration, (ShieldStrength)strength);
         }
 
         [Rpc(SendTo.Owner)]

@@ -127,7 +127,9 @@ namespace M2.Items
         {
             id = id, itemName = name, artKey = artKey, description = description,
             type = ItemType.Attack, tier = tier, behavior = behavior,
-            armTime = armTime, attackRadius = radius, heartEffect = heartEffect
+            armTime = armTime, attackRadius = radius,
+            triggerDistance = behavior == ItemBehavior.ProximityGrenade ? 5f : 0f,
+            heartEffect = heartEffect
         };
 
         static ItemDefinition Defense(NetItemId id, string name, string artKey, int tier,

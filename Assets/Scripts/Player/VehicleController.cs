@@ -77,6 +77,7 @@ namespace M2.Player
 
         public event Action OnAccelItemUsed;
         public event Action OnAttackDefenseItemUsed;
+        public event Action OnRemoteItemTriggered;
         // Fires when a hit actually lands (not on a blocked/shielded hit) — stage systems
         // hook into this for stage-specific hit consequences (e.g. 비키니시티 "비법" drop).
         public event Action OnHitByAttackItem;
@@ -100,6 +101,7 @@ namespace M2.Player
         public bool IsSteeringInverted => steeringInverted;
         public bool IsKnockedBack => isKnockedBack;
         public bool HasShield => hasShield;
+        public M2.Items.ShieldStrength ActiveShieldStrength => activeShieldStrength;
         public bool HasSpeedBoost => itemSpeedBonus > 0f;
         public bool HasDriftBoost => driftSpeedBonus > 0f;
         public bool IsWrongWayBlocked => usedWrongWayDistance >= maxWrongWayDistance;
@@ -120,6 +122,7 @@ namespace M2.Player
         InputAction driftAction;
         InputAction useAccelItemAction;
         InputAction useAttackDefenseItemAction;
+        InputAction remoteItemAction;
 
         float currentSpeed;
         float itemSpeedBonus;
@@ -133,6 +136,7 @@ namespace M2.Player
         bool steeringInverted;
         bool isKnockedBack;
         bool hasShield;
+        M2.Items.ShieldStrength activeShieldStrength;
         bool isDrifting;
         float driftHoldTime;
         // Actual travel direction, as distinct from transform.forward (facing). Snaps to
@@ -194,6 +198,7 @@ namespace M2.Player
 
             useAccelItemAction = new InputAction("UseAccelItem", InputActionType.Button, "<Keyboard>/leftCtrl");
             useAttackDefenseItemAction = new InputAction("UseAttackDefenseItem", InputActionType.Button, "<Keyboard>/e");
+            remoteItemAction = new InputAction("RemoteItem", InputActionType.Button, "<Keyboard>/p");
 
             Vector3 initialForward = transform.forward;
             initialForward.y = 0f;
@@ -207,25 +212,30 @@ namespace M2.Player
             driftAction.Enable();
             useAccelItemAction.Enable();
             useAttackDefenseItemAction.Enable();
+            remoteItemAction.Enable();
 
             useAccelItemAction.performed += HandleAccelItemUsed;
             useAttackDefenseItemAction.performed += HandleAttackDefenseItemUsed;
+            remoteItemAction.performed += HandleRemoteItemTriggered;
         }
 
         void OnDisable()
         {
             useAccelItemAction.performed -= HandleAccelItemUsed;
             useAttackDefenseItemAction.performed -= HandleAttackDefenseItemUsed;
+            remoteItemAction.performed -= HandleRemoteItemTriggered;
 
             steerAction.Disable();
             throttleAction.Disable();
             driftAction.Disable();
             useAccelItemAction.Disable();
             useAttackDefenseItemAction.Disable();
+            remoteItemAction.Disable();
         }
 
         void HandleAccelItemUsed(InputAction.CallbackContext ctx) => OnAccelItemUsed?.Invoke();
         void HandleAttackDefenseItemUsed(InputAction.CallbackContext ctx) => OnAttackDefenseItemUsed?.Invoke();
+        void HandleRemoteItemTriggered(InputAction.CallbackContext ctx) => OnRemoteItemTriggered?.Invoke();
 
         void FixedUpdate()
         {
@@ -602,10 +612,11 @@ namespace M2.Player
             stunRoutine = null;
         }
 
-        public void ActivateShield(float duration)
+        public void ActivateShield(float duration, M2.Items.ShieldStrength strength = M2.Items.ShieldStrength.Basic)
         {
             if (shieldRoutine != null) StopCoroutine(shieldRoutine);
             hasShield = true;
+            activeShieldStrength = strength;
             shieldRoutine = StartCoroutine(ShieldRoutine(duration));
         }
 
@@ -613,6 +624,7 @@ namespace M2.Player
         {
             yield return new WaitForSeconds(duration);
             hasShield = false;
+            activeShieldStrength = M2.Items.ShieldStrength.None;
             shieldRoutine = null;
         }
 
@@ -623,11 +635,34 @@ namespace M2.Player
             if (!hasShield) return false;
 
             hasShield = false;
+            activeShieldStrength = M2.Items.ShieldStrength.None;
             if (shieldRoutine != null)
             {
                 StopCoroutine(shieldRoutine);
                 shieldRoutine = null;
             }
+            return true;
+        }
+
+        public bool TryBlockAttack(M2.Items.ItemDefinition attack, out bool reflected)
+        {
+            reflected = false;
+            if (!hasShield || attack == null || attack.behavior == M2.Items.ItemBehavior.AtomicBomb) return false;
+
+            bool blocks = activeShieldStrength switch
+            {
+                M2.Items.ShieldStrength.Basic => attack.id == M2.Items.NetItemId.Bomb ||
+                    attack.id == M2.Items.NetItemId.LoveLetter,
+                M2.Items.ShieldStrength.Spiked => attack.id == M2.Items.NetItemId.Bomb ||
+                    attack.id == M2.Items.NetItemId.LoveLetter || attack.id == M2.Items.NetItemId.Dynamite,
+                M2.Items.ShieldStrength.Golden => true,
+                _ => false,
+            };
+            if (!blocks) return false;
+
+            reflected = activeShieldStrength == M2.Items.ShieldStrength.Spiked &&
+                attack.id == M2.Items.NetItemId.Dynamite;
+            TryConsumeShield();
             return true;
         }
     }
