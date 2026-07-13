@@ -37,6 +37,10 @@ namespace M2.UI
         {
             SetActive(warningOverlay != null ? warningOverlay.gameObject : null, false);
             SetActive(gameOverPanel, false);
+            if (FindFirstObjectByType<StageGaugeHUD>() != null && oxygenLabel != null)
+            {
+                oxygenLabel.gameObject.SetActive(false);
+            }
         }
 
         void Update()

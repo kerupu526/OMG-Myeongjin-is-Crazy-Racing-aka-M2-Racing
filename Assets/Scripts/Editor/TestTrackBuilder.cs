@@ -732,7 +732,11 @@ namespace M2.Editor
             canvasObject.transform.SetParent(parent);
             Canvas canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvasObject.AddComponent<CanvasScaler>();
+            CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
             canvasObject.AddComponent<GraphicRaycaster>();
 
             // Without an EventSystem, UI clicks (e.g. the "시작" button) never register at
@@ -782,7 +786,8 @@ namespace M2.Editor
             // hud.gameManager is wired in SetupGameManager after this method runs.
             hud.label = text;
 
-            // Bottom-right debug readout: collision state / acceleration / speed, for tuning.
+            // Bottom-right development telemetry is kept available for tuning, but disabled by
+            // default so generated stages use the formal RaceHUD instead of overlapping text.
             GameObject debugTextObject = new GameObject("VehicleDebugLabel");
             debugTextObject.transform.SetParent(canvasObject.transform);
             Text debugText = debugTextObject.AddComponent<Text>();
@@ -801,6 +806,7 @@ namespace M2.Editor
             VehicleDebugHUD debugHud = canvasObject.AddComponent<VehicleDebugHUD>();
             debugHud.vehicleController = vehicle.GetComponent<VehicleController>();
             debugHud.label = debugText;
+            debugHud.visible = false;
 
             // Top-center item-use popup ("휘발유 사용!" etc.) — the boost itself has no VFX yet.
             GameObject itemUseTextObject = new GameObject("ItemUseLabel");

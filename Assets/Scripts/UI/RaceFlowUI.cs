@@ -55,6 +55,7 @@ namespace M2.UI
 
         void Start()
         {
+            ApplyPresentationStyle();
             // Hide everything initially
             SetPanelActive(briefingPanel, false);
             SetPanelActive(countdownPanel, false);
@@ -192,6 +193,79 @@ namespace M2.UI
         static void SetPanelActive(GameObject panel, bool active)
         {
             if (panel != null) panel.SetActive(active);
+        }
+
+        void ApplyPresentationStyle()
+        {
+            StylePanel(briefingPanel, new Color(0.102f, 0.063f, 0.188f, 0.88f));
+            StylePanel(countdownPanel, new Color(0.102f, 0.063f, 0.188f, 0.35f));
+            StylePanel(resultPanel, new Color(0.102f, 0.063f, 0.188f, 0.92f));
+
+            StyleText(briefingText, 30, Color.white, Color.black);
+            StyleText(countdownText, 112, new Color(1f, 0.851f, 0.239f), new Color(0.102f, 0.063f, 0.188f));
+            StyleText(resultText, 38, Color.white, new Color(0.102f, 0.063f, 0.188f));
+
+            if (startButton != null)
+            {
+                Image background = startButton.GetComponent<Image>();
+                if (background != null) background.color = new Color(1f, 0.184f, 0.620f);
+                Outline outline = startButton.GetComponent<Outline>();
+                if (outline == null) outline = startButton.gameObject.AddComponent<Outline>();
+                outline.effectColor = new Color(0.102f, 0.063f, 0.188f);
+                outline.effectDistance = new Vector2(3f, -3f);
+
+                Text buttonText = startButton.GetComponentInChildren<Text>(true);
+                StyleText(buttonText, 28, Color.white, new Color(0.102f, 0.063f, 0.188f));
+                if (buttonText != null)
+                {
+                    buttonText.text = "레이스 시작";
+                    buttonText.rectTransform.anchorMin = Vector2.zero;
+                    buttonText.rectTransform.anchorMax = Vector2.one;
+                    buttonText.rectTransform.offsetMin = Vector2.zero;
+                    buttonText.rectTransform.offsetMax = Vector2.zero;
+                }
+                EnsurePresentationButtonLabel(startButton.transform);
+            }
+        }
+
+        static void EnsurePresentationButtonLabel(Transform buttonTransform)
+        {
+            Transform existing = buttonTransform.Find("PresentationLabel");
+            Text label = existing != null ? existing.GetComponent<Text>() : null;
+            if (label == null)
+            {
+                GameObject labelObject = new GameObject("PresentationLabel", typeof(RectTransform));
+                labelObject.transform.SetParent(buttonTransform, false);
+                label = labelObject.AddComponent<Text>();
+            }
+
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = "레이스 시작";
+            label.raycastTarget = false;
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = Vector2.zero;
+            label.rectTransform.offsetMax = Vector2.zero;
+            StyleText(label, 28, Color.white, new Color(0.102f, 0.063f, 0.188f));
+        }
+
+        static void StylePanel(GameObject panel, Color color)
+        {
+            if (panel == null) return;
+            Image image = panel.GetComponent<Image>();
+            if (image != null) image.color = color;
+        }
+
+        static void StyleText(Text text, int size, Color color, Color outlineColor)
+        {
+            if (text == null) return;
+            text.fontSize = size;
+            text.color = color;
+            text.supportRichText = true;
+            Outline outline = text.GetComponent<Outline>();
+            if (outline == null) outline = text.gameObject.AddComponent<Outline>();
+            outline.effectColor = outlineColor;
+            outline.effectDistance = new Vector2(2f, -2f);
         }
     }
 }

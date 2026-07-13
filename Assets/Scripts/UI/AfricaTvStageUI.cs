@@ -45,6 +45,10 @@ namespace M2.UI
         {
             SetActive(lockoutPanel, false);
             SetActive(warningPanel, false);
+            if (FindFirstObjectByType<StageGaugeHUD>() != null && mentalLabel != null)
+            {
+                mentalLabel.gameObject.SetActive(false);
+            }
         }
 
         void Update()

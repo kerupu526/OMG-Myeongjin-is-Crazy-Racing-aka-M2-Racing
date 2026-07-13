@@ -40,6 +40,10 @@ namespace M2.UI
         {
             SetActive(warningFlash != null ? warningFlash.gameObject : null, false);
             SetActive(gameOverPanel, false);
+            if (FindFirstObjectByType<StageGaugeHUD>() != null && temperatureLabel != null)
+            {
+                temperatureLabel.gameObject.SetActive(false);
+            }
         }
 
         void Update()
