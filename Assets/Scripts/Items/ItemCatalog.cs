@@ -8,19 +8,39 @@ namespace M2.Items
     {
         public const float DerivedUpgradeChance = 0.1f;
 
-        static readonly NetItemId[] AccelDerivedPool =
+        // 파생형은 계열별로 합계 100 가중치를 사용한다. 파생형 자체가 전체 스폰의 10%라서
+        // 원자폭탄처럼 레이스를 즉시 끝내는 아이템은 전체 스폰의 0.4%로 제한된다.
+        static readonly WeightedItem[] AccelDerivedPool =
         {
-            NetItemId.SuperGasoline, NetItemId.HappyBirthdayToYou, NetItemId.JaeSeokGasoline
+            new(NetItemId.SuperGasoline, 60),
+            new(NetItemId.HappyBirthdayToYou, 28),
+            new(NetItemId.JaeSeokGasoline, 12),
         };
-        static readonly NetItemId[] AttackDerivedPool =
+        static readonly WeightedItem[] AttackDerivedPool =
         {
-            NetItemId.C4, NetItemId.Dynamite, NetItemId.StickGrenade,
-            NetItemId.AtomicBomb, NetItemId.LoveLetter
+            new(NetItemId.C4, 23),
+            new(NetItemId.Dynamite, 28),
+            new(NetItemId.StickGrenade, 22),
+            new(NetItemId.AtomicBomb, 4),
+            new(NetItemId.LoveLetter, 23),
         };
-        static readonly NetItemId[] DefenseDerivedPool =
+        static readonly WeightedItem[] DefenseDerivedPool =
         {
-            NetItemId.SpikedShield, NetItemId.GoldenShield
+            new(NetItemId.SpikedShield, 72),
+            new(NetItemId.GoldenShield, 28),
         };
+
+        readonly struct WeightedItem
+        {
+            public readonly NetItemId id;
+            public readonly int weight;
+
+            public WeightedItem(NetItemId id, int weight)
+            {
+                this.id = id;
+                this.weight = weight;
+            }
+        }
 
         public static readonly NetItemId[] AllIds =
         {
@@ -47,8 +67,41 @@ namespace M2.Items
                 return BaseId(type);
             }
 
-            NetItemId[] pool = DerivedPool(type);
-            return pool[Random.Range(0, pool.Length)];
+            return CreateRandomDerivedId(type);
+        }
+
+        /// <summary>Returns a weighted derived item for a category; exposed for deterministic balance tests.</summary>
+        public static NetItemId CreateRandomDerivedId(ItemType type) => SelectDerivedId(type, Random.value);
+
+        /// <summary>
+        /// Selects from a derived pool using a normalized roll [0, 1]. Pool weights are deliberately
+        /// explicit rather than array-position probabilities, so adding an item cannot silently
+        /// rebalance the existing rare items.
+        /// </summary>
+        public static NetItemId SelectDerivedId(ItemType type, float normalizedRoll)
+        {
+            WeightedItem[] pool = DerivedPool(type);
+            int totalWeight = 0;
+            foreach (WeightedItem item in pool) totalWeight += item.weight;
+
+            float target = Mathf.Clamp01(normalizedRoll) * totalWeight;
+            int cumulative = 0;
+            foreach (WeightedItem item in pool)
+            {
+                cumulative += item.weight;
+                if (target < cumulative) return item.id;
+            }
+
+            return pool[pool.Length - 1].id;
+        }
+
+        public static int DerivedSpawnWeight(NetItemId id)
+        {
+            foreach (WeightedItem item in DerivedPool(TypeOf(id)))
+            {
+                if (item.id == id) return item.weight;
+            }
+            return 0;
         }
 
         public static ItemType TypeOf(NetItemId id)
@@ -70,7 +123,7 @@ namespace M2.Items
             _ => NetItemId.Shield,
         };
 
-        static NetItemId[] DerivedPool(ItemType type) => type switch
+        static WeightedItem[] DerivedPool(ItemType type) => type switch
         {
             ItemType.Accel => AccelDerivedPool,
             ItemType.Attack => AttackDerivedPool,
