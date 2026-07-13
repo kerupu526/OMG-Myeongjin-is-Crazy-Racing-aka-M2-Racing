@@ -12,13 +12,15 @@
 - `218c99f Add persistent game settings UI`: 마스터 볼륨과 전체 화면 선택값을 저장한다. 볼륨은 `AudioListener`에 즉시 적용되며, 전체 화면은 독립 실행 빌드에서 적용된다.
 - `14416c7 Show saved racer name in results`: 결과 화면에서 `Vehicle_Placeholder` 대신 저장된 로컬 레이서 이름을 표시한다.
 - `5fc6618 Stabilize PlayMode input test isolation`: Unity 6의 UI 입력 상태와 충돌하던 전역 Input System 재설정을 없애고, 테스트별 가상 키보드 생성·정리로 바꿨다.
+- `6c3c7bd Implement formal network race HUD presentation`: 온라인 씬의 임시 정보/배너 텍스트를 90% 스케일의 카드형 HUD로 교체했다. 바퀴·시간·대전 상태·실제 아이템 스프라이트/상세·스피드전 자동 휘발유 안내·카운트다운·결과 카드가 네트워크 상태를 읽어 표시된다.
 
-기존 `RaceHUD`는 바퀴·시간·대전 상태·아이템 상세·스테이지 게이지를 1280×720 기준으로 제공하며, 스피드전에서는 랜덤 아이템 슬롯 대신 5초 자동 휘발유 안내를 표시한다.
+기존 `RaceHUD`와 `NetworkRaceHUD`는 모두 바퀴·시간·대전 상태·아이템 상세를 1280×720 기준으로 제공하며, 스피드전에서는 랜덤 아이템 슬롯 대신 5초 자동 휘발유 안내를 표시한다. 온라인 HUD의 상대 이름·아바타와 상세 결과 데이터는 아직 다음 동기화 단계의 범위다.
 
 ## 다음 우선순위 — UI 실제 구현 후속
 
 1. **결과 흐름 완성**
    - 호스트·참가자 양쪽에 이름·아바타·순위·완주 시간·별점·승리 조건을 동기화한다.
+   - 현재 온라인 결과 카드는 동기화된 승패·무승부 사유·바퀴만 표시한다. 두 레이서의 상세 기록을 하나의 결과 데이터 계약으로 복제한다.
    - 결과 화면의 다시 하기·로비로·메인으로 버튼을 실제 네트워크 흐름에 연결한다. 로컬 재시작만 먼저 구현해 온라인 상태를 어긋나게 만들지 않는다.
 2. **로비 설정 동기화 확장**
    - 방장 전용 스테이지 선택(비키니시티·아프리카TV·네더요새), 준비 상태, 참가자 표시를 구현하고 룸 설정으로 동기화한다.
@@ -37,7 +39,7 @@
 
 - 이번 연속 작업에서 직접 실행한 PlayMode 범위: `M2PlayerProfileTests` 2건, `M2GameSettingsTests` 1건, `NetworkMenuPresentationTests` 2건, `RaceFlowPresentationTests` 3건 — 모두 통과했다.
 - 이전에 실행한 `SpeedModeTests` 5건도 통과했다.
-- UI 후속 반영 뒤 전체 PlayMode 66건을 다시 실행했고, 66건 모두 통과했다(실패·inconclusive 0건).
+- `NetworkRaceHudPresentationTests`를 추가한 뒤 전체 PlayMode 67건을 다시 실행했고, 67건 모두 통과했다(실패·inconclusive 0건).
 
 ## 온라인 검증 보류
 
