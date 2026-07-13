@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Reflection;
+using M2.Core;
 using M2.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,11 +12,13 @@ namespace M2.Tests.PlayMode
     public class RaceFlowPresentationTests
     {
         GameObject canvasObject;
+        GameObject racerObject;
 
         [TearDown]
         public void TearDown()
         {
             if (canvasObject != null) Object.DestroyImmediate(canvasObject);
+            if (racerObject != null) Object.DestroyImmediate(racerObject);
         }
 
         [UnityTest]
@@ -77,6 +81,30 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(0.86f, resultText.lineSpacing);
             Assert.LessOrEqual(resultText.preferredHeight, resultText.rectTransform.rect.height,
                 "A five-lap two-player result must remain inside the result card.");
+        }
+
+        [UnityTest]
+        public IEnumerator ResultHeader_UsesSavedLocalProfileInsteadOfGeneratedVehicleName()
+        {
+            canvasObject = new GameObject("RaceFlowCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
+            GameObject resultPanel = SimpleUIFactory.CreateFullscreenPanel(canvasObject.transform, "ResultPanel", Color.black);
+            Text resultText = SimpleUIFactory.CreateCenteredText(resultPanel.transform, "ResultText", 28, Color.white);
+            racerObject = new GameObject("Vehicle_Placeholder");
+            LapTracker localRacer = racerObject.AddComponent<LapTracker>();
+
+            RaceFlowUI flow = canvasObject.AddComponent<RaceFlowUI>();
+            flow.resultPanel = resultPanel;
+            flow.resultText = resultText;
+            flow.localRacer = localRacer;
+            yield return null;
+
+            MethodInfo handleRaceWon = typeof(RaceFlowUI).GetMethod("HandleRaceWon",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(handleRaceWon);
+            handleRaceWon.Invoke(flow, new object[] { localRacer });
+
+            StringAssert.Contains(M2PlayerProfile.DisplayName, resultText.text);
+            StringAssert.DoesNotContain("Vehicle_Placeholder", resultText.text);
         }
     }
 }

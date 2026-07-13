@@ -9,7 +9,9 @@ namespace M2.UI
 {
     /// <summary>
     /// Subscribes to GameManager events to toggle briefing, countdown, and result panels.
-    /// All panels are simple Text-based placeholders — not final UI design.
+    /// The generated scenes still provide the base panels, while this component gives them the
+    /// shared M2 presentation and replaces generated vehicle placeholder names with the saved
+    /// local racer profile where that identity is known.
     /// </summary>
     public class RaceFlowUI : MonoBehaviour
     {
@@ -22,6 +24,8 @@ namespace M2.UI
         [Header("References")]
         public GameManager gameManager;
         public RaceTimer raceTimer;
+        [Tooltip("로컬 레이서. 비워 두면 1인 로컬 레이스에서 자동으로 찾습니다.")]
+        public LapTracker localRacer;
         [Tooltip("스테이지별 별점 상태 — 현재 씬의 스테이지에 맞는 것 하나만 채워두면 결과화면에 별점이 표시됨.")]
         public M2.Stage.BikiniCityStageState bikiniCityStageState;
         public M2.Stage.AfricaTvStageState africaTvStageState;
@@ -91,6 +95,8 @@ namespace M2.UI
             {
                 HandleStateChanged(gameManager.CurrentState);
             }
+
+            ResolveLocalRacer();
         }
 
         void Update()
@@ -141,7 +147,7 @@ namespace M2.UI
             string stats = BuildStatsString();
             string starLine = BuildStarLine();
             resultText.text = $"<size={ResultTitleFontSize}><color=#FFD93D>🏆 승리!</color></size>\n" +
-                $"<size=26>{winner.gameObject.name}</size>\n" +
+                $"<size=26>{GetRacerDisplayName(winner)}</size>\n" +
                 $"<size=28><color=#B6F36B>{BuildRuleLine()}</color></size>\n\n" +
                 $"{BuildPlacings()}\n\n{stats}{(string.IsNullOrEmpty(starLine) ? string.Empty : $"\n{starLine}")}";
         }
@@ -210,7 +216,7 @@ namespace M2.UI
             for (int i = 0; i < results.Count; i++)
             {
                 RaceFinishResult result = results[i];
-                string name = result.racer != null ? result.racer.gameObject.name : "알 수 없는 레이서";
+                string name = GetRacerDisplayName(result.racer);
                 string finish = result.finished ? FormatTime(result.finishTime) : "미완주";
                 string star = gameManager.victoryCondition == VictoryCondition.StarBet ? $" · ★ {result.stars}/6" : string.Empty;
                 builder.Append($"\n{i + 1}위  {name} · {finish}{star}");
@@ -231,6 +237,38 @@ namespace M2.UI
                 sb.Append($"\nLap {i + 1}: {FormatTime(splits[i])}");
             }
             return sb.ToString();
+        }
+
+        void ResolveLocalRacer()
+        {
+            if (localRacer != null) return;
+
+            // Local persisted-stage races have one racer, so this is unambiguous. In a network
+            // session the caller can assign the owned tracker explicitly once profile sync is
+            // added; falling back to a discovered tracker preserves the current local flow.
+            if (gameManager != null && gameManager.racers.Count == 1)
+            {
+                localRacer = gameManager.racers[0];
+                return;
+            }
+
+            localRacer = FindFirstObjectByType<LapTracker>();
+        }
+
+        string GetRacerDisplayName(LapTracker racer)
+        {
+            if (racer == null) return "알 수 없는 레이서";
+            if (racer == localRacer || (localRacer == null && (gameManager == null || gameManager.racers.Count <= 1)))
+            {
+                return M2PlayerProfile.DisplayName;
+            }
+
+            string generatedName = racer.gameObject.name;
+            if (string.IsNullOrWhiteSpace(generatedName) || generatedName.StartsWith("Vehicle_"))
+            {
+                return "상대 레이서";
+            }
+            return generatedName;
         }
 
         static string FormatTime(float seconds)
