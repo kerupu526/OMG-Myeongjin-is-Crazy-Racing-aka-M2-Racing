@@ -1,118 +1,243 @@
+using System;
+using System.Threading.Tasks;
 using Unity.Netcode;
-using Unity.Netcode.Transports.UTP;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
+using Unity.Services.Multiplayer;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace M2.Network
 {
-    // Minimal Host/Join UI for Milestone 1 — no Relay/Lobby yet (see CLAUDE.md's Netcode
-    // section), just a direct UnityTransport connection defaulting to 127.0.0.1 so two Editor
-    // instances (or an Editor + a Development Build) on the same machine can connect to each
-    // other for manual testing.
-    //
-    // ConnectionApproval is turned on purely so a connecting client can be approved/create its
-    // player object at all under this project's config — NOT for spawn placement. Placement
-    // (left/right so 2 players don't spawn stacked on each other) used to be set here via
-    // ConnectionApprovalResponse.Position, but that value's replication to remote observers
-    // turned out unreliable in practice (playtester feedback: "스폰 위치는 안고쳐졌어" — both
-    // cars kept spawning in the same spot even after fixing the side-selection logic itself).
-    // Movement is owner-authoritative (see OwnerAuthoritativeNetworkTransform), so only the
-    // OWNING client's transform writes are treated as authoritative — NetworkVehicleSync.
-    // OnNetworkSpawn sets the actual spawn position now, since it runs on the owner.
+    /// <summary>
+    /// Creates and joins private two-player sessions through Unity Lobby + Relay. The Multiplayer
+    /// Services package configures UnityTransport and starts NGO after the session operation
+    /// succeeds, so the rest of the race remains identical to the direct-IP milestones.
+    /// </summary>
     public class NetworkBootstrapUI : MonoBehaviour
     {
-        public InputField ipInputField;
+        [FormerlySerializedAs("ipInputField")]
+        public InputField joinCodeInputField;
         public Button hostButton;
         public Button joinButton;
         public Text statusText;
 
-        [Tooltip("UnityTransport 포트. 방화벽에서 이 포트가 막혀 있으면 같은 기기가 아닌 경우 연결이 안 될 수 있음.")]
-        public ushort port = 7777;
-
         bool subscribed;
+        bool busy;
+        ISession activeSession;
 
         void Awake()
         {
+            ConfigureVisibleUi();
             if (hostButton != null) hostButton.onClick.AddListener(StartHost);
             if (joinButton != null) joinButton.onClick.AddListener(StartClient);
-
-            NetworkManager networkManager = NetworkManager.Singleton;
-            if (networkManager != null)
-            {
-                networkManager.NetworkConfig.ConnectionApproval = true;
-                networkManager.ConnectionApprovalCallback = ApproveConnection;
-            }
         }
 
-        // Subscribe in Start(), not Awake(): NetworkManager sets its Singleton in OnEnable, so
-        // reading it in Awake can be null depending on component order (same lesson as
-        // NetworkRaceBootstrap). By Start() it's reliably set.
         void Start()
         {
-            var networkManager = NetworkManager.Singleton;
+            NetworkManager networkManager = NetworkManager.Singleton;
             if (networkManager == null || subscribed) return;
+
+            networkManager.NetworkConfig.ConnectionApproval = true;
+            networkManager.ConnectionApprovalCallback = ApproveConnection;
+            networkManager.OnServerStarted += HandleServerStarted;
+            networkManager.OnClientConnectedCallback += HandleClientConnected;
+            networkManager.OnClientDisconnectCallback += HandleClientDisconnected;
             subscribed = true;
-            networkManager.OnServerStarted += HideConnectionUi;      // host
-            networkManager.OnClientConnectedCallback += HandleClientConnected; // client (and host's own client)
         }
 
         void OnDestroy()
         {
-            var networkManager = NetworkManager.Singleton;
+            NetworkManager networkManager = NetworkManager.Singleton;
             if (networkManager == null || !subscribed) return;
-            networkManager.OnServerStarted -= HideConnectionUi;
+            networkManager.OnServerStarted -= HandleServerStarted;
             networkManager.OnClientConnectedCallback -= HandleClientConnected;
+            networkManager.OnClientDisconnectCallback -= HandleClientDisconnected;
+        }
+
+        void ConfigureVisibleUi()
+        {
+            SetButtonLabel(hostButton, "방 만들기");
+            SetButtonLabel(joinButton, "방 참가");
+            if (joinCodeInputField == null) return;
+
+            joinCodeInputField.text = string.Empty;
+            joinCodeInputField.characterLimit = 12;
+            if (joinCodeInputField.placeholder is Text placeholder)
+            {
+                placeholder.text = "방 코드";
+            }
+        }
+
+        static void SetButtonLabel(Button button, string label)
+        {
+            if (button == null) return;
+            Text text = button.GetComponentInChildren<Text>();
+            if (text != null) text.text = label;
+        }
+
+        void ApproveConnection(NetworkManager.ConnectionApprovalRequest request,
+            NetworkManager.ConnectionApprovalResponse response)
+        {
+            NetworkManager networkManager = NetworkManager.Singleton;
+            bool hasRoom = networkManager == null || !networkManager.IsServer ||
+                networkManager.ConnectedClientsIds.Count < 2;
+
+            response.Approved = hasRoom;
+            response.CreatePlayerObject = hasRoom;
+            if (!hasRoom) response.Reason = "방이 가득 찼습니다.";
+        }
+
+        async void StartHost()
+        {
+            if (busy) return;
+            await RunSessionOperation(async () =>
+            {
+                SetStatus("온라인 서비스 연결 중...");
+                await EnsureServicesReadyAsync();
+
+                SetStatus("Relay 방 생성 중...");
+                SessionOptions options = new SessionOptions
+                {
+                    MaxPlayers = 2,
+                    IsPrivate = true,
+                    Name = "M2 Racing 1v1"
+                }.WithRelayNetwork();
+
+                activeSession = await MultiplayerService.Instance.CreateSessionAsync(options);
+                SetStatus($"방 코드: {activeSession.Code}  ·  상대를 기다리는 중...");
+                if (hostButton != null) hostButton.gameObject.SetActive(false);
+                if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
+                if (joinButton != null) joinButton.gameObject.SetActive(false);
+            });
+        }
+
+        async void StartClient()
+        {
+            if (busy) return;
+            string code = joinCodeInputField != null
+                ? joinCodeInputField.text.Trim().ToUpperInvariant()
+                : string.Empty;
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                SetStatus("방 코드를 입력하세요.");
+                return;
+            }
+
+            await RunSessionOperation(async () =>
+            {
+                SetStatus("온라인 서비스 연결 중...");
+                await EnsureServicesReadyAsync();
+                SetStatus($"방 {code} 참가 중...");
+                activeSession = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
+            });
+        }
+
+        async Task RunSessionOperation(Func<Task> operation)
+        {
+            busy = true;
+            SetButtonsInteractable(false);
+            try
+            {
+                await operation();
+            }
+            catch (Exception exception)
+            {
+                SetStatus($"연결 실패: {exception.Message}");
+                SetButtonsInteractable(true);
+            }
+            finally
+            {
+                busy = false;
+            }
+        }
+
+        static async Task EnsureServicesReadyAsync()
+        {
+            if (UnityServices.State != ServicesInitializationState.Initialized)
+            {
+                InitializationOptions options = new InitializationOptions();
+                options.SetProfile(BuildProfileName());
+                await UnityServices.InitializeAsync(options);
+            }
+
+            if (!AuthenticationService.Instance.IsSignedIn)
+            {
+                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+        }
+
+        // ParrelSync clones share PlayerPrefs but live at different project paths. A stable profile
+        // per path prevents both Editor instances from reusing the same anonymous player token.
+        static string BuildProfileName()
+        {
+            uint hash = 2166136261;
+            string path = Application.dataPath.ToLowerInvariant();
+            for (int i = 0; i < path.Length; i++)
+            {
+                hash ^= path[i];
+                hash *= 16777619;
+            }
+            return $"m2-{hash:x8}";
+        }
+
+        void HandleServerStarted()
+        {
+            // Keep the host's code visible until the remote player arrives.
+            if (activeSession != null) SetStatus($"방 코드: {activeSession.Code}  ·  상대를 기다리는 중...");
         }
 
         void HandleClientConnected(ulong clientId)
         {
-            // Only hide once THIS peer's own connection is established, not when a remote peer
-            // joins later.
-            var networkManager = NetworkManager.Singleton;
-            if (networkManager != null && clientId == networkManager.LocalClientId) HideConnectionUi();
+            NetworkManager networkManager = NetworkManager.Singleton;
+            if (networkManager == null) return;
+
+            bool localClientConnected = !networkManager.IsHost && clientId == networkManager.LocalClientId;
+            bool remoteJoinedHost = networkManager.IsHost && clientId != networkManager.LocalClientId;
+            if (localClientConnected || remoteJoinedHost) HideConnectionUi();
         }
 
-        // Once connected, the host/join buttons, IP field and "호스팅 중..." status are just
-        // clutter over the race HUD — hide them (playtester: "호스트, 참가 버튼, IP 버튼은
-        // 안사라짐"). Left visible on a failed/never-attempted connection so the player can retry.
+        void HandleClientDisconnected(ulong clientId)
+        {
+            NetworkManager networkManager = NetworkManager.Singleton;
+            if (networkManager == null) return;
+
+            if (networkManager.IsHost && clientId != networkManager.LocalClientId)
+            {
+                if (statusText != null) statusText.gameObject.SetActive(true);
+                SetStatus(activeSession != null
+                    ? $"방 코드: {activeSession.Code}  ·  상대 연결이 끊어졌습니다."
+                    : "상대 연결이 끊어졌습니다.");
+            }
+            else if (clientId == networkManager.LocalClientId)
+            {
+                ShowConnectionUi();
+                SetStatus("연결이 끊어졌습니다. 다시 시도할 수 있습니다.");
+            }
+        }
+
         void HideConnectionUi()
         {
             if (hostButton != null) hostButton.gameObject.SetActive(false);
             if (joinButton != null) joinButton.gameObject.SetActive(false);
-            if (ipInputField != null) ipInputField.gameObject.SetActive(false);
+            if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
             if (statusText != null) statusText.gameObject.SetActive(false);
         }
 
-        void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
+        void ShowConnectionUi()
         {
-            response.Approved = true;
-            response.CreatePlayerObject = true;
+            if (hostButton != null) hostButton.gameObject.SetActive(true);
+            if (joinButton != null) joinButton.gameObject.SetActive(true);
+            if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(true);
+            if (statusText != null) statusText.gameObject.SetActive(true);
+            SetButtonsInteractable(true);
         }
 
-        void StartHost()
+        void SetButtonsInteractable(bool interactable)
         {
-            SetConnectionPort();
-            NetworkManager.Singleton.StartHost();
-            SetStatus("호스팅 중...");
-        }
-
-        void StartClient()
-        {
-            string ip = ipInputField != null && !string.IsNullOrWhiteSpace(ipInputField.text)
-                ? ipInputField.text.Trim()
-                : "127.0.0.1";
-
-            var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-            transport.SetConnectionData(ip, port);
-
-            NetworkManager.Singleton.StartClient();
-            SetStatus($"{ip}:{port} 접속 시도 중...");
-        }
-
-        void SetConnectionPort()
-        {
-            var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-            transport.SetConnectionData("0.0.0.0", port);
+            if (hostButton != null) hostButton.interactable = interactable;
+            if (joinButton != null) joinButton.interactable = interactable;
         }
 
         void SetStatus(string message)

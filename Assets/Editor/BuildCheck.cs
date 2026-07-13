@@ -208,7 +208,7 @@ public static class BuildCheck
 
         var bootstrapUi = Object.FindFirstObjectByType<M2.Network.NetworkBootstrapUI>();
         if (bootstrapUi == null || bootstrapUi.hostButton == null || bootstrapUi.joinButton == null ||
-            bootstrapUi.ipInputField == null)
+            bootstrapUi.joinCodeInputField == null)
         {
             Debug.LogError("M2_NETWORK_BOOTSTRAP_SMOKE_TEST_FAIL: NetworkBootstrapUI 버튼/입력창 배선이 비어있음");
             EditorApplication.Exit(1);

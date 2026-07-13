@@ -124,7 +124,7 @@ namespace M2.Editor
             return networkManager;
         }
 
-        // Adds the host/join UI (buttons + IP field + status text + EventSystem) to an existing
+        // Adds the Relay room-code UI (buttons + code field + status text + EventSystem) to an existing
         // NetworkManager. The NetworkBootstrapUI component goes on the NetworkManager object
         // itself; the canvas/EventSystem go under `uiParent`. Shared with NetworkRaceSceneBuilder.
         internal static NetworkBootstrapUI AttachHostJoinUi(Transform uiParent, NetworkManager networkManager)
@@ -152,18 +152,18 @@ namespace M2.Editor
                 uiModule.AssignDefaultActions();
             }
 
-            Button hostButton = SimpleUIFactory.CreateButton(canvasObject.transform, "HostButton", "호스트로 시작",
+            Button hostButton = SimpleUIFactory.CreateButton(canvasObject.transform, "HostButton", "방 만들기",
                 new Vector2(-100f, 40f), new Vector2(180f, 60f));
-            Button joinButton = SimpleUIFactory.CreateButton(canvasObject.transform, "JoinButton", "접속",
+            Button joinButton = SimpleUIFactory.CreateButton(canvasObject.transform, "JoinButton", "방 참가",
                 new Vector2(100f, 40f), new Vector2(180f, 60f));
-            InputField ipInputField = CreateIpInputField(canvasObject.transform);
+            InputField joinCodeInputField = CreateJoinCodeInputField(canvasObject.transform);
             Text statusText = SimpleUIFactory.CreateCornerText(canvasObject.transform, "StatusText",
                 new Vector2(0.5f, 0f), new Vector2(0f, 20f), TextAnchor.LowerCenter);
             statusText.color = Color.white;
 
             bootstrapUi.hostButton = hostButton;
             bootstrapUi.joinButton = joinButton;
-            bootstrapUi.ipInputField = ipInputField;
+            bootstrapUi.joinCodeInputField = joinCodeInputField;
             bootstrapUi.statusText = statusText;
 
             return bootstrapUi;
@@ -172,9 +172,9 @@ namespace M2.Editor
         // Unity's legacy InputField needs an Image background plus a child Text (the actual
         // typed value) — no shared factory for this yet since it's the first InputField this
         // project has needed (SimpleUIFactory only had Button/Text/Panel builders so far).
-        static InputField CreateIpInputField(Transform parent)
+        static InputField CreateJoinCodeInputField(Transform parent)
         {
-            GameObject fieldObject = new GameObject("IpInputField");
+            GameObject fieldObject = new GameObject("JoinCodeInputField");
             fieldObject.transform.SetParent(parent, false);
 
             RectTransform rect = fieldObject.AddComponent<RectTransform>();
@@ -210,7 +210,7 @@ namespace M2.Editor
             placeholder.fontStyle = FontStyle.Italic;
             placeholder.color = new Color(0f, 0f, 0f, 0.4f);
             placeholder.alignment = TextAnchor.MiddleCenter;
-            placeholder.text = "127.0.0.1";
+            placeholder.text = "방 코드";
             RectTransform placeholderRect = placeholderObject.GetComponent<RectTransform>();
             placeholderRect.anchorMin = Vector2.zero;
             placeholderRect.anchorMax = Vector2.one;
@@ -219,6 +219,7 @@ namespace M2.Editor
 
             inputField.textComponent = text;
             inputField.placeholder = placeholder;
+            inputField.characterLimit = 12;
 
             return inputField;
         }
