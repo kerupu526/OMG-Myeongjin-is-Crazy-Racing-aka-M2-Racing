@@ -21,6 +21,7 @@ namespace M2.UI
             HostSetup,
             JoinSetup,
             Lobby,
+            Avatar,
             Hidden,
         }
 
@@ -43,6 +44,7 @@ namespace M2.UI
         GameObject hostSetupScreen;
         GameObject joinScreen;
         GameObject lobbyScreen;
+        GameObject avatarScreen;
         Transform hostSettingsSlot;
         Transform joinCard;
 
@@ -54,6 +56,18 @@ namespace M2.UI
         Text lobbyGuest;
         Text lobbyRules;
         Text lobbyStatus;
+        Image mainAvatarImage;
+        Text mainAvatarInitials;
+        Text mainAvatarName;
+        Image lobbyHostAvatarImage;
+        Text lobbyHostInitials;
+        Text lobbyHostName;
+        Image avatarPreviewImage;
+        Text avatarPreviewInitials;
+        Text avatarPreviewName;
+        InputField avatarNameInput;
+        Text avatarFeedback;
+        int draftAvatarColorIndex;
 
         /// <summary>Small inspection hook used by presentation tests and UI diagnostics.</summary>
         public string CurrentScreenName => currentScreen.ToString();
@@ -131,6 +145,19 @@ namespace M2.UI
             SetFeedback(joinFeedback, "친구에게 받은 방 코드를 입력하세요.", Color.white);
         }
 
+        public void ShowAvatar()
+        {
+            EnsureBuilt();
+            SetScreen(Screen.Avatar);
+            SetLegacyControlVisibility(false, false, false);
+            roomSettingsUi?.SetVisible(false);
+
+            draftAvatarColorIndex = M2PlayerProfile.AvatarColorIndex;
+            if (avatarNameInput != null) avatarNameInput.text = M2PlayerProfile.DisplayName;
+            RefreshAvatarPreview();
+            SetFeedback(avatarFeedback, "색과 이름을 고른 뒤 저장하세요.", Ink);
+        }
+
         public void ShowLobby(string roomCode, bool isHost)
         {
             EnsureBuilt();
@@ -145,6 +172,7 @@ namespace M2.UI
                 ? "친구에게 위 방 코드를 알려주세요."
                 : "방에 입장했습니다. 연결 상태를 확인하는 중입니다.";
             RefreshLobbyRules();
+            RefreshProfilePresentation();
         }
 
         /// <summary>Called by NetworkBootstrapUI when both players have connected.</summary>
@@ -214,10 +242,12 @@ namespace M2.UI
             hostSetupScreen = CreateHostSetupScreen(root.transform);
             joinScreen = CreateJoinScreen(root.transform);
             lobbyScreen = CreateLobbyScreen(root.transform);
+            avatarScreen = CreateAvatarScreen(root.transform);
             root.transform.SetAsLastSibling();
 
             ConfigureRoomSettingsPresentation();
             ArrangeLegacyControls();
+            RefreshProfilePresentation();
         }
 
         void ConfigureCanvasScaler()
@@ -298,6 +328,7 @@ namespace M2.UI
             SetActive(hostSetupScreen, nextScreen == Screen.HostSetup);
             SetActive(joinScreen, nextScreen == Screen.JoinSetup);
             SetActive(lobbyScreen, nextScreen == Screen.Lobby);
+            SetActive(avatarScreen, nextScreen == Screen.Avatar);
         }
 
         static void SetActive(GameObject target, bool value)
@@ -325,8 +356,7 @@ namespace M2.UI
             CreateButton(screen.transform, "JoinRoomButton", "방 참가", new Vector2(286f, -58f),
                 new Vector2(420f, 84f), Pink, Color.white, ShowJoinSetup);
             CreateButton(screen.transform, "AvatarButton", "아바타", new Vector2(286f, -164f),
-                new Vector2(198f, 70f), Mint, Ink,
-                () => SetFeedback(mainFeedback, "아바타 편집 화면은 다음 UI 구현 단위에서 연결됩니다.", Color.white));
+                new Vector2(198f, 70f), Mint, Ink, ShowAvatar);
             CreateButton(screen.transform, "SettingsButton", "설정", new Vector2(508f, -164f),
                 new Vector2(198f, 70f), Color.white, Ink,
                 () => SetFeedback(mainFeedback, "설정 화면은 다음 UI 구현 단위에서 연결됩니다.", Color.white));
@@ -388,6 +418,74 @@ namespace M2.UI
             return screen;
         }
 
+        GameObject CreateAvatarScreen(Transform parent)
+        {
+            GameObject screen = CreateScreen(parent, "Screen_Avatar");
+            CreateBackButton(screen.transform, ShowMain);
+            CreateScreenTitle(screen.transform, "아바타 설정", "나만의 색과 레이서 이름을 메인과 로비에 반영하세요.");
+
+            GameObject preview = CreateCard(screen.transform, "AvatarPreviewCard", new Vector2(-294f, -26f),
+                new Vector2(410f, 372f), Color.white, Ink);
+            Text previewCaption = CreateText(preview.transform, "Caption", "MY RACER PREVIEW", 19, Purple,
+                TextAnchor.MiddleCenter, UiFontRole.Metric);
+            SetAnchored(previewCaption.rectTransform, new Vector2(0f, 144f), new Vector2(340f, 32f));
+            GameObject portrait = CreateCard(preview.transform, "AvatarPreview", new Vector2(0f, 42f),
+                new Vector2(164f, 164f), Pink, Ink);
+            avatarPreviewImage = portrait.GetComponent<Image>();
+            avatarPreviewInitials = CreateText(portrait.transform, "Initials", "M2", 54, Color.white,
+                TextAnchor.MiddleCenter, UiFontRole.Display);
+            SetAnchored(avatarPreviewInitials.rectTransform, Vector2.zero, new Vector2(142f, 82f));
+            avatarPreviewName = CreateText(preview.transform, "Name", M2PlayerProfile.DefaultDisplayName, 34, Ink,
+                TextAnchor.MiddleCenter, UiFontRole.Display);
+            SetAnchored(avatarPreviewName.rectTransform, new Vector2(0f, -86f), new Vector2(350f, 52f));
+            Text previewHint = CreateText(preview.transform, "Hint", "저장하면 메인 프로필과 로비 카드에 적용됩니다.", 19, Purple,
+                TextAnchor.MiddleCenter);
+            SetAnchored(previewHint.rectTransform, new Vector2(0f, -132f), new Vector2(360f, 36f));
+
+            GameObject editor = CreateCard(screen.transform, "AvatarEditorCard", new Vector2(274f, -26f),
+                new Vector2(472f, 372f), Color.white, Ink);
+            Text heading = CreateText(editor.transform, "Heading", "프로필 꾸미기", 34, Ink, TextAnchor.MiddleCenter,
+                UiFontRole.Display);
+            SetAnchored(heading.rectTransform, new Vector2(0f, 144f), new Vector2(400f, 52f));
+            Text nameLabel = CreateText(editor.transform, "NameLabel", "레이서 이름", 21, Ink, TextAnchor.MiddleLeft);
+            SetAnchored(nameLabel.rectTransform, new Vector2(-172f, 94f), new Vector2(300f, 32f));
+            avatarNameInput = CreateProfileInput(editor.transform, "AvatarNameInput", new Vector2(0f, 48f),
+                new Vector2(398f, 62f));
+            avatarNameInput.onValueChanged.AddListener(_ => RefreshAvatarPreview());
+
+            Text colorLabel = CreateText(editor.transform, "ColorLabel", "아바타 색", 21, Ink, TextAnchor.MiddleLeft);
+            SetAnchored(colorLabel.rectTransform, new Vector2(-172f, -12f), new Vector2(300f, 32f));
+            CreateButton(editor.transform, "ColorPink", "핑크", new Vector2(-132f, -60f), new Vector2(118f, 60f),
+                Pink, Color.white, () => SelectAvatarColor(0));
+            CreateButton(editor.transform, "ColorCyan", "하늘", new Vector2(0f, -60f), new Vector2(118f, 60f),
+                Cyan, Ink, () => SelectAvatarColor(1));
+            CreateButton(editor.transform, "ColorMint", "민트", new Vector2(132f, -60f), new Vector2(118f, 60f),
+                Mint, Ink, () => SelectAvatarColor(2));
+            CreateButton(editor.transform, "SaveAvatarButton", "저장하기", new Vector2(0f, -132f),
+                new Vector2(398f, 70f), Yellow, Ink, SaveAvatar);
+
+            avatarFeedback = CreateText(editor.transform, "Feedback", "", 18, Ink, TextAnchor.MiddleCenter);
+            SetAnchored(avatarFeedback.rectTransform, new Vector2(0f, -172f), new Vector2(420f, 30f));
+            return screen;
+        }
+
+        void SelectAvatarColor(int index)
+        {
+            draftAvatarColorIndex = index;
+            RefreshAvatarPreview();
+            SetFeedback(avatarFeedback, "미리보기에 선택한 색을 적용했습니다.", Purple);
+        }
+
+        void SaveAvatar()
+        {
+            string displayName = avatarNameInput != null ? avatarNameInput.text : M2PlayerProfile.DisplayName;
+            M2PlayerProfile.Save(displayName, draftAvatarColorIndex);
+            if (avatarNameInput != null) avatarNameInput.text = M2PlayerProfile.DisplayName;
+            RefreshProfilePresentation();
+            RefreshAvatarPreview();
+            SetFeedback(avatarFeedback, "아바타 설정을 저장했습니다.", Purple);
+        }
+
         GameObject CreateLobbyScreen(Transform parent)
         {
             GameObject screen = CreateScreen(parent, "Screen_Lobby");
@@ -407,7 +505,10 @@ namespace M2.UI
             codeRect.anchoredPosition = new Vector2(-54f, -44f);
 
             GameObject hostCard = CreatePlayerCard(screen.transform, "HostPlayerCard", new Vector2(-294f, 28f),
-                Pink, "나", "방장 · 레이서 #001");
+                M2PlayerProfile.AvatarColor, M2PlayerProfile.DisplayName, "방장 · 로컬 플레이어", true);
+            lobbyHostAvatarImage = hostCard.transform.Find("Avatar").GetComponent<Image>();
+            lobbyHostInitials = hostCard.transform.Find("Avatar/Initial").GetComponent<Text>();
+            lobbyHostName = hostCard.transform.Find("Name").GetComponent<Text>();
             lobbyRole = hostCard.transform.Find("Role").GetComponent<Text>();
             GameObject guestCard = CreatePlayerCard(screen.transform, "GuestPlayerCard", new Vector2(-294f, -162f),
                 Cyan, "상대", "접속 대기");
@@ -473,14 +574,73 @@ namespace M2.UI
 
             GameObject portrait = CreateCard(card.transform, "Avatar", new Vector2(0f, 36f), new Vector2(126f, 126f),
                 Pink, Ink);
-            Text initials = CreateText(portrait.transform, "Initials", "M2", 45, Color.white, TextAnchor.MiddleCenter,
+            mainAvatarImage = portrait.GetComponent<Image>();
+            mainAvatarInitials = CreateText(portrait.transform, "Initials", "M2", 45, Color.white, TextAnchor.MiddleCenter,
                 UiFontRole.Display);
-            SetAnchored(initials.rectTransform, Vector2.zero, new Vector2(112f, 72f));
-            Text name = CreateText(card.transform, "Name", "레이서 #001", 32, Ink, TextAnchor.MiddleCenter, UiFontRole.Display);
-            SetAnchored(name.rectTransform, new Vector2(0f, -72f), new Vector2(350f, 52f));
+            SetAnchored(mainAvatarInitials.rectTransform, Vector2.zero, new Vector2(112f, 72f));
+            mainAvatarName = CreateText(card.transform, "Name", M2PlayerProfile.DefaultDisplayName, 32, Ink,
+                TextAnchor.MiddleCenter, UiFontRole.Display);
+            SetAnchored(mainAvatarName.rectTransform, new Vector2(0f, -72f), new Vector2(350f, 52f));
             Text description = CreateText(card.transform, "Description", "아바타와 칭호를 꾸며 보세요", 20, Purple,
                 TextAnchor.MiddleCenter);
             SetAnchored(description.rectTransform, new Vector2(0f, -116f), new Vector2(350f, 34f));
+        }
+
+        void RefreshProfilePresentation()
+        {
+            string displayName = M2PlayerProfile.DisplayName;
+            Color avatarColor = M2PlayerProfile.AvatarColor;
+            string initials = GetInitials(displayName);
+
+            if (mainAvatarImage != null) mainAvatarImage.color = avatarColor;
+            if (mainAvatarInitials != null) mainAvatarInitials.text = initials;
+            if (mainAvatarName != null) mainAvatarName.text = displayName;
+
+            if (lobbyHostAvatarImage != null) lobbyHostAvatarImage.color = avatarColor;
+            if (lobbyHostInitials != null) lobbyHostInitials.text = initials;
+            if (lobbyHostName != null) lobbyHostName.text = displayName;
+        }
+
+        void RefreshAvatarPreview()
+        {
+            string displayName = avatarNameInput != null
+                ? M2PlayerProfile.NormalizeDisplayName(avatarNameInput.text)
+                : M2PlayerProfile.DisplayName;
+            if (avatarPreviewImage != null) avatarPreviewImage.color = M2PlayerProfile.ResolveAvatarColor(draftAvatarColorIndex);
+            if (avatarPreviewInitials != null) avatarPreviewInitials.text = GetInitials(displayName);
+            if (avatarPreviewName != null) avatarPreviewName.text = displayName;
+        }
+
+        static string GetInitials(string displayName)
+        {
+            string normalized = M2PlayerProfile.NormalizeDisplayName(displayName).Replace(" ", string.Empty);
+            return normalized.Length <= 2 ? normalized : normalized.Substring(0, 2);
+        }
+
+        static InputField CreateProfileInput(Transform parent, string name, Vector2 position, Vector2 size)
+        {
+            GameObject fieldObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(InputField));
+            fieldObject.transform.SetParent(parent, false);
+            SetAnchored(fieldObject.GetComponent<RectTransform>(), position, size);
+
+            Image background = fieldObject.GetComponent<Image>();
+            background.color = new Color(0.957f, 0.925f, 1f);
+            AddOutline(background, Ink, new Vector2(3f, -3f));
+
+            InputField field = fieldObject.GetComponent<InputField>();
+            field.characterLimit = 12;
+
+            Text value = CreateText(fieldObject.transform, "Text", string.Empty, 28, Ink, TextAnchor.MiddleCenter,
+                UiFontRole.Body);
+            Stretch(value.rectTransform, new Vector2(14f, 6f), new Vector2(-14f, -6f));
+            Text placeholder = CreateText(fieldObject.transform, "Placeholder", "레이서 이름", 26,
+                new Color(Ink.r, Ink.g, Ink.b, 0.45f), TextAnchor.MiddleCenter);
+            Stretch(placeholder.rectTransform, new Vector2(14f, 6f), new Vector2(-14f, -6f));
+
+            field.textComponent = value;
+            field.placeholder = placeholder;
+            field.text = M2PlayerProfile.DisplayName;
+            return field;
         }
 
         void CreateScreenTitle(Transform parent, string titleValue, string subtitleValue)
@@ -506,12 +666,12 @@ namespace M2.UI
         }
 
         GameObject CreatePlayerCard(Transform parent, string name, Vector2 position, Color avatarColor,
-            string playerName, string role)
+            string playerName, string role, bool isLocalPlayer = false)
         {
             GameObject card = CreateCard(parent, name, position, new Vector2(450f, 154f), Color.white, Ink);
             GameObject avatar = CreateCard(card.transform, "Avatar", new Vector2(-151f, 0f), new Vector2(92f, 92f),
                 avatarColor, Ink);
-            Text avatarText = CreateText(avatar.transform, "Initial", playerName == "나" ? "M2" : "?", 32, Color.white,
+            Text avatarText = CreateText(avatar.transform, "Initial", isLocalPlayer ? GetInitials(playerName) : "?", 32, Color.white,
                 TextAnchor.MiddleCenter, UiFontRole.Display);
             SetAnchored(avatarText.rectTransform, Vector2.zero, new Vector2(74f, 58f));
             Text label = CreateText(card.transform, "Name", playerName, 30, Ink, TextAnchor.MiddleLeft, UiFontRole.Display);

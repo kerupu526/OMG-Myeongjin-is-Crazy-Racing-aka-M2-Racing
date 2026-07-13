@@ -39,6 +39,11 @@ namespace M2.Tests.PlayMode
             menu.ShowJoinSetup();
             Assert.AreEqual("JoinSetup", menu.CurrentScreenName);
             Assert.IsTrue(canvasObject.transform.Find("NetworkMenuRoot/Screen_Join").gameObject.activeSelf);
+
+            menu.ShowAvatar();
+            Assert.AreEqual("Avatar", menu.CurrentScreenName);
+            Assert.IsTrue(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar").gameObject.activeSelf);
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar/AvatarEditorCard/AvatarNameInput"));
         }
 
         [UnityTest]
