@@ -23,14 +23,14 @@ namespace M2.UI
 
         public static string DisplayName => NormalizeDisplayName(PlayerPrefs.GetString(DisplayNameKey, DefaultDisplayName));
 
-        public static int AvatarColorIndex => NormalizeColorIndex(PlayerPrefs.GetInt(AvatarColorKey, 0));
+        public static int AvatarColorIndex => NormalizeAvatarColorIndex(PlayerPrefs.GetInt(AvatarColorKey, 0));
 
         public static Color AvatarColor => ResolveAvatarColor(AvatarColorIndex);
 
         public static void Save(string displayName, int avatarColorIndex)
         {
             PlayerPrefs.SetString(DisplayNameKey, NormalizeDisplayName(displayName));
-            PlayerPrefs.SetInt(AvatarColorKey, NormalizeColorIndex(avatarColorIndex));
+            PlayerPrefs.SetInt(AvatarColorKey, NormalizeAvatarColorIndex(avatarColorIndex));
             PlayerPrefs.Save();
         }
 
@@ -42,8 +42,10 @@ namespace M2.UI
 
         public static Color ResolveAvatarColor(int index)
         {
-            return AvatarColors[NormalizeColorIndex(index)];
+            return AvatarColors[NormalizeAvatarColorIndex(index)];
         }
+
+        public static int NormalizeAvatarColorIndex(int index) => NormalizeColorIndex(index);
 
         static int NormalizeColorIndex(int index)
         {

@@ -244,19 +244,25 @@ namespace M2.Network
             int localLaps = localIsHost ? raceManager.HostLaps : raceManager.ClientLaps;
             int opponentLaps = localIsHost ? raceManager.ClientLaps : raceManager.HostLaps;
             int targetLaps = Mathf.Max(1, raceManager.TargetLapCount);
-            string localName = M2PlayerProfile.DisplayName;
+            NetworkRacerResult localRacer = localIsHost ? raceManager.HostRacer : raceManager.ClientRacer;
+            NetworkRacerResult opponentRacer = localIsHost ? raceManager.ClientRacer : raceManager.HostRacer;
+            string localName = DisplayNameOr(localRacer, M2PlayerProfile.DisplayName);
+            string opponentName = DisplayNameOr(opponentRacer, "상대 레이서");
+            Color localColor = ProfileColorOr(localRacer, M2PlayerProfile.AvatarColor);
+            Color opponentColor = ProfileColorOr(opponentRacer, Cyan);
 
             lapLabel.text = $"<size={RaceHUD.ScaleGameplayHudFont(20)}>LAP · 내 바퀴</size>\n" +
                 $"<size={RaceHUD.ScaleGameplayHudFont(48)}><color=#FFD93D>{localLaps}</color> / {targetLaps}</size>";
             timerLabel.text = $"<size={RaceHUD.ScaleGameplayHudFont(20)}>TIME · 남은 시간</size>\n" +
                 $"<size={RaceHUD.ScaleGameplayHudFont(42)}>{FormatTime(raceManager.TimeRemaining)}</size>";
-            versusLabel.text = $"<color=#{ColorUtility.ToHtmlStringRGB(M2PlayerProfile.AvatarColor)}>{localName}</color>  <color=#FFD93D>VS</color>  <color=#8BE2FF>상대 레이서</color>";
+            versusLabel.text = $"<color=#{ColorUtility.ToHtmlStringRGB(localColor)}>{localName}</color>  <color=#FFD93D>VS</color>  <color=#{ColorUtility.ToHtmlStringRGB(opponentColor)}>{opponentName}</color>";
             stateLabel.text = $"{StateLabel(raceManager.State)} · 상대 {opponentLaps}/{targetLaps}바퀴";
-            localAvatar.color = M2PlayerProfile.AvatarColor;
-            opponentAvatar.color = Cyan;
+            localAvatar.color = localColor;
+            opponentAvatar.color = opponentColor;
 
             RefreshItemPresentation();
-            RefreshStatePresentation(localLaps, opponentLaps, targetLaps, localName);
+            RefreshStatePresentation(localLaps, opponentLaps, targetLaps, localRacer, opponentRacer,
+                localName, opponentName, localColor, opponentColor);
         }
 
         void RefreshItemPresentation()
@@ -306,7 +312,9 @@ namespace M2.Network
             nameLabel.text = $"{slotNumber} · {definition.itemName}";
         }
 
-        void RefreshStatePresentation(int localLaps, int opponentLaps, int targetLaps, string localName)
+        void RefreshStatePresentation(int localLaps, int opponentLaps, int targetLaps,
+            NetworkRacerResult localRacer, NetworkRacerResult opponentRacer, string localName,
+            string opponentName, Color localColor, Color opponentColor)
         {
             if (raceManager.Result != 0)
             {
@@ -315,13 +323,15 @@ namespace M2.Network
                 bool draw = raceManager.Result == 2;
                 bool localWon = !draw && IsLocalWinner();
                 resultTitleLabel.color = draw ? Pink : localWon ? Yellow : Cyan;
-                resultTitleLabel.text = draw ? "무승부" : localWon ? "승리!" : "레이스 종료";
+                resultTitleLabel.text = draw ? "무승부" : localWon ? "승리!" : "패배";
                 string reason = draw && !string.IsNullOrWhiteSpace(raceManager.DrawReason)
                     ? $"\n{raceManager.DrawReason}" : string.Empty;
+                bool showStars = raceManager.CurrentVictoryCondition == VictoryCondition.StarBet;
                 resultBodyLabel.text =
                     $"<color=#B6F36B>{BuildRuleLine()}</color>{reason}\n\n" +
-                    $"<color=#{ColorUtility.ToHtmlStringRGB(M2PlayerProfile.AvatarColor)}>{localName}</color>  ·  {localLaps}/{targetLaps}바퀴\n" +
-                    $"<color=#8BE2FF>상대 레이서</color>  ·  {opponentLaps}/{targetLaps}바퀴\n\n" +
+                    $"<color=#FFD93D>최종 순위</color>\n" +
+                    $"{BuildResultLine(localRacer, localName, localColor, localLaps, targetLaps, showStars)}\n" +
+                    $"{BuildResultLine(opponentRacer, opponentName, opponentColor, opponentLaps, targetLaps, showStars)}\n\n" +
                     (draw ? "두 레이서의 기록이 동점으로 처리되었습니다." :
                         localWon ? "가장 먼저 결승 조건을 달성했습니다!" : "상대 레이서가 먼저 결승 조건을 달성했습니다.");
                 return;
@@ -379,7 +389,30 @@ namespace M2.Network
             string mode = raceManager.Mode == RaceMode.Speed
                 ? $"스피드전 · {raceManager.TargetLapCount}바퀴 · {raceManager.SpeedModeMaximumKph:0}km/h"
                 : $"아이템전 · {raceManager.TargetLapCount}바퀴";
-            return mode;
+            string victory = raceManager.CurrentVictoryCondition == VictoryCondition.StarBet
+                ? "별점 내기" : "단순 완주";
+            return $"{mode} · {victory}";
+        }
+
+        static string DisplayNameOr(NetworkRacerResult racer, string fallback)
+        {
+            return racer.HasProfile ? racer.DisplayName : fallback;
+        }
+
+        static Color ProfileColorOr(NetworkRacerResult racer, Color fallback)
+        {
+            return racer.HasProfile ? M2PlayerProfile.ResolveAvatarColor(racer.AvatarColorIndex) : fallback;
+        }
+
+        static string BuildResultLine(NetworkRacerResult racer, string displayName, Color color,
+            int laps, int targetLaps, bool showStars)
+        {
+            string placement = racer.Rank > 0 ? $"{racer.Rank}위" : "집계 중";
+            string record = racer.Finished
+                ? FormatTime(racer.FinishTime)
+                : $"미완주 · {laps}/{targetLaps}바퀴";
+            string stars = showStars ? $" · ★ {racer.Stars}/6" : string.Empty;
+            return $"<size=24><color=#{ColorUtility.ToHtmlStringRGB(color)}>{placement} {displayName}</color> · {record}{stars}</size>";
         }
 
         static string StateLabel(RaceState state) => state switch

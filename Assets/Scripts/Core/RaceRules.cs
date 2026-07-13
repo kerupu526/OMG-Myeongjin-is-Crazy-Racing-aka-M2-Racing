@@ -42,6 +42,51 @@ namespace M2.Core
         public float finishTime;
     }
 
+    /// <summary>
+    /// Shared placement ordering for the local and online result views. A completed race always
+    /// ranks ahead of an unfinished one; star-bet races then prefer stars before finish time.
+    /// A zero result means a genuine tie and receives the same displayed rank.
+    /// </summary>
+    public static class RaceResultOrdering
+    {
+        const float TimeTieTolerance = 0.001f;
+
+        public static int Compare(RaceFinishResult left, RaceFinishResult right,
+            VictoryCondition victoryCondition)
+        {
+            if (left.finished != right.finished) return left.finished ? -1 : 1;
+            if (!left.finished) return 0;
+
+            if (victoryCondition == VictoryCondition.StarBet && left.stars != right.stars)
+                return right.stars.CompareTo(left.stars);
+
+            float difference = left.finishTime - right.finishTime;
+            if (System.Math.Abs(difference) <= TimeTieTolerance) return 0;
+            return difference < 0f ? -1 : 1;
+        }
+
+        public static void GetPairRanks(RaceFinishResult first, RaceFinishResult second,
+            VictoryCondition victoryCondition, out int firstRank, out int secondRank)
+        {
+            int comparison = Compare(first, second, victoryCondition);
+            if (comparison == 0)
+            {
+                firstRank = 1;
+                secondRank = 1;
+            }
+            else if (comparison < 0)
+            {
+                firstRank = 1;
+                secondRank = 2;
+            }
+            else
+            {
+                firstRank = 2;
+                secondRank = 1;
+            }
+        }
+    }
+
     public static class RaceResultResolver
     {
         public static LapTracker ResolveStarBet(IReadOnlyList<RaceFinishResult> results,
@@ -56,14 +101,13 @@ namespace M2.Core
                 RaceFinishResult candidate = results[i];
                 if (!candidate.finished) continue;
 
-                if (!best.HasValue || candidate.stars > best.Value.stars ||
-                    (candidate.stars == best.Value.stars && candidate.finishTime < best.Value.finishTime - 0.001f))
+                if (!best.HasValue ||
+                    RaceResultOrdering.Compare(candidate, best.Value, VictoryCondition.StarBet) < 0)
                 {
                     best = candidate;
                     tied = false;
                 }
-                else if (candidate.stars == best.Value.stars &&
-                    System.Math.Abs(candidate.finishTime - best.Value.finishTime) <= 0.001f)
+                else if (RaceResultOrdering.Compare(candidate, best.Value, VictoryCondition.StarBet) == 0)
                 {
                     tied = true;
                 }

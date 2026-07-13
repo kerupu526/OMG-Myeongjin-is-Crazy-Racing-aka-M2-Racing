@@ -205,21 +205,23 @@ namespace M2.UI
 
             var results = new List<RaceFinishResult>(gameManager.LastRaceResults);
             results.Sort((left, right) =>
-            {
-                if (left.finished != right.finished) return left.finished ? -1 : 1;
-                if (gameManager.victoryCondition == VictoryCondition.StarBet && left.stars != right.stars)
-                    return right.stars.CompareTo(left.stars);
-                return left.finishTime.CompareTo(right.finishTime);
-            });
+                RaceResultOrdering.Compare(left, right, gameManager.victoryCondition));
 
             var builder = new StringBuilder("<color=#FFD93D>최종 순위</color>");
+            int displayedRank = 1;
             for (int i = 0; i < results.Count; i++)
             {
+                if (i > 0 && RaceResultOrdering.Compare(results[i - 1], results[i],
+                    gameManager.victoryCondition) != 0)
+                {
+                    displayedRank = i + 1;
+                }
+
                 RaceFinishResult result = results[i];
                 string name = GetRacerDisplayName(result.racer);
                 string finish = result.finished ? FormatTime(result.finishTime) : "미완주";
                 string star = gameManager.victoryCondition == VictoryCondition.StarBet ? $" · ★ {result.stars}/6" : string.Empty;
-                builder.Append($"\n{i + 1}위  {name} · {finish}{star}");
+                builder.Append($"\n{displayedRank}위  {name} · {finish}{star}");
             }
             return builder.ToString();
         }
