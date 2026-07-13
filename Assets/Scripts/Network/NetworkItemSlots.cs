@@ -29,6 +29,9 @@ namespace M2.Network
     [RequireComponent(typeof(VehicleController))]
     public class NetworkItemSlots : NetworkBehaviour
     {
+        [Tooltip("폭탄 피격 시 기절(정지) 지속시간(초). 로컬 기본 0.6초보다 살짝 길게 잡아 온라인에서도 확실히 보이게.")]
+        public float bombStunDuration = 1.0f;
+
         // Server-written, everyone-read (default write permission = Server). None = empty.
         readonly NetworkVariable<byte> netPrimary = new NetworkVariable<byte>((byte)NetItemId.None);
         readonly NetworkVariable<byte> netSecondary = new NetworkVariable<byte>((byte)NetItemId.None);
@@ -149,8 +152,8 @@ namespace M2.Network
                 }
                 else
                 {
-                    victim.ApplyHitStunOwnerRpc();
-                    Debug.Log($"M2Net: 폭탄이 클라이언트 {victim.OwnerClientId}를 기절시킴.");
+                    victim.ApplyHitStunOwnerRpc(victim.bombStunDuration);
+                    Debug.Log($"M2Net: [서버] 폭탄이 클라이언트 {victim.OwnerClientId}를 기절시킴 — 오너에게 RPC 전송.");
                 }
             }
         }
@@ -174,19 +177,38 @@ namespace M2.Network
         }
 
         // ---- Owner-side effect application (physics/HUD resolve where the car is simulated) ----
+        // Each logs on the owner so a live test can confirm the effect actually reached the car
+        // that must simulate it (not just that the server sent it). Remove these with the rest of
+        // the M2Net diagnostics once the milestone is signed off.
 
         [Rpc(SendTo.Owner)]
-        void ApplySpeedBoostOwnerRpc(float bonus, float duration) => vehicleController.ApplySpeedBoost(bonus, duration);
+        void ApplySpeedBoostOwnerRpc(float bonus, float duration)
+        {
+            Debug.Log($"M2Net: [오너 {OwnerClientId}] 가속 부스트 적용 (+{bonus}, {duration}s).");
+            vehicleController.ApplySpeedBoost(bonus, duration);
+        }
 
         [Rpc(SendTo.Owner)]
-        void ActivateShieldOwnerRpc(float duration) => vehicleController.ActivateShield(duration);
+        void ActivateShieldOwnerRpc(float duration)
+        {
+            Debug.Log($"M2Net: [오너 {OwnerClientId}] 방어막 적용 ({duration}s).");
+            vehicleController.ActivateShield(duration);
+        }
 
         [Rpc(SendTo.Owner)]
-        void ApplyHitStunOwnerRpc() => vehicleController.ApplyHitStun();
+        void ApplyHitStunOwnerRpc(float duration)
+        {
+            Debug.Log($"M2Net: [오너 {OwnerClientId}] 기절 적용 ({duration}s) — 차량 정지.");
+            vehicleController.ApplyHitStun(duration);
+        }
 
         // Keeps the owner's HasShield HUD mirror in step with the host consuming the shield.
         [Rpc(SendTo.Owner)]
-        void ConsumeShieldOwnerRpc() => vehicleController.TryConsumeShield();
+        void ConsumeShieldOwnerRpc()
+        {
+            Debug.Log($"M2Net: [오너 {OwnerClientId}] 방패 소모(피격 방어).");
+            vehicleController.TryConsumeShield();
+        }
 
         // ---- Pure rules (no NetworkManager needed — PlayMode-tested directly) ----
 

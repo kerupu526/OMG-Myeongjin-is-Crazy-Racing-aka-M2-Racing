@@ -31,6 +31,9 @@ namespace M2.Network
         [Tooltip("픽업을 주운 뒤 같은 지점에 새 아이템이 다시 나오기까지의 시간(초). 로컬 ItemSpawner와 동일.")]
         public float respawnDelay = 5f;
 
+        [Tooltip("이 반경(m) 안에 플레이어가 있으면 재스폰을 미룸 — 같은 자리에 죽치고 앉아 원하는 아이템이 나올 때까지 반복해서 뽑는 것(캠핑) 방지. 픽업 판정 반경보다 살짝 크게.")]
+        public float noRespawnPlayerRadius = 3f;
+
         [Tooltip("픽업 비주얼이 지점 위로 떠 있는 높이(m). 로컬 ItemSpawner.pickupHeight와 동일.")]
         public float pickupHeight = 1f;
 
@@ -139,16 +142,41 @@ namespace M2.Network
             for (int i = 0; i < points.Length && i < netSpawnItems.Count; i++)
             {
                 if ((NetItemId)netSpawnItems[i] != NetItemId.None) continue;
-                if (respawnTimers[i] <= 0f) continue;
 
-                respawnTimers[i] -= dt;
-                if (respawnTimers[i] <= 0f)
+                // Count down the post-pickup delay first.
+                if (respawnTimers[i] > 0f)
                 {
-                    NetItemId rolled = ItemCatalog.CreateRandomIdForSpawn();
-                    netSpawnItems[i] = (byte)rolled;
-                    Debug.Log($"M2Net: 지점 {i}에 새 아이템({rolled}) 재스폰.");
+                    respawnTimers[i] -= dt;
+                    if (respawnTimers[i] > 0f) continue;
                 }
+
+                // Delay elapsed. Hold the respawn while a player is loitering on the spot, so they
+                // can't camp it and keep re-rolling until the item they want appears — it only
+                // reappears once the area is clear.
+                if (IsPlayerNear(points[i].transform.position)) continue;
+
+                NetItemId rolled = ItemCatalog.CreateRandomIdForSpawn();
+                netSpawnItems[i] = (byte)rolled;
+                Debug.Log($"M2Net: 지점 {i}에 새 아이템({rolled}) 재스폰.");
             }
+        }
+
+        bool IsPlayerNear(Vector3 position)
+        {
+            var manager = NetworkManager;
+            if (manager == null) return false;
+
+            float radiusSqr = noRespawnPlayerRadius * noRespawnPlayerRadius;
+            foreach (var client in manager.ConnectedClientsList)
+            {
+                NetworkObject playerObject = client.PlayerObject;
+                if (playerObject == null) continue;
+
+                Vector3 delta = playerObject.transform.position - position;
+                delta.y = 0f;
+                if (delta.sqrMagnitude <= radiusSqr) return true;
+            }
+            return false;
         }
 
         // ---- Every instance: replicated state -> cosmetic visuals ----
