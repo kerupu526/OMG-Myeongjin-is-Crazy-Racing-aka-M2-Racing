@@ -6,8 +6,8 @@ using UnityEngine;
 namespace M2.Stage
 {
     // 아프리카TV 게이지: 멘탈 (팬 응원 존에서 회복). 가득 차면 잠시 조작 불가.
-    // CLAUDE.md는 초당 변화량을 명시하지 않음 — 기본값 0(공격 피격/방송사고 등 외부 트리거로만
-    // 움직임)으로 두고 Inspector에서 밸런스 조정 가능하게 함 (플레이스홀더, 확정 필요).
+    // 31차 확정 기준: 패시브 변화 없음. 공격 피격/방송사고 같은 명시적 사건으로만 상승하고
+    // 팬 응원 존에서 회복한다. 가득 차면 2초간 조작 불가.
     public class AfricaTvMentalGauge : StageGaugeSystem
     {
         [Header("Africa TV Mental")]

@@ -14,12 +14,12 @@ namespace M2.Stage
         public NetherFortressTemperatureGauge temperatureGauge;
         public LavaZone lavaZone;
 
-        [Tooltip("평소 피격 시 체온 게이지 상승량 (플레이스홀더 수치).")]
+        [Tooltip("평소 피격 시 체온 게이지 확정 기준 상승량.")]
         public float normalHitTempBonus = 15f;
-        [Tooltip("용암 근처(LavaZone 안)에서 피격 시 체온 게이지 상승량 — '훨씬 빠르게'를 반영한 플레이스홀더 수치.")]
+        [Tooltip("용암 근처(LavaZone 안)에서 피격 시 체온 게이지 상승량 — 일반 피격보다 훨씬 큼.")]
         public float lavaHitTempBonus = 40f;
-        [Tooltip("용암 안에 머무는 동안(피격 여부와 무관하게) 초당 추가로 오르는 체온 — 플레이스홀더 " +
-            "수치. 원래는 '피격 시에만' 콤보 보너스가 붙는 구조였는데, 플레이테스트에서 용암에 " +
+        [Tooltip("용암 안에 머무는 동안(피격 여부와 무관하게) 초당 추가로 오르는 확정 기준 체온. " +
+            "원래는 '피격 시에만' 콤보 보너스가 붙는 구조였는데, 플레이테스트에서 용암에 " +
             "그냥 들어가만 있어도 아무 반응이 없다는 피드백(\"용암존 들어갔을 때 온도 상승을 안함\")이 " +
             "나와서 추가 — StageGaugeSystem의 기본 패시브 상승(1/초)과는 별개로 이 값이 더해짐. " +
             "8→10으로 상향(사용자: \"초당 10도 정도로 높이고\").")]

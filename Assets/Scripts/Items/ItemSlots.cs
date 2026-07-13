@@ -66,8 +66,8 @@ namespace M2.Items
             return ItemCatalog.CreateFromId(NetItemId.AtomicBomb);
         }
 
-        // CLAUDE.md: picking up an item while both slots are full replaces one of them
-        // with the new pickup. Assumption: the primary slot is replaced.
+        // Confirmed rule: primary fills first, secondary fills second, and a pickup collected
+        // while both are full replaces the primary slot.
         public void CollectItem(ItemDefinition definition)
         {
             if (PrimarySlot == null)

@@ -5,8 +5,7 @@ using UnityEngine;
 namespace M2.Stage
 {
     // 네더요새 게이지: 체온 (오아시스 존에서 회복). 가득 차면 화상 → 즉시 게임오버.
-    // CLAUDE.md는 정확한 수치를 명시하지 않음 — "체온 게이지가 빠르게 상승해 밸런스 유지"라는
-    // 설명에 맞춰 기본값을 비키니시티 산소보다 큰 폭으로 잡음 (플레이스홀더, 밸런스 확정 필요).
+    // 31차 확정 기준: 평상시 +1/초, 80%에서 경고, 100에서 즉시 화상 게임오버.
     public class NetherFortressTemperatureGauge : StageGaugeSystem
     {
         [Header("Nether Fortress Temperature")]
@@ -29,7 +28,7 @@ namespace M2.Stage
             // permanently clamp the gauge at 0 — it would never rise on its own, contradicting
             // CLAUDE.md's "체온 게이지가 빠르게 상승". Reset() would normally set a sane
             // default, but that Editor-only callback never fires when StageAssembler adds
-            // this component at runtime (AddComponent<>()). +1/sec per playtester feedback —
+            // this component at runtime (AddComponent<>()). Confirmed +1/sec baseline —
             // the original +6/sec placeholder emptied the whole 100-point gauge in under 17s,
             // leaving no time to actually drive before an instant (no-grace-period) game over.
             passiveRatePerSecond = 1f;
