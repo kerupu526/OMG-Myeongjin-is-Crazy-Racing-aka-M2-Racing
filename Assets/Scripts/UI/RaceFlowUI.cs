@@ -1,4 +1,6 @@
 using M2.Core;
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -34,6 +36,9 @@ namespace M2.UI
         [Header("Result Panel")]
         public GameObject resultPanel;
         public Text resultText;
+
+        GameObject briefingCard;
+        GameObject resultCard;
 
         void OnEnable()
         {
@@ -128,7 +133,9 @@ namespace M2.UI
 
             string stats = BuildStatsString();
             string starLine = BuildStarLine();
-            resultText.text = $"🏆 승리!\n{winner.gameObject.name}\n\n{stats}{starLine}";
+            resultText.text = $"<size=48><color=#FFD93D>🏆 승리!</color></size>\n" +
+                $"<size=28>{winner.gameObject.name}</size>\n" +
+                $"<color=#B6F36B>{BuildRuleLine()}</color>\n\n{BuildPlacings()}\n{stats}{starLine}";
         }
 
         string BuildStarLine()
@@ -165,7 +172,42 @@ namespace M2.UI
             if (resultText == null) return;
 
             string stats = BuildStatsString();
-            resultText.text = $"무승부\n{reason}\n\n{stats}";
+            resultText.text = $"<size=48><color=#FF6BAA>무승부</color></size>\n" +
+                $"<size=24>{reason}</size>\n<color=#B6F36B>{BuildRuleLine()}</color>\n\n" +
+                $"{BuildPlacings()}\n{stats}";
+        }
+
+        string BuildRuleLine()
+        {
+            if (gameManager == null) return "레이스 결과";
+            string mode = gameManager.IsSpeedMode ? "스피드전 · 5바퀴 · 100km/h" : "아이템전";
+            string victory = gameManager.victoryCondition == VictoryCondition.StarBet ? "별점 내기" : "단순 완주";
+            return $"{mode} · {victory}";
+        }
+
+        string BuildPlacings()
+        {
+            if (gameManager == null || gameManager.LastRaceResults.Count == 0) return "결과 데이터를 정리하는 중입니다.";
+
+            var results = new List<RaceFinishResult>(gameManager.LastRaceResults);
+            results.Sort((left, right) =>
+            {
+                if (left.finished != right.finished) return left.finished ? -1 : 1;
+                if (gameManager.victoryCondition == VictoryCondition.StarBet && left.stars != right.stars)
+                    return right.stars.CompareTo(left.stars);
+                return left.finishTime.CompareTo(right.finishTime);
+            });
+
+            var builder = new StringBuilder("<color=#FFD93D>최종 순위</color>\n");
+            for (int i = 0; i < results.Count; i++)
+            {
+                RaceFinishResult result = results[i];
+                string name = result.racer != null ? result.racer.gameObject.name : "알 수 없는 레이서";
+                string finish = result.finished ? FormatTime(result.finishTime) : "미완주";
+                string star = gameManager.victoryCondition == VictoryCondition.StarBet ? $" · ★ {result.stars}/6" : string.Empty;
+                builder.AppendLine($"{i + 1}위  {name} · {finish}{star}");
+            }
+            return builder.ToString();
         }
 
         string BuildStatsString()
@@ -204,6 +246,9 @@ namespace M2.UI
             StyleText(briefingText, 30, Color.white, Color.black);
             StyleText(countdownText, 112, new Color(1f, 0.851f, 0.239f), new Color(0.102f, 0.063f, 0.188f));
             StyleText(resultText, 38, Color.white, new Color(0.102f, 0.063f, 0.188f));
+            briefingCard = EnsureModalCard(briefingPanel, briefingText, "BriefingCard", new Vector2(720f, 460f));
+            resultCard = EnsureModalCard(resultPanel, resultText, "ResultCard", new Vector2(760f, 560f));
+            PlaceBriefingButtonInsideCard();
 
             if (startButton != null)
             {
@@ -226,6 +271,54 @@ namespace M2.UI
                 }
                 EnsurePresentationButtonLabel(startButton.transform);
             }
+        }
+
+        void PlaceBriefingButtonInsideCard()
+        {
+            if (briefingCard == null || startButton == null) return;
+            if (startButton.transform.parent != briefingCard.transform)
+                startButton.transform.SetParent(briefingCard.transform, false);
+
+            RectTransform rect = startButton.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.anchoredPosition = new Vector2(0f, 36f);
+            rect.sizeDelta = new Vector2(260f, 68f);
+        }
+
+        static GameObject EnsureModalCard(GameObject panel, Text content, string name, Vector2 size)
+        {
+            if (panel == null || content == null) return null;
+            Transform existing = panel.transform.Find(name);
+            GameObject card = existing != null ? existing.gameObject : CreateCard(panel.transform, name,
+                new Color(0.102f, 0.063f, 0.188f, 0.96f), new Color(1f, 0.851f, 0.239f));
+            RectTransform cardRect = card.GetComponent<RectTransform>();
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.pivot = new Vector2(0.5f, 0.5f);
+            cardRect.anchoredPosition = new Vector2(0f, 20f);
+            cardRect.sizeDelta = size;
+
+            if (content.transform.parent != card.transform) content.transform.SetParent(card.transform, false);
+            content.rectTransform.anchorMin = Vector2.zero;
+            content.rectTransform.anchorMax = Vector2.one;
+            content.rectTransform.offsetMin = new Vector2(42f, 38f);
+            content.rectTransform.offsetMax = new Vector2(-42f, -38f);
+            content.alignment = TextAnchor.MiddleCenter;
+            return card;
+        }
+
+        static GameObject CreateCard(Transform parent, string name, Color fill, Color outlineColor)
+        {
+            GameObject card = new GameObject(name, typeof(RectTransform));
+            card.transform.SetParent(parent, false);
+            Image image = card.AddComponent<Image>();
+            image.color = fill;
+            Outline outline = card.AddComponent<Outline>();
+            outline.effectColor = outlineColor;
+            outline.effectDistance = new Vector2(3f, -3f);
+            return card;
         }
 
         static void EnsurePresentationButtonLabel(Transform buttonTransform)

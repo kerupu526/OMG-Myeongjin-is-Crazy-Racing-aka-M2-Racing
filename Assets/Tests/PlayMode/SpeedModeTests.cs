@@ -78,7 +78,7 @@ namespace M2.Tests.PlayMode
         {
             GameManager gameManager = CreateGameManager();
             gameManager.autoStartOnStart = false;
-            canvasObject = new GameObject("RoomSettingsCanvas", typeof(RectTransform), typeof(Canvas));
+            canvasObject = new GameObject("RoomSettingsCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             RoomSettingsUI settings = canvasObject.AddComponent<RoomSettingsUI>();
             settings.gameManager = gameManager;
             yield return null;
@@ -86,6 +86,9 @@ namespace M2.Tests.PlayMode
             Assert.IsNotNull(canvasObject.transform.Find("RoomSettingsPanel/ModeButton"));
             Assert.IsNotNull(canvasObject.transform.Find("RoomSettingsPanel/LapButton"));
             Assert.IsNotNull(canvasObject.transform.Find("RoomSettingsPanel/VictoryButton"));
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            Assert.AreEqual(CanvasScaler.ScaleMode.ScaleWithScreenSize, scaler.uiScaleMode);
+            Assert.AreEqual(new Vector2(1920f, 1080f), scaler.referenceResolution);
 
             settings.ToggleMode();
             Assert.AreEqual(RaceMode.Speed, gameManager.raceMode);

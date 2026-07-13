@@ -25,6 +25,7 @@ namespace M2.UI
 
         void Start()
         {
+            ConfigureCanvasScaling();
             if (gameManager == null) gameManager = FindFirstObjectByType<GameManager>();
             if (gameManager != null)
             {
@@ -34,6 +35,19 @@ namespace M2.UI
             }
             BuildLayout();
             RefreshLabels();
+        }
+
+        // NetworkBootstrap has no RaceHUD, so it cannot rely on RaceHUD's CanvasScaler setup.
+        // Scaling at the Canvas level keeps the host/join controls and this panel together on
+        // narrow Free Aspect previews as well as the final 16:9 build.
+        void ConfigureCanvasScaling()
+        {
+            CanvasScaler scaler = GetComponent<CanvasScaler>();
+            if (scaler == null) return;
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
         }
 
         public void ApplyTo(GameManager manager)

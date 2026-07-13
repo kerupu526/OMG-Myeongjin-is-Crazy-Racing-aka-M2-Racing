@@ -62,8 +62,10 @@ namespace M2.Core
         bool startRequested;
         readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
         readonly Dictionary<LapTracker, RaceFinishResult> finishResults = new Dictionary<LapTracker, RaceFinishResult>();
+        readonly List<RaceFinishResult> lastRaceResults = new List<RaceFinishResult>();
 
         public bool IsSpeedMode => raceMode == RaceMode.Speed;
+        public IReadOnlyList<RaceFinishResult> LastRaceResults => lastRaceResults;
 
         void Awake()
         {
@@ -216,6 +218,7 @@ namespace M2.Core
             TimeRemaining = lap1TimeLimit;
             RaceElapsedTime = 0f;
             finishResults.Clear();
+            lastRaceResults.Clear();
 
             if (raceTimer != null) raceTimer.StartRace();
             SetAllInputLocked(false);
@@ -308,6 +311,8 @@ namespace M2.Core
             }
             lapHandlers.Clear();
 
+            CaptureFinalResults(winner);
+
             if (winner != null)
             {
                 OnRaceWon?.Invoke(winner);
@@ -315,6 +320,29 @@ namespace M2.Core
             else
             {
                 OnRaceDraw?.Invoke(drawReason);
+            }
+        }
+
+        void CaptureFinalResults(LapTracker winner)
+        {
+            lastRaceResults.Clear();
+            foreach (LapTracker racer in racers)
+            {
+                if (racer == null) continue;
+                if (finishResults.TryGetValue(racer, out RaceFinishResult existing))
+                {
+                    lastRaceResults.Add(existing);
+                    continue;
+                }
+
+                bool finished = racer == winner || racer.LapCount >= targetLapCount;
+                lastRaceResults.Add(new RaceFinishResult
+                {
+                    racer = racer,
+                    finished = finished,
+                    finishTime = finished ? RaceElapsedTime : 0f,
+                    stars = ComputeStars(racer, RaceElapsedTime)
+                });
             }
         }
 

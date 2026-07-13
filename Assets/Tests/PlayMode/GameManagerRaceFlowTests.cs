@@ -89,6 +89,9 @@ namespace M2.Tests.PlayMode
 
             Assert.AreEqual(RaceState.Finished, gm.CurrentState);
             Assert.AreSame(lapTracker, winner, "The racer that completed the target lap count should be reported as the winner.");
+            Assert.AreEqual(1, gm.LastRaceResults.Count, "Result UI should receive a final result for each racer.");
+            Assert.IsTrue(gm.LastRaceResults[0].finished);
+            Assert.AreSame(lapTracker, gm.LastRaceResults[0].racer);
         }
 
         [UnityTest]
