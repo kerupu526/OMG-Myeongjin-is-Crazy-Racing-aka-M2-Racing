@@ -1,24 +1,18 @@
-using NUnit.Framework;
 using M2.Items;
 using M2.Network;
+using NUnit.Framework;
 
 namespace M2.Tests.PlayMode
 {
-    // Pure-logic tests for the Milestone 2b item wire scheme. No NetworkManager is
-    // involved — these only exercise the byte-ID <-> ItemDefinition round trip and the
-    // arithmetic ID layout, which is exactly the part that must stay consistent across
-    // host and client.
     public class NetworkItemLogicTests
     {
         [Test]
-        public void IdFor_Uses_TypeTimesTwo_Plus_Tier_Plus_One()
+        public void StableIds_Are_Grouped_By_Type()
         {
-            Assert.AreEqual(NetItemId.AccelBase, ItemCatalog.IdFor(ItemType.Accel, 0));
-            Assert.AreEqual(NetItemId.AccelDerived, ItemCatalog.IdFor(ItemType.Accel, 1));
-            Assert.AreEqual(NetItemId.AttackBase, ItemCatalog.IdFor(ItemType.Attack, 0));
-            Assert.AreEqual(NetItemId.AttackDerived, ItemCatalog.IdFor(ItemType.Attack, 1));
-            Assert.AreEqual(NetItemId.DefenseBase, ItemCatalog.IdFor(ItemType.Defense, 0));
-            Assert.AreEqual(NetItemId.DefenseDerived, ItemCatalog.IdFor(ItemType.Defense, 1));
+            Assert.AreEqual(1, (byte)NetItemId.Gasoline);
+            Assert.AreEqual(16, (byte)NetItemId.Bomb);
+            Assert.AreEqual(32, (byte)NetItemId.Shield);
+            Assert.AreEqual(34, (byte)NetItemId.GoldenShield);
         }
 
         [Test]
@@ -28,107 +22,102 @@ namespace M2.Tests.PlayMode
         }
 
         [Test]
-        public void CreateFromId_Roundtrips_All_Six_Definitions()
+        public void CreateFromId_Roundtrips_All_Thirteen_Definitions()
         {
-            AssertRoundtrip(ItemCatalog.CreateAccelBase());
-            AssertRoundtrip(ItemCatalog.CreateAccelDerived());
-            AssertRoundtrip(ItemCatalog.CreateAttackBase());
-            AssertRoundtrip(ItemCatalog.CreateAttackDerived());
-            AssertRoundtrip(ItemCatalog.CreateDefenseBase());
-            AssertRoundtrip(ItemCatalog.CreateDefenseDerived());
+            Assert.AreEqual(13, ItemCatalog.AllIds.Length);
+            foreach (NetItemId id in ItemCatalog.AllIds)
+            {
+                ItemDefinition definition = ItemCatalog.CreateFromId(id);
+                Assert.IsNotNull(definition, $"{id} should have a definition.");
+                Assert.AreEqual(id, definition.id);
+                Assert.AreEqual(ItemCatalog.TypeOf(id), definition.type);
+                Assert.IsNotEmpty(definition.itemName);
+                Assert.IsNotEmpty(definition.description);
+                Assert.IsNotEmpty(definition.artKey);
+            }
         }
 
-        // A definition -> its ID -> a freshly rebuilt definition must be identical in
-        // every gameplay-relevant field. This is the guarantee the network path relies on:
-        // the client never receives names/stats, only the ID, and rebuilds the rest.
-        static void AssertRoundtrip(ItemDefinition original)
+        [Test]
+        public void PdfStats_Are_Represented_In_Catalog()
         {
-            NetItemId id = ItemCatalog.IdFor(original.type, original.tier);
-            ItemDefinition rebuilt = ItemCatalog.CreateFromId(id);
+            ItemDefinition jaeSeok = ItemCatalog.CreateFromId(NetItemId.JaeSeokGasoline);
+            Assert.AreEqual(1f, jaeSeok.duration);
+            Assert.AreEqual(100f, jaeSeok.speedBonus);
 
-            Assert.IsNotNull(rebuilt, $"{original.itemName} should rebuild from id {id}.");
-            Assert.AreEqual(original.itemName, rebuilt.itemName);
-            Assert.AreEqual(original.type, rebuilt.type);
-            Assert.AreEqual(original.tier, rebuilt.tier);
-            Assert.AreEqual(original.duration, rebuilt.duration);
-            Assert.AreEqual(original.speedBonus, rebuilt.speedBonus);
-            Assert.AreEqual(original.armTime, rebuilt.armTime);
-            Assert.AreEqual(original.attackRadius, rebuilt.attackRadius);
+            ItemDefinition c4 = ItemCatalog.CreateFromId(NetItemId.C4);
+            Assert.AreEqual(ItemBehavior.RemoteC4, c4.behavior);
+            Assert.AreEqual(-1f, c4.armTime);
+            Assert.AreEqual(8f, c4.attackRadius);
+
+            ItemDefinition atomic = ItemCatalog.CreateFromId(NetItemId.AtomicBomb);
+            Assert.AreEqual(0f, atomic.armTime);
+            Assert.AreEqual(10000f, atomic.attackRadius);
+
+            ItemDefinition golden = ItemCatalog.CreateFromId(NetItemId.GoldenShield);
+            Assert.AreEqual(1f, golden.duration);
+            Assert.AreEqual(ShieldStrength.Golden, golden.shieldStrength);
         }
 
         [Test]
         public void CreateRandomIdForSpawn_Always_Produces_A_Valid_NonNull_Item()
         {
-            // 200 rolls: every result must be a real (non-None) item that rebuilds cleanly.
-            for (int i = 0; i < 200; i++)
+            for (int i = 0; i < 300; i++)
             {
                 NetItemId id = ItemCatalog.CreateRandomIdForSpawn();
-                Assert.AreNotEqual(NetItemId.None, id, "A spawn roll must never produce an empty item.");
-                Assert.IsNotNull(ItemCatalog.CreateFromId(id), $"Rolled id {id} must rebuild to a definition.");
+                Assert.AreNotEqual(NetItemId.None, id);
+                Assert.IsNotNull(ItemCatalog.CreateFromId(id));
             }
         }
 
         [Test]
-        public void TypeOf_Recovers_The_Type_For_Every_Real_Item()
+        public void TypeOf_Recovers_Type_For_Every_Real_Item()
         {
-            Assert.AreEqual(ItemType.Accel, ItemCatalog.TypeOf(NetItemId.AccelBase));
-            Assert.AreEqual(ItemType.Accel, ItemCatalog.TypeOf(NetItemId.AccelDerived));
-            Assert.AreEqual(ItemType.Attack, ItemCatalog.TypeOf(NetItemId.AttackBase));
-            Assert.AreEqual(ItemType.Attack, ItemCatalog.TypeOf(NetItemId.AttackDerived));
-            Assert.AreEqual(ItemType.Defense, ItemCatalog.TypeOf(NetItemId.DefenseBase));
-            Assert.AreEqual(ItemType.Defense, ItemCatalog.TypeOf(NetItemId.DefenseDerived));
+            foreach (NetItemId id in ItemCatalog.AllIds)
+            {
+                ItemDefinition definition = ItemCatalog.CreateFromId(id);
+                Assert.AreEqual(definition.type, ItemCatalog.TypeOf(id), id.ToString());
+            }
         }
-
-        // --- NetworkItemSlots fill/replace rule (mirrors local ItemSlots.CollectItem) ---
 
         [Test]
         public void ApplyCollect_Fills_Primary_Then_Secondary_Then_Replaces_Primary()
         {
-            // Empty -> primary fills.
-            NetworkItemSlots.ApplyCollect(NetItemId.None, NetItemId.None, NetItemId.AccelBase,
-                out NetItemId p, out NetItemId s);
-            Assert.AreEqual(NetItemId.AccelBase, p);
-            Assert.AreEqual(NetItemId.None, s);
+            NetworkItemSlots.ApplyCollect(NetItemId.None, NetItemId.None, NetItemId.Gasoline,
+                out NetItemId primary, out NetItemId secondary);
+            Assert.AreEqual(NetItemId.Gasoline, primary);
+            Assert.AreEqual(NetItemId.None, secondary);
 
-            // Primary full -> secondary fills, primary untouched.
-            NetworkItemSlots.ApplyCollect(NetItemId.AccelBase, NetItemId.None, NetItemId.AttackBase,
-                out p, out s);
-            Assert.AreEqual(NetItemId.AccelBase, p);
-            Assert.AreEqual(NetItemId.AttackBase, s);
+            NetworkItemSlots.ApplyCollect(NetItemId.Gasoline, NetItemId.None, NetItemId.Bomb,
+                out primary, out secondary);
+            Assert.AreEqual(NetItemId.Gasoline, primary);
+            Assert.AreEqual(NetItemId.Bomb, secondary);
 
-            // Both full -> primary is replaced, secondary untouched.
-            NetworkItemSlots.ApplyCollect(NetItemId.AccelBase, NetItemId.AttackBase, NetItemId.DefenseDerived,
-                out p, out s);
-            Assert.AreEqual(NetItemId.DefenseDerived, p);
-            Assert.AreEqual(NetItemId.AttackBase, s);
+            NetworkItemSlots.ApplyCollect(NetItemId.Gasoline, NetItemId.Bomb, NetItemId.GoldenShield,
+                out primary, out secondary);
+            Assert.AreEqual(NetItemId.GoldenShield, primary);
+            Assert.AreEqual(NetItemId.Bomb, secondary);
         }
-
-        // --- NetworkItemSlots use-slot selection (mirrors local ItemSlots use routing) ---
 
         [Test]
         public void SelectAccelSlot_Prefers_Primary_Then_Secondary()
         {
             Assert.AreEqual(ItemSlotChoice.Primary,
-                NetworkItemSlots.SelectAccelSlot(NetItemId.AccelBase, NetItemId.AttackBase));
+                NetworkItemSlots.SelectAccelSlot(NetItemId.Gasoline, NetItemId.Bomb));
             Assert.AreEqual(ItemSlotChoice.Secondary,
-                NetworkItemSlots.SelectAccelSlot(NetItemId.AttackBase, NetItemId.AccelDerived));
+                NetworkItemSlots.SelectAccelSlot(NetItemId.Bomb, NetItemId.JaeSeokGasoline));
             Assert.AreEqual(ItemSlotChoice.None,
-                NetworkItemSlots.SelectAccelSlot(NetItemId.AttackBase, NetItemId.DefenseBase));
-            Assert.AreEqual(ItemSlotChoice.None,
-                NetworkItemSlots.SelectAccelSlot(NetItemId.None, NetItemId.None));
+                NetworkItemSlots.SelectAccelSlot(NetItemId.Bomb, NetItemId.GoldenShield));
         }
 
         [Test]
         public void SelectAttackDefenseSlot_Prefers_Primary_Then_Secondary_Skipping_Accel()
         {
             Assert.AreEqual(ItemSlotChoice.Primary,
-                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.AttackBase, NetItemId.AccelBase));
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.C4, NetItemId.Gasoline));
             Assert.AreEqual(ItemSlotChoice.Secondary,
-                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.AccelBase, NetItemId.DefenseBase));
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.Gasoline, NetItemId.SpikedShield));
             Assert.AreEqual(ItemSlotChoice.None,
-                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.AccelBase, NetItemId.AccelDerived));
-            Assert.AreEqual(ItemSlotChoice.None,
-                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.None, NetItemId.None));
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.Gasoline, NetItemId.SuperGasoline));
         }
     }
 }

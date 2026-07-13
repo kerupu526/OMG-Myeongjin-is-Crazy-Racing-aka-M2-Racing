@@ -24,6 +24,51 @@ public static class BuildCheck
         EditorApplication.Exit(0);
     }
 
+    public static void BuildItemSpriteLibrary()
+    {
+        Debug.Log("=== M2_ITEM_ART_BUILD_START ===");
+        try
+        {
+            M2.Editor.ItemArtBuilder.Build();
+            Debug.Log("=== M2_ITEM_ART_BUILD_OK ===");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"M2_ITEM_ART_BUILD_FAIL: {e}");
+            EditorApplication.Exit(1);
+        }
+    }
+
+    public static void SmokeTestItemSpriteLibrary()
+    {
+        Debug.Log("=== M2_ITEM_ART_SMOKE_TEST_START ===");
+        var library = AssetDatabase.LoadAssetAtPath<M2.Items.ItemSpriteLibrary>(
+            "Assets/Resources/ItemSpriteLibrary.asset");
+        if (library == null || library.Entries.Count != M2.Items.ItemCatalog.AllIds.Length)
+        {
+            Debug.LogError("M2_ITEM_ART_SMOKE_TEST_FAIL: library missing or roster count mismatch");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        var seen = new System.Collections.Generic.HashSet<M2.Items.NetItemId>();
+        foreach (var entry in library.Entries)
+        {
+            string path = AssetDatabase.GetAssetPath(entry.sprite);
+            if (entry.sprite == null || !seen.Add(entry.id) ||
+                path.EndsWith("jindungongcheong.png", System.StringComparison.OrdinalIgnoreCase))
+            {
+                Debug.LogError($"M2_ITEM_ART_SMOKE_TEST_FAIL: invalid/duplicate/forbidden entry {entry.id} ({path})");
+                EditorApplication.Exit(1);
+                return;
+            }
+        }
+
+        Debug.Log("=== M2_ITEM_ART_SMOKE_TEST_OK ===");
+        EditorApplication.Exit(0);
+    }
+
     /// <summary>
     /// TestTrackBuilder.BuildAndSave*Scene()을 헤드리스로 실행해서 Assets/Scenes/Stage_*.unity를
     /// 실제로 생성/갱신하는 진입점들. -executeMethod BuildCheck.BuildBikiniCityScene 처럼 호출.

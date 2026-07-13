@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8db511f9447c5c74faae004e9a929899, type: 3}
+  m_Name: ItemSpriteLibrary
+  m_EditorClassIdentifier: M2.Runtime::M2.Items.ItemSpriteLibrary
+  entries:
+  - id: 1
+    sprite: {fileID: 21300000, guid: 1c39ef314ff868b4b95ce3d9c2d77295, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 2
+    sprite: {fileID: 21300000, guid: b8bdacff50c6b2a42ad29e2c0c18d5a1, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 3
+    sprite: {fileID: 21300000, guid: f96deac1ab2db8d4884d339d8eda08d8, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 4
+    sprite: {fileID: 21300000, guid: 4a6b23dfd8e5b964c91f32f22983b0f7, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 16
+    sprite: {fileID: 21300000, guid: 3584ae37f7e5a7445b56a192cfe36ce6, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 17
+    sprite: {fileID: 21300000, guid: ac6994887a98f1b4c9911fd6ae61fe38, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 18
+    sprite: {fileID: 21300000, guid: 24890097fe2adbe459fef2244bbc0af6, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 19
+    sprite: {fileID: 21300000, guid: 41e092141bc0f2543992d40601d2746c, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 20
+    sprite: {fileID: 21300000, guid: a2040e06473f5bc46aeb32edc8baf9dc, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 21
+    sprite: {fileID: 21300000, guid: 2bc6e8713c79df44cb0bde00622451f1, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 32
+    sprite: {fileID: 21300000, guid: 588e0d8a3c39d21469d07a5072b26b08, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 33
+    sprite: {fileID: 21300000, guid: 9b332303644fb1848ac6bdb8f2e2e6b2, type: 3}
+    tint: {r: 1, g: 1, b: 1, a: 1}
+  - id: 34
+    sprite: {fileID: 21300000, guid: 588e0d8a3c39d21469d07a5072b26b08, type: 3}
+    tint: {r: 1, g: 0.72, b: 0.12, a: 1}

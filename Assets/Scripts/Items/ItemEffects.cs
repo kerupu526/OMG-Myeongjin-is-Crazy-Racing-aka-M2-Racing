@@ -28,7 +28,15 @@ namespace M2.Items
             spriteChild.transform.SetParent(marker.transform);
             spriteChild.transform.localPosition = Vector3.up * 0.4f;
             SpriteRenderer spriteRenderer = spriteChild.AddComponent<SpriteRenderer>();
-            spriteRenderer.sprite = PlaceholderSpriteFactory.CreateCircleSprite(Color.black, new Color(1f, 0.3f, 0f), 64, 64f);
+            if (ItemArt.TryGet(definition.id, out Sprite sprite, out Color tint))
+            {
+                spriteRenderer.sprite = sprite;
+                spriteRenderer.color = tint;
+            }
+            else
+            {
+                spriteRenderer.sprite = PlaceholderSpriteFactory.CreateCircleSprite(Color.black, new Color(1f, 0.3f, 0f), 64, 64f);
+            }
             spriteRenderer.sortingOrder = 5;
             spriteChild.AddComponent<BillboardSprite>();
 
