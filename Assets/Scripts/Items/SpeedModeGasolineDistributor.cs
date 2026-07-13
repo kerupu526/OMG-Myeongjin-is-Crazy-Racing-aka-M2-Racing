@@ -5,12 +5,13 @@ using UnityEngine;
 
 namespace M2.Items
 {
-    /// <summary>Issues the speed-mode's regular basic-gasoline pickup to every active racer.</summary>
+    /// <summary>Automatically applies speed mode's basic gasoline boost to every active racer.</summary>
     [DisallowMultipleComponent]
     public class SpeedModeGasolineDistributor : MonoBehaviour
     {
         GameManager gameManager;
         float elapsed;
+        bool raceWasActive;
 
         void Awake()
         {
@@ -24,6 +25,16 @@ namespace M2.Items
                 gameManager.CurrentState != RaceState.Racing)
             {
                 elapsed = 0f;
+                raceWasActive = false;
+                return;
+            }
+
+            // The baseline boost begins with the race. Subsequent boosts use the configured
+            // cadence and bypass the item inventory entirely.
+            if (!raceWasActive)
+            {
+                raceWasActive = true;
+                GrantGasoline();
                 return;
             }
 
@@ -39,21 +50,22 @@ namespace M2.Items
         public void GrantGasoline()
         {
             if (gameManager == null) return;
+            ItemDefinition gasoline = ItemCatalog.CreateFromId(NetItemId.Gasoline);
+            if (gasoline == null) return;
+
             for (int i = 0; i < gameManager.vehicles.Count; i++)
             {
                 VehicleController vehicle = gameManager.vehicles[i];
                 if (vehicle == null) continue;
 
-                ItemSlots localSlots = vehicle.GetComponent<ItemSlots>();
-                if (localSlots != null)
+                NetworkItemSlots networkSlots = vehicle.GetComponent<NetworkItemSlots>();
+                if (networkSlots != null)
                 {
-                    localSlots.CollectItem(ItemCatalog.CreateFromId(NetItemId.Gasoline));
+                    if (networkSlots.IsServer) networkSlots.ServerApplySpeedModeGasoline();
                     continue;
                 }
 
-                NetworkItemSlots networkSlots = vehicle.GetComponent<NetworkItemSlots>();
-                if (networkSlots != null && networkSlots.IsServer)
-                    networkSlots.ServerCollect(NetItemId.Gasoline);
+                vehicle.ApplySpeedBoost(gasoline.speedBonus, gasoline.duration);
             }
         }
     }

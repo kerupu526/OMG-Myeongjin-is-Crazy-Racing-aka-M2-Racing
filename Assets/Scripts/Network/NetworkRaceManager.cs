@@ -75,6 +75,12 @@ namespace M2.Network
         ulong otherClientId;
         bool flowBegun;
         bool eventsHooked;
+        NetworkItemSpawnManager itemSpawnManager;
+
+        void Awake()
+        {
+            itemSpawnManager = GetComponent<NetworkItemSpawnManager>();
+        }
 
         public override void OnNetworkSpawn()
         {
@@ -93,6 +99,7 @@ namespace M2.Network
             netSpeedModeMaximumKph.OnValueChanged += HandleSpeedLimitChanged;
             ApplyLocalInputLock((RaceState)netState.Value);
             ApplyLocalRaceRules();
+            ApplyItemSpawnRules();
         }
 
         public override void OnNetworkDespawn()
@@ -153,6 +160,7 @@ namespace M2.Network
             netRaceMode.Value = (int)gameManager.raceMode;
             netTargetLapCount.Value = gameManager.targetLapCount;
             netSpeedModeMaximumKph.Value = gameManager.speedModeMaximumKph;
+            ApplyItemSpawnRules();
         }
 
         // Waits until both players' vehicles exist, then registers them with the host GameManager
@@ -240,7 +248,11 @@ namespace M2.Network
             ApplyLocalInputLock((RaceState)newValue);
         }
 
-        void HandleRaceRulesChanged(int _, int __) => ApplyLocalRaceRules();
+        void HandleRaceRulesChanged(int _, int __)
+        {
+            ApplyLocalRaceRules();
+            ApplyItemSpawnRules();
+        }
 
         void HandleSpeedLimitChanged(float _, float __) => ApplyLocalRaceRules();
 
@@ -257,6 +269,15 @@ namespace M2.Network
             if (localVehicle == null) return;
             if (Mode == RaceMode.Speed) localVehicle.SetAbsoluteSpeedLimitKph(SpeedModeMaximumKph);
             else localVehicle.ClearAbsoluteSpeedLimit();
+        }
+
+        void ApplyItemSpawnRules()
+        {
+            if (itemSpawnManager == null) itemSpawnManager = GetComponent<NetworkItemSpawnManager>();
+            if (itemSpawnManager == null) return;
+
+            RaceMode mode = IsServer && gameManager != null ? gameManager.raceMode : Mode;
+            itemSpawnManager.SetSpawnEnabled(mode != RaceMode.Speed);
         }
 
         VehicleController LocalOwnedVehicle()

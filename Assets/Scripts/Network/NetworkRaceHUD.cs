@@ -92,7 +92,7 @@ namespace M2.Network
             infoLabel.text =
                 $"모드: {ModeLabel(raceManager.Mode)} · {raceManager.TargetLapCount}바퀴\n" +
                 (raceManager.Mode == RaceMode.Speed
-                    ? $"최고 {raceManager.SpeedModeMaximumKph:0}km/h · 휘발유 자동 지급\n"
+                    ? $"최고 {raceManager.SpeedModeMaximumKph:0}km/h · 기본 휘발유 {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다 자동 분사\n"
                     : "") +
                 $"상태: {StateLabel(raceManager.State)}\n" +
                 $"남은 시간: {FormatTime(raceManager.TimeRemaining)}\n" +
@@ -105,6 +105,12 @@ namespace M2.Network
         // owned vehicle's replicated slots and its status mirrors.
         string ItemStatusLines()
         {
+            if (raceManager != null && raceManager.Mode == RaceMode.Speed)
+            {
+                return $"자동 보급: 기본 휘발유 {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다\n" +
+                       "아이템 슬롯: 사용 안 함";
+            }
+
             EnsureLocalRefs();
 
             string slot1 = "-";

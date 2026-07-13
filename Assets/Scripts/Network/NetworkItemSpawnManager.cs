@@ -46,9 +46,13 @@ namespace M2.Network
         // The cosmetic pickup visual currently shown at each point (null = none). Local to each peer.
         GameObject[] visuals;
         NetItemId[] shownIds;
+        bool spawnsEnabled = true;
 
         // Server-only respawn countdowns per point (seconds remaining; <= 0 = not waiting).
         float[] respawnTimers;
+
+        /// <summary>Whether this manager is allowed to show or roll track item pickups.</summary>
+        public bool SpawnsEnabled => spawnsEnabled;
 
         public override void OnNetworkSpawn()
         {
@@ -59,12 +63,7 @@ namespace M2.Network
             if (IsServer)
             {
                 respawnTimers = new float[points.Length];
-                // Seed one item per point. NetworkList entries added here are part of the initial
-                // replicated state clients receive when they spawn their copy of this object.
-                for (int i = 0; i < points.Length; i++)
-                {
-                    netSpawnItems.Add((byte)ItemCatalog.CreateRandomIdForSpawn());
-                }
+                SeedEmptySpawnPoints();
             }
 
             // Build visuals for whatever state exists now (on a client the list arrives pre-populated
@@ -92,7 +91,7 @@ namespace M2.Network
 
         void Update()
         {
-            if (!IsServer || !IsSpawned) return;
+            if (!IsServer || !IsSpawned || !spawnsEnabled) return;
 
             DetectPickups();
             TickRespawns();
@@ -158,6 +157,46 @@ namespace M2.Network
             }
         }
 
+        /// <summary>
+        /// Enables or clears the replicated pickup state for the current race mode. Each peer
+        /// calls this from NetworkRaceManager so clients hide stale cosmetics immediately, while
+        /// the server remains the only writer of the NetworkList.
+        /// </summary>
+        public void SetSpawnEnabled(bool enabled)
+        {
+            if (spawnsEnabled == enabled) return;
+            spawnsEnabled = enabled;
+
+            if (!enabled)
+            {
+                if (IsServer && IsSpawned)
+                {
+                    for (int i = 0; i < netSpawnItems.Count; i++)
+                        netSpawnItems[i] = (byte)NetItemId.None;
+                    if (respawnTimers != null) System.Array.Clear(respawnTimers, 0, respawnTimers.Length);
+                }
+                DestroyAllVisuals();
+                return;
+            }
+
+            if (IsServer && IsSpawned) SeedEmptySpawnPoints();
+            RefreshAllVisuals();
+        }
+
+        void SeedEmptySpawnPoints()
+        {
+            if (!IsServer || points == null || !spawnsEnabled) return;
+
+            while (netSpawnItems.Count < points.Length)
+                netSpawnItems.Add((byte)NetItemId.None);
+
+            for (int i = 0; i < points.Length; i++)
+            {
+                if ((NetItemId)netSpawnItems[i] == NetItemId.None)
+                    netSpawnItems[i] = (byte)ItemCatalog.CreateRandomIdForSpawn();
+            }
+        }
+
         bool IsPlayerNear(Vector3 position)
         {
             var manager = NetworkManager;
@@ -190,7 +229,9 @@ namespace M2.Network
 
             for (int i = 0; i < points.Length; i++)
             {
-                NetItemId desired = i < netSpawnItems.Count ? (NetItemId)netSpawnItems[i] : NetItemId.None;
+                NetItemId desired = spawnsEnabled && i < netSpawnItems.Count
+                    ? (NetItemId)netSpawnItems[i]
+                    : NetItemId.None;
                 if (desired == shownIds[i] && (desired == NetItemId.None) == (visuals[i] == null))
                 {
                     continue; // already showing the right thing

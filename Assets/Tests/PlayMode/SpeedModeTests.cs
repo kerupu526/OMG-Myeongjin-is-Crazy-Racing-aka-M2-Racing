@@ -15,6 +15,7 @@ namespace M2.Tests.PlayMode
         GameObject vehicleObject;
         GameObject gameManagerObject;
         GameObject canvasObject;
+        GameObject itemSpawnerObject;
 
         [TearDown]
         public void TearDown()
@@ -22,6 +23,7 @@ namespace M2.Tests.PlayMode
             if (canvasObject != null) Object.DestroyImmediate(canvasObject);
             if (vehicleObject != null) Object.DestroyImmediate(vehicleObject);
             if (gameManagerObject != null) Object.DestroyImmediate(gameManagerObject);
+            if (itemSpawnerObject != null) Object.DestroyImmediate(itemSpawnerObject);
         }
 
         GameManager CreateGameManager()
@@ -55,7 +57,7 @@ namespace M2.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Speed_Mode_Automatically_Grants_Basic_Gasoline_While_Racing()
+        public IEnumerator Speed_Mode_Automatically_Applies_Basic_Gasoline_Without_Using_An_Item_Slot()
         {
             VehicleController vehicle = CreateVehicleWithSlots(out ItemSlots slots);
             GameManager gameManager = CreateGameManager();
@@ -69,8 +71,32 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(RaceState.Racing, gameManager.CurrentState);
 
             yield return new WaitForSeconds(0.12f);
-            Assert.IsNotNull(slots.PrimarySlot);
-            Assert.AreEqual(NetItemId.Gasoline, slots.PrimarySlot.id);
+            Assert.IsNull(slots.PrimarySlot);
+            Assert.IsNull(slots.SecondarySlot);
+            Assert.IsTrue(vehicle.HasSpeedBoost);
+        }
+
+        [Test]
+        public void Speed_Mode_Uses_A_Five_Second_Basic_Gasoline_Cadence()
+        {
+            GameManager gameManager = CreateGameManager();
+
+            Assert.AreEqual(RaceModeRules.SpeedModeGasolineInterval, gameManager.speedModeGasolineInterval, 0.001f);
+        }
+
+        [UnityTest]
+        public IEnumerator Speed_Mode_Disables_Track_Item_Pickups()
+        {
+            itemSpawnerObject = new GameObject("SpeedModeItemSpawner");
+            ItemSpawner spawner = itemSpawnerObject.AddComponent<ItemSpawner>();
+            GameManager gameManager = CreateGameManager();
+            gameManager.autoStartOnStart = false;
+
+            gameManager.ConfigureRoomSettings(RaceMode.Speed, 3, VictoryCondition.SimpleFinish);
+            yield return null;
+
+            Assert.IsFalse(spawner.SpawnEnabled);
+            Assert.AreEqual(0, itemSpawnerObject.GetComponentsInChildren<ItemPickup>(true).Length);
         }
 
         [UnityTest]

@@ -37,8 +37,8 @@ namespace M2.Core
         public RaceMode raceMode = RaceMode.Item;
         [Tooltip("스피드전의 절대 최고 속도(km/h). 아이템·드리프트 가속도 이 값을 넘을 수 없음.")]
         public float speedModeMaximumKph = RaceModeRules.SpeedModeMaximumKph;
-        [Tooltip("스피드전에서 각 레이서에게 기본 휘발유를 자동 지급하는 간격(초).")]
-        public float speedModeGasolineInterval = 15f;
+        [Tooltip("스피드전에서 각 레이서에게 기본 휘발유를 자동 분사하는 간격(초). 슬롯을 차지하지 않는다.")]
+        public float speedModeGasolineInterval = RaceModeRules.SpeedModeGasolineInterval;
 
         [Header("References (auto-collected if empty)")]
         public List<LapTracker> racers = new List<LapTracker>();
@@ -148,6 +148,12 @@ namespace M2.Core
             }
 
             for (int i = 0; i < vehicles.Count; i++) ApplyModeToVehicle(vehicles[i]);
+
+            // 스피드전은 랜덤 픽업을 쓰지 않는다. 기본 휘발유는 슬롯으로 들어가지 않고
+            // SpeedModeGasolineDistributor가 자동 분사하므로, 이미 떠 있던 픽업도 즉시 없앤다.
+            bool allowTrackItems = !IsSpeedMode;
+            foreach (ItemSpawner spawner in FindObjectsByType<ItemSpawner>(FindObjectsSortMode.None))
+                spawner.SetSpawnEnabled(allowTrackItems);
         }
 
         // Adds a racer/vehicle pair before the flow starts — used by the networked host, whose

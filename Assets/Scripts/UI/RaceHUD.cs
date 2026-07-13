@@ -33,6 +33,7 @@ namespace M2.UI
         Text primaryNameLabel;
         Text secondaryNameLabel;
         Text itemDetailLabel;
+        Text itemHintLabel;
         Image primaryIcon;
         Image secondaryIcon;
         readonly List<GameObject> presentationRoots = new List<GameObject>();
@@ -95,9 +96,17 @@ namespace M2.UI
             timeLabel.text = $"<size=14>TIME · 남은 시간</size>\n<size=34>{FormatTime(timeLeft)}</size>";
             versusLabel.text = BuildVersusText(lap);
 
-            RefreshSlot(itemSlots != null ? itemSlots.PrimarySlot : null, primaryIcon, primaryNameLabel, "1");
-            RefreshSlot(itemSlots != null ? itemSlots.SecondarySlot : null, secondaryIcon, secondaryNameLabel, "2");
-            RefreshItemDetail();
+            if (gameManager != null && gameManager.IsSpeedMode)
+            {
+                RefreshSpeedModeSupply();
+            }
+            else
+            {
+                RefreshSlot(itemSlots != null ? itemSlots.PrimarySlot : null, primaryIcon, primaryNameLabel, "1");
+                RefreshSlot(itemSlots != null ? itemSlots.SecondarySlot : null, secondaryIcon, secondaryNameLabel, "2");
+                RefreshItemDetail();
+                if (itemHintLabel != null) itemHintLabel.text = "아이템 슬롯 · Ctrl 가속 · E 사용 · P C4 기폭";
+            }
         }
 
         void BuildLayout()
@@ -130,10 +139,10 @@ namespace M2.UI
             GameObject slotHint = new GameObject("RaceHud_ItemHint", typeof(RectTransform));
             slotHint.transform.SetParent(transform, false);
             presentationRoots.Add(slotHint);
-            Text hint = slotHint.AddComponent<Text>();
-            ConfigureText(hint, 14, new Color(1f, 1f, 1f, 0.85f), TextAnchor.LowerLeft);
-            hint.text = "아이템 슬롯 · Ctrl 가속 · E 사용 · P C4 기폭";
-            SetRect(hint.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(16f, 82f), new Vector2(390f, 20f));
+            itemHintLabel = slotHint.AddComponent<Text>();
+            ConfigureText(itemHintLabel, 14, new Color(1f, 1f, 1f, 0.85f), TextAnchor.LowerLeft);
+            itemHintLabel.text = "아이템 슬롯 · Ctrl 가속 · E 사용 · P C4 기폭";
+            SetRect(itemHintLabel.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(16f, 82f), new Vector2(390f, 20f));
         }
 
         void CreateItemCard(string name, Vector2 position, out Image icon, out Text itemName, string slotNumber)
@@ -184,6 +193,25 @@ namespace M2.UI
             itemDetailLabel.text = definition == null
                 ? "<color=#FFD93D>아이템 대기 중</color>\n트랙의 픽업을 획득하면 실제 스프라이트와 상세 설명이 표시됩니다."
                 : $"<color=#FFD93D>{definition.itemName}</color>\n{definition.description}";
+        }
+
+        void RefreshSpeedModeSupply()
+        {
+            if (primaryIcon != null) primaryIcon.enabled = false;
+            if (secondaryIcon != null) secondaryIcon.enabled = false;
+            if (primaryNameLabel != null) primaryNameLabel.text = "기본 휘발유 · 자동";
+            if (secondaryNameLabel != null) secondaryNameLabel.text = "랜덤 아이템 없음";
+
+            float interval = gameManager != null
+                ? Mathf.Max(0.05f, gameManager.speedModeGasolineInterval)
+                : RaceModeRules.SpeedModeGasolineInterval;
+            if (itemDetailLabel != null)
+            {
+                itemDetailLabel.text = $"<color=#FFD93D>기본 휘발유 자동 분사</color>\n" +
+                    $"레이스 시작 시와 이후 {interval:0.#}초마다 자동으로 가속합니다. 아이템 슬롯을 차지하지 않습니다.";
+            }
+            if (itemHintLabel != null)
+                itemHintLabel.text = $"스피드전 · 기본 휘발유 {interval:0.#}초마다 자동 분사";
         }
 
         string BuildVersusText(int localLap)

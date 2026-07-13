@@ -18,6 +18,7 @@ namespace M2.Core
     {
         public const int SpeedModeLapCount = 5;
         public const float SpeedModeMaximumKph = 100f;
+        public const float SpeedModeGasolineInterval = 5f;
         public const float KphToMetersPerSecond = 1f / 3.6f;
 
         public static int NormalizeItemLapCount(int requestedLapCount)
