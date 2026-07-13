@@ -37,7 +37,8 @@ namespace M2.Tests.PlayMode
 
             CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
             Assert.AreEqual(CanvasScaler.ScaleMode.ScaleWithScreenSize, scaler.uiScaleMode);
-            Assert.AreEqual(new Vector2(1920f, 1080f), scaler.referenceResolution);
+            Assert.AreEqual(RaceHUD.GameplayReferenceResolution, scaler.referenceResolution);
+            Assert.AreEqual(UiTypography.Display, legacyLabel.GetComponent<Text>().font);
             Assert.IsNotNull(canvasObject.GetComponent<StageGaugeHUD>());
 
             AssertReadableCard("RaceHud_LapCard", new Vector2(166f, 112f));

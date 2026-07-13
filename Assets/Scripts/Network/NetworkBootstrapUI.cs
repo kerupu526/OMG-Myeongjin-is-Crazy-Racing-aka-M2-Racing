@@ -70,6 +70,7 @@ namespace M2.Network
             SetButtonLabel(joinButton, "방 참가");
             if (statusText != null)
             {
+                UiTypography.Apply(statusText);
                 statusText.rectTransform.sizeDelta = new Vector2(900f, 84f);
                 statusText.fontSize = 30;
                 statusText.alignment = TextAnchor.UpperCenter;
@@ -78,8 +79,10 @@ namespace M2.Network
 
             joinCodeInputField.text = string.Empty;
             joinCodeInputField.characterLimit = 12;
+            UiTypography.Apply(joinCodeInputField.textComponent);
             if (joinCodeInputField.placeholder is Text placeholder)
             {
+                UiTypography.Apply(placeholder);
                 placeholder.text = "방 코드";
             }
         }
@@ -88,7 +91,11 @@ namespace M2.Network
         {
             if (button == null) return;
             Text text = button.GetComponentInChildren<Text>();
-            if (text != null) text.text = label;
+            if (text != null)
+            {
+                UiTypography.Apply(text);
+                text.text = label;
+            }
         }
 
         void ApproveConnection(NetworkManager.ConnectionApprovalRequest request,

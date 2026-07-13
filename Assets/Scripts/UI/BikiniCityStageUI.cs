@@ -35,6 +35,8 @@ namespace M2.UI
 
         void Start()
         {
+            UiTypography.Apply(oxygenLabel);
+            UiTypography.Apply(gameOverText, UiFontRole.Display);
             SetActive(warningOverlay != null ? warningOverlay.gameObject : null, false);
             SetActive(gameOverPanel, false);
             if (FindFirstObjectByType<StageGaugeHUD>() != null && oxygenLabel != null)

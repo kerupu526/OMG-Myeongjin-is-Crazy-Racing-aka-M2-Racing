@@ -13,7 +13,7 @@ namespace M2.Tests.PlayMode
     // Builds a minimal drivable scene and captures screenshots while driving forward.
     // Not assertion-based — this is for visual/manual confirmation that rendering,
     // the vehicle sprite, camera follow, and UI actually show up correctly.
-    public class ScreenshotSmokeTest : InputTestFixture
+    public class ScreenshotSmokeTest : StableInputTestFixture
     {
         static readonly string ShotDirectory = Path.Combine(Application.dataPath, "..", "TestScreenshots");
 

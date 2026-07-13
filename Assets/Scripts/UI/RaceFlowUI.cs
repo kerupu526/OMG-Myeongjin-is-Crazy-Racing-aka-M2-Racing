@@ -60,6 +60,7 @@ namespace M2.UI
 
         void Start()
         {
+            ConfigureCanvasScaling();
             ApplyPresentationStyle();
             // Hide everything initially
             SetPanelActive(briefingPanel, false);
@@ -244,7 +245,7 @@ namespace M2.UI
             StylePanel(resultPanel, new Color(0.102f, 0.063f, 0.188f, 0.92f));
 
             StyleText(briefingText, 30, Color.white, Color.black);
-            StyleText(countdownText, 112, new Color(1f, 0.851f, 0.239f), new Color(0.102f, 0.063f, 0.188f));
+            StyleText(countdownText, 112, new Color(1f, 0.851f, 0.239f), new Color(0.102f, 0.063f, 0.188f), UiFontRole.Display);
             StyleText(resultText, 38, Color.white, new Color(0.102f, 0.063f, 0.188f));
             briefingCard = EnsureModalCard(briefingPanel, briefingText, "BriefingCard", new Vector2(720f, 460f));
             resultCard = EnsureModalCard(resultPanel, resultText, "ResultCard", new Vector2(760f, 560f));
@@ -259,18 +260,24 @@ namespace M2.UI
                 outline.effectColor = new Color(0.102f, 0.063f, 0.188f);
                 outline.effectDistance = new Vector2(3f, -3f);
 
-                Text buttonText = startButton.GetComponentInChildren<Text>(true);
-                StyleText(buttonText, 28, Color.white, new Color(0.102f, 0.063f, 0.188f));
+                Text buttonText = startButton.transform.Find("Label")?.GetComponent<Text>() ??
+                    startButton.GetComponentInChildren<Text>(true);
+                StyleText(buttonText, 32, Color.white, new Color(0.102f, 0.063f, 0.188f));
                 if (buttonText != null)
                 {
                     buttonText.text = "레이스 시작";
+                    buttonText.alignment = TextAnchor.MiddleCenter;
                     buttonText.rectTransform.anchorMin = Vector2.zero;
                     buttonText.rectTransform.anchorMax = Vector2.one;
                     buttonText.rectTransform.offsetMin = Vector2.zero;
                     buttonText.rectTransform.offsetMax = Vector2.zero;
                 }
-                EnsurePresentationButtonLabel(startButton.transform);
             }
+        }
+
+        void ConfigureCanvasScaling()
+        {
+            RaceHUD.ConfigureGameplayCanvasScaling(GetComponent<CanvasScaler>());
         }
 
         void PlaceBriefingButtonInsideCard()
@@ -283,8 +290,9 @@ namespace M2.UI
             rect.anchorMin = new Vector2(0.5f, 0f);
             rect.anchorMax = new Vector2(0.5f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(0f, 36f);
-            rect.sizeDelta = new Vector2(260f, 68f);
+            rect.anchoredPosition = new Vector2(0f, 32f);
+            rect.sizeDelta = new Vector2(320f, 76f);
+            startButton.transform.SetAsLastSibling();
         }
 
         static GameObject EnsureModalCard(GameObject panel, Text content, string name, Vector2 size)
@@ -321,27 +329,6 @@ namespace M2.UI
             return card;
         }
 
-        static void EnsurePresentationButtonLabel(Transform buttonTransform)
-        {
-            Transform existing = buttonTransform.Find("PresentationLabel");
-            Text label = existing != null ? existing.GetComponent<Text>() : null;
-            if (label == null)
-            {
-                GameObject labelObject = new GameObject("PresentationLabel", typeof(RectTransform));
-                labelObject.transform.SetParent(buttonTransform, false);
-                label = labelObject.AddComponent<Text>();
-            }
-
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.text = "레이스 시작";
-            label.raycastTarget = false;
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = Vector2.zero;
-            label.rectTransform.offsetMax = Vector2.zero;
-            StyleText(label, 28, Color.white, new Color(0.102f, 0.063f, 0.188f));
-        }
-
         static void StylePanel(GameObject panel, Color color)
         {
             if (panel == null) return;
@@ -349,9 +336,11 @@ namespace M2.UI
             if (image != null) image.color = color;
         }
 
-        static void StyleText(Text text, int size, Color color, Color outlineColor)
+        static void StyleText(Text text, int size, Color color, Color outlineColor,
+            UiFontRole role = UiFontRole.Body)
         {
             if (text == null) return;
+            UiTypography.Apply(text, role);
             text.fontSize = size;
             text.color = color;
             text.supportRichText = true;

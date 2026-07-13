@@ -27,7 +27,11 @@ namespace M2.UI
 
         void OnEnable()
         {
-            if (label != null) label.text = "";
+            if (label != null)
+            {
+                UiTypography.Apply(label, UiFontRole.Display);
+                label.text = "";
+            }
         }
 
         void OnDisable()

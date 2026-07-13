@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using M2.Core;
 using M2.Items;
 using M2.Player;
+using M2.UI;
 
 namespace M2.Network
 {
@@ -25,6 +26,12 @@ namespace M2.Network
         // PlayerObject exists (it spawns a few frames after scene load, like the race manager).
         NetworkItemSlots localSlots;
         VehicleController localVehicle;
+
+        void Awake()
+        {
+            UiTypography.Apply(bannerLabel, UiFontRole.Display);
+            UiTypography.Apply(infoLabel);
+        }
 
         void Update()
         {

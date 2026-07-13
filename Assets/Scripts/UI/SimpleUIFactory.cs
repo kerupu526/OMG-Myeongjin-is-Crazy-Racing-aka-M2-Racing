@@ -32,7 +32,7 @@ namespace M2.UI
             textObj.transform.SetParent(parent, false);
 
             Text text = textObj.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text);
             text.fontSize = fontSize;
             text.color = color;
             text.alignment = TextAnchor.MiddleCenter;
@@ -77,7 +77,7 @@ namespace M2.UI
             textObj.transform.SetParent(parent, false);
 
             Text text = textObj.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text);
             text.fontSize = 22;
             text.color = Color.cyan;
             text.alignment = alignment;

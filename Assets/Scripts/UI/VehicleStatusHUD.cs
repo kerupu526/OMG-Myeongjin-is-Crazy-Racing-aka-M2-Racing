@@ -17,6 +17,11 @@ namespace M2.UI
 
         readonly StringBuilder builder = new StringBuilder();
 
+        void Start()
+        {
+            UiTypography.Apply(label);
+        }
+
         void Update()
         {
             if (label == null || vehicleController == null) return;

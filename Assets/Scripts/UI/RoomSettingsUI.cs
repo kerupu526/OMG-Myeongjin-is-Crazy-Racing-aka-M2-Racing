@@ -152,7 +152,7 @@ namespace M2.UI
             GameObject textObject = new GameObject(name, typeof(RectTransform));
             textObject.transform.SetParent(parent, false);
             Text text = textObject.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text);
             text.fontSize = fontSize;
             text.color = color;
             text.alignment = alignment;

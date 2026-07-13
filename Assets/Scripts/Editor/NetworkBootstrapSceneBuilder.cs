@@ -195,7 +195,7 @@ namespace M2.Editor
             GameObject textObject = new GameObject("Text");
             textObject.transform.SetParent(fieldObject.transform, false);
             Text text = textObject.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text);
             text.fontSize = 32;
             text.color = Color.black;
             text.alignment = TextAnchor.MiddleCenter;
@@ -208,7 +208,7 @@ namespace M2.Editor
             GameObject placeholderObject = new GameObject("Placeholder");
             placeholderObject.transform.SetParent(fieldObject.transform, false);
             Text placeholder = placeholderObject.AddComponent<Text>();
-            placeholder.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(placeholder);
             placeholder.fontSize = 32;
             placeholder.fontStyle = FontStyle.Italic;
             placeholder.color = new Color(0f, 0f, 0f, 0.4f);

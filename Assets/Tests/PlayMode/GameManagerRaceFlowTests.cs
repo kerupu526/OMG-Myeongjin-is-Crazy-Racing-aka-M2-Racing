@@ -133,8 +133,23 @@ namespace M2.Tests.PlayMode
         [UnityTest]
         public IEnumerator Manual_Start_Waits_For_RequestStart_Instead_Of_A_Timer()
         {
+            // A UnityTest coroutine starts after Start() has already had a chance to run, so
+            // configure a deliberately non-auto-starting manager before beginning this flow.
+            // Setting waitForManualStart on SetUp's auto-starting manager was a timing race and
+            // could verify the normal countdown instead of the manual-start behavior.
+            Object.DestroyImmediate(gmObject);
+            gmObject = new GameObject("ManualStartGameManager");
+            gm = gmObject.AddComponent<GameManager>();
+            gm.autoStartOnStart = false;
             gm.waitForManualStart = true;
             gm.briefingDuration = 0f; // irrelevant when waitForManualStart is true — prove it's ignored
+            gm.countdownSeconds = 1;
+            gm.targetLapCount = 1;
+            gm.lap1TimeLimit = 3f;
+            gm.raceTimer = raceTimer;
+            gm.racers.Add(lapTracker);
+            gm.vehicles.Add(vehicle);
+            gm.BeginRaceFlow();
 
             yield return WaitForState(RaceState.Briefing);
 

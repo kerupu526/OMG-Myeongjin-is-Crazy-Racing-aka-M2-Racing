@@ -43,6 +43,9 @@ namespace M2.UI
 
         void Start()
         {
+            UiTypography.Apply(mentalLabel);
+            UiTypography.Apply(lockoutText, UiFontRole.Display);
+            UiTypography.Apply(warningText, UiFontRole.Display);
             SetActive(lockoutPanel, false);
             SetActive(warningPanel, false);
             if (FindFirstObjectByType<StageGaugeHUD>() != null && mentalLabel != null)

@@ -7,7 +7,7 @@ using M2.Player;
 
 namespace M2.Tests.PlayMode
 {
-    public class VehicleControllerTests : InputTestFixture
+    public class VehicleControllerTests : StableInputTestFixture
     {
         GameObject vehicleObject;
         VehicleController vehicle;

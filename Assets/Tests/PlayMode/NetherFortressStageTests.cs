@@ -8,7 +8,7 @@ using M2.Stage;
 
 namespace M2.Tests.PlayMode
 {
-    public class NetherFortressStageTests : InputTestFixture
+    public class NetherFortressStageTests : StableInputTestFixture
     {
         GameObject vehicleObject;
         VehicleController vehicle;

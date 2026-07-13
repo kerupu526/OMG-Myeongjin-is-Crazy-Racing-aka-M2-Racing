@@ -8,7 +8,7 @@ using M2.Stage;
 
 namespace M2.Tests.PlayMode
 {
-    public class AfricaTvStageTests : InputTestFixture
+    public class AfricaTvStageTests : StableInputTestFixture
     {
         GameObject vehicleObject;
         VehicleController vehicle;

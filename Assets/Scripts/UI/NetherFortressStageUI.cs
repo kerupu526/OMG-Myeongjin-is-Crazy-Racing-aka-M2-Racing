@@ -38,6 +38,8 @@ namespace M2.UI
 
         void Start()
         {
+            UiTypography.Apply(temperatureLabel);
+            UiTypography.Apply(gameOverText, UiFontRole.Display);
             SetActive(warningFlash != null ? warningFlash.gameObject : null, false);
             SetActive(gameOverPanel, false);
             if (FindFirstObjectByType<StageGaugeHUD>() != null && temperatureLabel != null)

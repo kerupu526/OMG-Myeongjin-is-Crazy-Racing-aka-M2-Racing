@@ -12,6 +12,8 @@ namespace M2.UI
     /// </summary>
     public class RaceHUD : MonoBehaviour
     {
+        public static readonly Vector2 GameplayReferenceResolution = new Vector2(1280f, 720f);
+
         static readonly Color Ink = new Color(0.102f, 0.063f, 0.188f, 0.94f);
         static readonly Color Yellow = new Color(1f, 0.851f, 0.239f);
         static readonly Color Pink = new Color(1f, 0.184f, 0.620f);
@@ -50,10 +52,14 @@ namespace M2.UI
 
         void ConfigureCanvasScaling()
         {
-            CanvasScaler scaler = GetComponent<CanvasScaler>();
+            ConfigureGameplayCanvasScaling(GetComponent<CanvasScaler>());
+        }
+
+        public static void ConfigureGameplayCanvasScaling(CanvasScaler scaler)
+        {
             if (scaler == null) return;
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.referenceResolution = GameplayReferenceResolution;
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0.5f;
         }
@@ -113,13 +119,13 @@ namespace M2.UI
         {
             if (lapLabel != null) return;
 
-            lapLabel = label != null ? label : CreateText("RaceHud_LapText", transform, 24, Color.white, TextAnchor.MiddleCenter);
+            lapLabel = label != null ? label : CreateText("RaceHud_LapText", transform, 24, Color.white, TextAnchor.MiddleCenter, UiFontRole.Display);
             presentationRoots.Add(PlaceTextInCard(lapLabel, transform, "RaceHud_LapCard", new Vector2(0f, 1f), new Vector2(16f, -16f),
-                new Vector2(166f, 112f), Yellow));
+                new Vector2(166f, 112f), Yellow, UiFontRole.Display));
 
-            timeLabel = CreateText("RaceHud_TimeText", transform, 24, Color.white, TextAnchor.MiddleCenter);
+            timeLabel = CreateText("RaceHud_TimeText", transform, 24, Color.white, TextAnchor.MiddleCenter, UiFontRole.Display);
             presentationRoots.Add(PlaceTextInCard(timeLabel, transform, "RaceHud_TimeCard", new Vector2(1f, 1f), new Vector2(-16f, -16f),
-                new Vector2(198f, 112f), Pink));
+                new Vector2(198f, 112f), Pink, UiFontRole.Display));
 
             versusLabel = CreateText("RaceHud_VersusText", transform, 24, Color.white, TextAnchor.MiddleCenter);
             presentationRoots.Add(PlaceTextInCard(versusLabel, transform, "RaceHud_VersusCard", new Vector2(0.5f, 1f), new Vector2(0f, -16f),
@@ -163,7 +169,7 @@ namespace M2.UI
 
             GameObject badge = CreateCard(card.transform, "SlotNumber", Yellow, Ink);
             SetRect(badge.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(-8f, 8f), new Vector2(36f, 36f));
-            Text badgeText = CreateText("Text", badge.transform, 22, Ink, TextAnchor.MiddleCenter);
+            Text badgeText = CreateText("Text", badge.transform, 22, Ink, TextAnchor.MiddleCenter, UiFontRole.Metric);
             badgeText.text = slotNumber;
             Stretch(badgeText.rectTransform, Vector2.zero, Vector2.zero);
         }
@@ -251,6 +257,7 @@ namespace M2.UI
             ItemUseNotifier notifier = FindFirstObjectByType<ItemUseNotifier>();
             if (notifier != null && notifier.label != null)
             {
+                UiTypography.Apply(notifier.label, UiFontRole.Display);
                 notifier.label.fontSize = 32;
                 notifier.label.color = Ink;
                 AddOutline(notifier.label.gameObject, Ink, new Vector2(2f, -2f));
@@ -259,6 +266,7 @@ namespace M2.UI
             VehicleStatusHUD status = FindFirstObjectByType<VehicleStatusHUD>();
             if (status != null && status.label != null)
             {
+                UiTypography.Apply(status.label);
                 status.label.fontSize = 22;
                 status.label.color = Mint;
                 status.label.alignment = TextAnchor.LowerRight;
@@ -290,18 +298,20 @@ namespace M2.UI
             return card;
         }
 
-        static Text CreateText(string name, Transform parent, int size, Color color, TextAnchor alignment)
+        static Text CreateText(string name, Transform parent, int size, Color color, TextAnchor alignment,
+            UiFontRole role = UiFontRole.Body)
         {
             GameObject textObject = new GameObject(name, typeof(RectTransform));
             textObject.transform.SetParent(parent, false);
             Text text = textObject.AddComponent<Text>();
-            ConfigureText(text, size, color, alignment);
+            ConfigureText(text, size, color, alignment, role);
             return text;
         }
 
-        static void ConfigureText(Text text, int size, Color color, TextAnchor alignment)
+        static void ConfigureText(Text text, int size, Color color, TextAnchor alignment,
+            UiFontRole role = UiFontRole.Body)
         {
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text, role);
             text.fontSize = size;
             text.color = color;
             text.alignment = alignment;
@@ -311,12 +321,13 @@ namespace M2.UI
             text.raycastTarget = false;
         }
 
-        static GameObject PlaceTextInCard(Text text, Transform cardParent, string cardName, Vector2 anchor, Vector2 position, Vector2 size, Color border)
+        static GameObject PlaceTextInCard(Text text, Transform cardParent, string cardName, Vector2 anchor,
+            Vector2 position, Vector2 size, Color border, UiFontRole role = UiFontRole.Body)
         {
             GameObject card = CreateCard(cardParent, cardName, Ink, border);
             SetRect(card.GetComponent<RectTransform>(), anchor, anchor, position, size);
             text.transform.SetParent(card.transform, false);
-            ConfigureText(text, 24, Color.white, TextAnchor.MiddleCenter);
+            ConfigureText(text, 24, Color.white, TextAnchor.MiddleCenter, role);
             Stretch(text.rectTransform, new Vector2(12f, 8f), new Vector2(-12f, -8f));
             return card;
         }

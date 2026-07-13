@@ -73,7 +73,8 @@ namespace M2.UI
             titleLabel.rectTransform.anchorMax = new Vector2(0.65f, 1f);
             titleLabel.rectTransform.offsetMin = new Vector2(16f, -34f);
             titleLabel.rectTransform.offsetMax = new Vector2(0f, -4f);
-            valueLabel = CreateText("Value", container.transform, 22, new Color(1f, 0.851f, 0.239f), TextAnchor.UpperRight);
+            valueLabel = CreateText("Value", container.transform, 22, new Color(1f, 0.851f, 0.239f), TextAnchor.UpperRight,
+                UiFontRole.Metric);
             valueLabel.rectTransform.anchorMin = new Vector2(0.65f, 1f);
             valueLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
             valueLabel.rectTransform.offsetMin = new Vector2(0f, -34f);
@@ -132,12 +133,13 @@ namespace M2.UI
             return obj;
         }
 
-        static Text CreateText(string name, Transform parent, int size, Color color, TextAnchor alignment)
+        static Text CreateText(string name, Transform parent, int size, Color color, TextAnchor alignment,
+            UiFontRole role = UiFontRole.Body)
         {
             GameObject obj = new GameObject(name, typeof(RectTransform));
             obj.transform.SetParent(parent, false);
             Text text = obj.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text, role);
             text.fontSize = size;
             text.color = color;
             text.alignment = alignment;

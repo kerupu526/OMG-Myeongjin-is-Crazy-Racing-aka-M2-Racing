@@ -733,10 +733,7 @@ namespace M2.Editor
             Canvas canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+            RaceHUD.ConfigureGameplayCanvasScaling(scaler);
             canvasObject.AddComponent<GraphicRaycaster>();
 
             // Without an EventSystem, UI clicks (e.g. the "시작" button) never register at
@@ -761,7 +758,7 @@ namespace M2.Editor
             GameObject textObject = new GameObject("RaceLabel");
             textObject.transform.SetParent(canvasObject.transform);
             Text text = textObject.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(text, UiFontRole.Display);
             text.fontSize = 24;
             text.color = Color.white;
             text.alignment = TextAnchor.UpperLeft;
@@ -791,7 +788,7 @@ namespace M2.Editor
             GameObject debugTextObject = new GameObject("VehicleDebugLabel");
             debugTextObject.transform.SetParent(canvasObject.transform);
             Text debugText = debugTextObject.AddComponent<Text>();
-            debugText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(debugText);
             debugText.fontSize = 22;
             debugText.color = Color.white;
             debugText.alignment = TextAnchor.LowerRight;
@@ -812,7 +809,7 @@ namespace M2.Editor
             GameObject itemUseTextObject = new GameObject("ItemUseLabel");
             itemUseTextObject.transform.SetParent(canvasObject.transform);
             Text itemUseText = itemUseTextObject.AddComponent<Text>();
-            itemUseText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(itemUseText, UiFontRole.Display);
             itemUseText.fontSize = 32;
             itemUseText.color = Color.yellow;
             itemUseText.alignment = TextAnchor.UpperCenter;
@@ -835,7 +832,7 @@ namespace M2.Editor
             GameObject statusTextObject = new GameObject("VehicleStatusLabel");
             statusTextObject.transform.SetParent(canvasObject.transform);
             Text statusText = statusTextObject.AddComponent<Text>();
-            statusText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(statusText);
             statusText.fontSize = 22;
             statusText.color = Color.yellow;
             statusText.alignment = TextAnchor.UpperRight;
@@ -859,7 +856,7 @@ namespace M2.Editor
             GameObject wrongWayTextObject = new GameObject("WrongWayLabel");
             wrongWayTextObject.transform.SetParent(canvasObject.transform);
             Text wrongWayText = wrongWayTextObject.AddComponent<Text>();
-            wrongWayText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            UiTypography.Apply(wrongWayText, UiFontRole.Display);
             wrongWayText.fontSize = 40;
             wrongWayText.color = Color.red;
             wrongWayText.alignment = TextAnchor.MiddleCenter;
