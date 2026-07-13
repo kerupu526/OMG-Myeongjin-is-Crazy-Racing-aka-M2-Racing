@@ -11,6 +11,7 @@
 - `4545e57 Add persistent avatar profile UI`: 레이서 이름과 핑크·하늘·민트 아바타 색을 저장하고 메인·로비에 반영한다.
 - `218c99f Add persistent game settings UI`: 마스터 볼륨과 전체 화면 선택값을 저장한다. 볼륨은 `AudioListener`에 즉시 적용되며, 전체 화면은 독립 실행 빌드에서 적용된다.
 - `14416c7 Show saved racer name in results`: 결과 화면에서 `Vehicle_Placeholder` 대신 저장된 로컬 레이서 이름을 표시한다.
+- `5fc6618 Stabilize PlayMode input test isolation`: Unity 6의 UI 입력 상태와 충돌하던 전역 Input System 재설정을 없애고, 테스트별 가상 키보드 생성·정리로 바꿨다.
 
 기존 `RaceHUD`는 바퀴·시간·대전 상태·아이템 상세·스테이지 게이지를 1280×720 기준으로 제공하며, 스피드전에서는 랜덤 아이템 슬롯 대신 5초 자동 휘발유 안내를 표시한다.
 
@@ -36,7 +37,7 @@
 
 - 이번 연속 작업에서 직접 실행한 PlayMode 범위: `M2PlayerProfileTests` 2건, `M2GameSettingsTests` 1건, `NetworkMenuPresentationTests` 2건, `RaceFlowPresentationTests` 3건 — 모두 통과했다.
 - 이전에 실행한 `SpeedModeTests` 5건도 통과했다.
-- UI 후속 반영 뒤 전체 PlayMode 묶음은 아직 다시 실행하지 않았다. 전체 실행은 기존 실패 2건의 정확한 원인을 별도로 식별한 뒤 수행한다.
+- UI 후속 반영 뒤 전체 PlayMode 66건을 다시 실행했고, 66건 모두 통과했다(실패·inconclusive 0건).
 
 ## 온라인 검증 보류
 
