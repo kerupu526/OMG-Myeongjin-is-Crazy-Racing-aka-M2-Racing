@@ -77,6 +77,10 @@ namespace M2.Items
             }
 
             if (definition.heartEffect) SpawnHeartEffect(position);
+            if (definition.behavior == ItemBehavior.AtomicBomb)
+            {
+                Object.FindFirstObjectByType<GameManager>()?.EndRaceAsDraw("원자폭탄");
+            }
         }
 
         public static void SpawnHeartEffect(Vector3 position)

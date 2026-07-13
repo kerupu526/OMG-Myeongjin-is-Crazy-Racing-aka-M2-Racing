@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using M2.Items;
+using M2.Core;
 using M2.Player;
 using Unity.Netcode;
 using UnityEngine;
@@ -244,6 +245,9 @@ namespace M2.Network
                     victim.ApplyHitStunOwnerRpc(duration);
                 }
             }
+
+            if (def.behavior == ItemBehavior.AtomicBomb)
+                FindFirstObjectByType<GameManager>()?.EndRaceAsDraw("원자폭탄");
         }
 
         void TriggerChargingBombServer()

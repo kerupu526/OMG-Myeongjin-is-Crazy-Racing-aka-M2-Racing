@@ -26,6 +26,7 @@ namespace M2.Core
         public bool autoStartOnStart = true;
 
         [Header("Race Rules")]
+        public VictoryCondition victoryCondition = VictoryCondition.SimpleFinish;
         public int targetLapCount = 3;
         public float lap1TimeLimit = 180f;
         [Tooltip("Bonus seconds added on completing laps 2, 3, 4 respectively.")]
@@ -39,6 +40,7 @@ namespace M2.Core
         // --- Public state ---
         public RaceState CurrentState { get; private set; } = RaceState.PreRace;
         public float TimeRemaining { get; private set; }
+        public float RaceElapsedTime { get; private set; }
 
         // --- Events ---
         public event Action<RaceState> OnStateChanged;
@@ -51,6 +53,7 @@ namespace M2.Core
         bool raceFlowStarted;
         bool startRequested;
         readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
+        readonly Dictionary<LapTracker, RaceFinishResult> finishResults = new Dictionary<LapTracker, RaceFinishResult>();
 
         // Called by UI (a "시작" button) or a key press to end the Briefing wait when
         // waitForManualStart is true. Harmless no-op otherwise/at any other time.
@@ -113,10 +116,12 @@ namespace M2.Core
             if (CurrentState != RaceState.Racing) return;
 
             TimeRemaining -= Time.deltaTime;
+            RaceElapsedTime += Time.deltaTime;
             if (TimeRemaining <= 0f)
             {
                 TimeRemaining = 0f;
-                EndRace(null); // Time's up — draw
+                if (victoryCondition == VictoryCondition.StarBet) ResolveStarBetRace();
+                else EndRace(null); // Time's up — draw
             }
         }
 
@@ -153,6 +158,8 @@ namespace M2.Core
             // Racing
             SetState(RaceState.Racing);
             TimeRemaining = lap1TimeLimit;
+            RaceElapsedTime = 0f;
+            finishResults.Clear();
 
             if (raceTimer != null) raceTimer.StartRace();
             SetAllInputLocked(false);
@@ -187,8 +194,46 @@ namespace M2.Core
 
             if (racer.LapCount >= targetLapCount)
             {
-                EndRace(racer);
+                if (victoryCondition == VictoryCondition.SimpleFinish)
+                {
+                    EndRace(racer);
+                }
+                else if (!finishResults.ContainsKey(racer))
+                {
+                    finishResults[racer] = new RaceFinishResult
+                    {
+                        racer = racer,
+                        finished = true,
+                        finishTime = RaceElapsedTime,
+                        stars = ComputeStars(racer, RaceElapsedTime)
+                    };
+                    VehicleController vehicle = racer.GetComponent<VehicleController>();
+                    if (vehicle != null) vehicle.SetInputLocked(true);
+                    if (finishResults.Count >= racers.Count) ResolveStarBetRace();
+                }
             }
+        }
+
+        int ComputeStars(LapTracker racer, float finishTime)
+        {
+            foreach (MonoBehaviour component in racer.GetComponents<MonoBehaviour>())
+            {
+                if (component is IRaceStarProvider provider) return provider.ComputeTotalStars(finishTime);
+            }
+            return 0;
+        }
+
+        void ResolveStarBetRace()
+        {
+            var results = new List<RaceFinishResult>(racers.Count);
+            foreach (LapTracker racer in racers)
+            {
+                if (finishResults.TryGetValue(racer, out RaceFinishResult result)) results.Add(result);
+                else results.Add(new RaceFinishResult { racer = racer, finished = false });
+            }
+
+            LapTracker winner = RaceResultResolver.ResolveStarBet(results, out string drawReason);
+            EndRace(winner, drawReason ?? "별점 내기 종료");
         }
 
         void EndRace(LapTracker winner, string drawReason = "제한시간 초과")
@@ -224,6 +269,20 @@ namespace M2.Core
         public void EndRaceAsDraw(string reason)
         {
             EndRace(null, reason);
+        }
+
+        public void EndRaceWithLoss(LapTracker loser, string reason)
+        {
+            LapTracker winner = null;
+            foreach (LapTracker racer in racers)
+            {
+                if (racer != null && racer != loser)
+                {
+                    winner = racer;
+                    break;
+                }
+            }
+            EndRace(winner, winner == null ? reason : null);
         }
 
         // ---- Helpers ----

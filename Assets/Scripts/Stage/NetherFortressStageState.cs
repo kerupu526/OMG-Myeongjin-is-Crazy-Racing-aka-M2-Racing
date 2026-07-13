@@ -8,7 +8,7 @@ namespace M2.Stage
     // 용암 안에 있는 동안의 패시브 가열.
     // CLAUDE.md: "용암 근처에서 공격 피격 시 정지 중 체온 게이지 평소보다 훨씬 빠르게 상승
     // (콤보 전략 유도)." 목표(3★) 화상 경고 횟수 5/2/0회 이하. 추가목표(3★) 1:00/1:10/1:20 이내 완주.
-    public class NetherFortressStageState : MonoBehaviour
+    public class NetherFortressStageState : MonoBehaviour, IRaceStarProvider
     {
         public VehicleController vehicleController;
         public NetherFortressTemperatureGauge temperatureGauge;
@@ -96,7 +96,9 @@ namespace M2.Stage
         // doesn't exist yet (CLAUDE.md 우선순위 5), so this is a draw for now.
         void HandleBurnGameOver()
         {
-            if (gameManager != null) gameManager.EndRaceAsDraw("화상");
+            if (gameManager != null)
+                gameManager.EndRaceWithLoss(vehicleController != null ? vehicleController.GetComponent<LapTracker>() : null,
+                    "화상");
         }
 
         void HandleHitByAttackItem()

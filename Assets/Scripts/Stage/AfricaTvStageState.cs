@@ -1,4 +1,5 @@
 using M2.Player;
+using M2.Core;
 using UnityEngine;
 
 namespace M2.Stage
@@ -6,7 +7,7 @@ namespace M2.Stage
     // 아프리카TV-specific race progress: 별풍선(star balloon) 손실 카운트 + 별점.
     // CLAUDE.md: "공격 아이템 피격 시 별풍선 손실 + 멘탈 게이지 추가 상승 (이중 타격)."
     // 목표(3★) 별풍선 놓친 횟수 15/5/0회 이하. 추가목표(3★) 2:30/2:50/3:15 이내 완주.
-    public class AfricaTvStageState : MonoBehaviour
+    public class AfricaTvStageState : MonoBehaviour, IRaceStarProvider
     {
         public VehicleController vehicleController;
         public AfricaTvMentalGauge mentalGauge;

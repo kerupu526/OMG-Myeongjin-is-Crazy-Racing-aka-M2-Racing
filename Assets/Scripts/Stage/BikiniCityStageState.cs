@@ -8,7 +8,7 @@ namespace M2.Stage
     // "비법" drops (missed-collectible count) and the resulting star rating, plus ending
     // the race when the oxygen gauge's game over fires.
     // CLAUDE.md: 목표(3★) 비법 놓친 횟수 10/3/0회 이하, 추가목표(3★) 완주시간 1:45/2:00/2:30 이내.
-    public class BikiniCityStageState : MonoBehaviour
+    public class BikiniCityStageState : MonoBehaviour, IRaceStarProvider
     {
         public VehicleController vehicleController;
         public BikiniCityOxygenGauge oxygenGauge;
@@ -74,7 +74,9 @@ namespace M2.Stage
         // for now, same as the Nether Fortress case.
         void HandleOxygenGameOver()
         {
-            if (gameManager != null) gameManager.EndRaceAsDraw("산소 부족");
+            if (gameManager != null)
+                gameManager.EndRaceWithLoss(vehicleController != null ? vehicleController.GetComponent<LapTracker>() : null,
+                    "산소 부족");
         }
 
         public void NotifyRecipeDropped()
