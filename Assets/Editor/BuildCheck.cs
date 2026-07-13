@@ -264,9 +264,11 @@ public static class BuildCheck
         }
 
         var networkObject = prefab.GetComponent<Unity.Netcode.NetworkObject>();
-        if (networkObject == null || prefab.GetComponent<M2.Network.NetworkRaceManager>() == null)
+        if (networkObject == null ||
+            prefab.GetComponent<M2.Network.NetworkRaceManager>() == null ||
+            prefab.GetComponent<M2.Network.NetworkItemSpawnManager>() == null)
         {
-            Debug.LogError("M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_FAIL: NetworkObject/NetworkRaceManager 중 하나가 없음");
+            Debug.LogError("M2_NETWORK_RACE_MANAGER_PREFAB_SMOKE_TEST_FAIL: NetworkObject/NetworkRaceManager/NetworkItemSpawnManager 중 하나가 없음");
             EditorApplication.Exit(1);
             return;
         }
@@ -353,6 +355,33 @@ public static class BuildCheck
             Debug.LogError("M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: RaceStartGrid/NetworkRaceHUD 중 하나가 없음");
             EditorApplication.Exit(1);
             return;
+        }
+
+        // Milestone 2b: the 6 item spawn markers must exist, carry distinct indices 0..5, and sit
+        // out on the track (not stacked at the origin) — i.e. actually placed along the geometry.
+        var spawnPoints = Object.FindObjectsByType<M2.Network.NetworkItemSpawnPoint>(FindObjectsSortMode.None);
+        if (spawnPoints.Length != 6)
+        {
+            Debug.LogError($"M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: 아이템 스폰 지점이 6개가 아님 (실제 {spawnPoints.Length}개)");
+            EditorApplication.Exit(1);
+            return;
+        }
+        bool[] seenIndex = new bool[6];
+        foreach (var sp in spawnPoints)
+        {
+            if (sp.index < 0 || sp.index >= 6 || seenIndex[sp.index])
+            {
+                Debug.LogError($"M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: 아이템 스폰 지점 인덱스가 0..5 유일값이 아님 (index={sp.index})");
+                EditorApplication.Exit(1);
+                return;
+            }
+            seenIndex[sp.index] = true;
+            if (sp.transform.position.sqrMagnitude < 1f)
+            {
+                Debug.LogError($"M2_NETWORK_RACE_SCENE_SMOKE_TEST_FAIL: 아이템 스폰 지점 {sp.index}이 원점에 붙어있음 — 트랙 위에 배치되지 않음");
+                EditorApplication.Exit(1);
+                return;
+            }
         }
 
         Debug.Log("=== M2_NETWORK_RACE_SCENE_SMOKE_TEST_OK ===");

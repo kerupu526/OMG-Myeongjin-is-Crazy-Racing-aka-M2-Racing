@@ -182,6 +182,9 @@ namespace M2.Editor
             GameObject raceManager = new GameObject("NetworkRaceManager");
             raceManager.AddComponent<NetworkObject>();
             raceManager.AddComponent<NetworkRaceManager>();
+            // Milestone 2b: server-authoritative item spawning rides on the same spawned
+            // NetworkObject the host already creates for race state — no extra prefab to register.
+            raceManager.AddComponent<NetworkItemSpawnManager>();
 
             if (!AssetDatabase.IsValidFolder(RaceManagerPrefabDirectory))
             {

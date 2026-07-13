@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5895168794418360772}
   - component: {fileID: 6853008130827648690}
   - component: {fileID: 4575355926573032387}
+  - component: {fileID: 4165396274847093447}
   m_Layer: 0
   m_Name: NetworkRaceManager
   m_TagString: Untagged
@@ -73,3 +74,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: M2.Runtime::M2.Network.NetworkRaceManager
   ShowTopMostFoldoutHeaderGroup: 1
   requiredPlayers: 2
+--- !u!114 &4165396274847093447
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2536878642563049065}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5c23720155fc6844a57993ef313022b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: M2.Runtime::M2.Network.NetworkItemSpawnManager
+  ShowTopMostFoldoutHeaderGroup: 1
+  pickupRadius: 2
+  respawnDelay: 5
+  pickupHeight: 1

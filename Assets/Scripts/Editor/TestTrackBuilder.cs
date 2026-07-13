@@ -169,7 +169,9 @@ namespace M2.Editor
         const float WallHeight = 1.2f;
         const int WallSegments = 64; // higher than before — sharper curves need more segments to read smoothly
         const int CheckpointCount = 6;
-        const int ItemSpawnCount = 6;
+        // internal so the networked scene builder (NetworkRaceSceneBuilder) places the same
+        // number of item spawn markers at the same track angles the local scene uses.
+        internal const int ItemSpawnCount = 6;
 
         // Vehicle visual: a real Kenney (kenney_car-kit, CC0) low-poly model instead of a
         // billboard sprite. Cars physically rotate to face their travel direction (steering),

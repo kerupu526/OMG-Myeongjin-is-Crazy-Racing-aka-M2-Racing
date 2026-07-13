@@ -39,6 +39,7 @@ namespace M2.Editor
 
             CreateGameManager(root.transform);
             CreateStartGrid(root.transform, geo);
+            CreateItemSpawnPoints(root.transform, geo);
             NetworkManager networkManager = CreateNetworking(root.transform);
             CreateCamera(root.transform);
             CreateRaceHud(root.transform);
@@ -84,6 +85,28 @@ namespace M2.Editor
             grid.slot0Position = gridBase + normal * lateral;
             grid.slot1Position = gridBase - normal * lateral;
             grid.facing = Quaternion.LookRotation(tangent, Vector3.up);
+        }
+
+        // Milestone 2b: bake the item spawn markers at the same track angles the local scene's
+        // ItemSpawners use (TestTrackBuilder.CreateItemSpawners). These are plain scene objects,
+        // identical on both peers; the runtime-spawned NetworkItemSpawnManager rolls items for them
+        // and drives their cosmetic visuals from replicated state. No ItemSpawner/ItemPickup here —
+        // spawning and collection are server-authoritative, not local trigger-driven.
+        static void CreateItemSpawnPoints(Transform parent, TrackGeometry geo)
+        {
+            GameObject spawnRoot = new GameObject("ItemSpawnPoints");
+            spawnRoot.transform.SetParent(parent);
+
+            for (int i = 0; i < TestTrackBuilder.ItemSpawnCount; i++)
+            {
+                float theta = (i + 0.5f) * Mathf.PI * 2f / TestTrackBuilder.ItemSpawnCount;
+                Vector3 position = geo.PointAt(theta);
+
+                GameObject point = new GameObject($"ItemSpawnPoint_{i}");
+                point.transform.SetParent(spawnRoot.transform);
+                point.transform.position = position;
+                point.AddComponent<NetworkItemSpawnPoint>().index = i;
+            }
         }
 
         static NetworkManager CreateNetworking(Transform root)
