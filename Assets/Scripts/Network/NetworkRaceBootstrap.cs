@@ -60,7 +60,6 @@ namespace M2.Network
             if (manager == null || raceManagerPrefab == null) return;
             if (raceManagerPrefab.GetComponent<NetworkObject>() == null)
             {
-                Debug.LogWarning("M2Net: raceManagerPrefab에 NetworkObject가 없음 — 등록/스폰 불가.");
                 return;
             }
             // AddNetworkPrefab must run at runtime on BOTH host and client before connecting so
@@ -68,7 +67,6 @@ namespace M2.Network
             // doesn't persist (NetworkPrefabs.m_Prefabs is [NonSerialized]).
             manager.AddNetworkPrefab(raceManagerPrefab);
             prefabRegistered = true;
-            Debug.Log("M2Net: raceManagerPrefab 등록 완료 (AddNetworkPrefab).");
         }
 
         void HandleServerStarted()
@@ -78,7 +76,6 @@ namespace M2.Network
             if (manager == null || !manager.IsServer) return;
             if (raceManagerPrefab == null)
             {
-                Debug.LogWarning("M2Net: raceManagerPrefab이 비어있음 — 레이스 매니저가 스폰되지 않음.");
                 return;
             }
 
@@ -87,7 +84,6 @@ namespace M2.Network
             spawned = true;
             GameObject instance = Instantiate(raceManagerPrefab);
             instance.GetComponent<NetworkObject>().Spawn();
-            Debug.Log("M2Net: NetworkRaceManager 스폰됨.");
         }
     }
 }

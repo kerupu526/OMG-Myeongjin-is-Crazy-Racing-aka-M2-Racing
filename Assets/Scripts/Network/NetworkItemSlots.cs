@@ -98,7 +98,6 @@ namespace M2.Network
 
             ItemDefinition def = ItemCatalog.CreateFromId(used);
             ApplySpeedBoostOwnerRpc(def.speedBonus, def.duration);
-            Debug.Log($"M2Net: 클라이언트 {OwnerClientId} 가속 아이템({used}) 사용.");
         }
 
         [Rpc(SendTo.Server)]
@@ -116,7 +115,6 @@ namespace M2.Network
                 Vector3 pos = transform.position;
                 SpawnBombVisualRpc(pos, (byte)used);
                 StartCoroutine(ResolveBombServer(pos, def));
-                Debug.Log($"M2Net: 클라이언트 {OwnerClientId} 공격 아이템({used}) 설치.");
             }
             else
             {
@@ -124,7 +122,6 @@ namespace M2.Network
                 // time), and mirrored to the owner's copy for its HUD.
                 vehicleController.ActivateShield(def.duration);
                 ActivateShieldOwnerRpc(def.duration);
-                Debug.Log($"M2Net: 클라이언트 {OwnerClientId} 방어 아이템({used}) 사용.");
             }
         }
 
@@ -148,12 +145,10 @@ namespace M2.Network
                 if (victim.vehicleController.TryConsumeShield())
                 {
                     victim.ConsumeShieldOwnerRpc();
-                    Debug.Log($"M2Net: 폭탄 명중했으나 클라이언트 {victim.OwnerClientId}가 방패로 막음.");
                 }
                 else
                 {
                     victim.ApplyHitStunOwnerRpc(victim.bombStunDuration);
-                    Debug.Log($"M2Net: [서버] 폭탄이 클라이언트 {victim.OwnerClientId}를 기절시킴 — 오너에게 RPC 전송.");
                 }
             }
         }
@@ -177,28 +172,22 @@ namespace M2.Network
         }
 
         // ---- Owner-side effect application (physics/HUD resolve where the car is simulated) ----
-        // Each logs on the owner so a live test can confirm the effect actually reached the car
-        // that must simulate it (not just that the server sent it). Remove these with the rest of
-        // the M2Net diagnostics once the milestone is signed off.
 
         [Rpc(SendTo.Owner)]
         void ApplySpeedBoostOwnerRpc(float bonus, float duration)
         {
-            Debug.Log($"M2Net: [오너 {OwnerClientId}] 가속 부스트 적용 (+{bonus}, {duration}s).");
             vehicleController.ApplySpeedBoost(bonus, duration);
         }
 
         [Rpc(SendTo.Owner)]
         void ActivateShieldOwnerRpc(float duration)
         {
-            Debug.Log($"M2Net: [오너 {OwnerClientId}] 방어막 적용 ({duration}s).");
             vehicleController.ActivateShield(duration);
         }
 
         [Rpc(SendTo.Owner)]
         void ApplyHitStunOwnerRpc(float duration)
         {
-            Debug.Log($"M2Net: [오너 {OwnerClientId}] 기절 적용 ({duration}s) — 차량 정지.");
             vehicleController.ApplyHitStun(duration);
         }
 
@@ -206,7 +195,6 @@ namespace M2.Network
         [Rpc(SendTo.Owner)]
         void ConsumeShieldOwnerRpc()
         {
-            Debug.Log($"M2Net: [오너 {OwnerClientId}] 방패 소모(피격 방어).");
             vehicleController.TryConsumeShield();
         }
 

@@ -65,7 +65,6 @@ namespace M2.Network
                 {
                     netSpawnItems.Add((byte)ItemCatalog.CreateRandomIdForSpawn());
                 }
-                Debug.Log($"M2Net: 아이템 스폰 매니저 시작 — {points.Length}개 지점에 아이템 롤 완료.");
             }
 
             // Build visuals for whatever state exists now (on a client the list arrives pre-populated
@@ -130,7 +129,6 @@ namespace M2.Network
                     slots.ServerCollect(id);
                     netSpawnItems[i] = (byte)NetItemId.None;
                     respawnTimers[i] = respawnDelay;
-                    Debug.Log($"M2Net: 지점 {i}의 아이템({id})을 클라이언트 {client.ClientId}가 획득.");
                     break;
                 }
             }
@@ -157,7 +155,6 @@ namespace M2.Network
 
                 NetItemId rolled = ItemCatalog.CreateRandomIdForSpawn();
                 netSpawnItems[i] = (byte)rolled;
-                Debug.Log($"M2Net: 지점 {i}에 새 아이템({rolled}) 재스폰.");
             }
         }
 
