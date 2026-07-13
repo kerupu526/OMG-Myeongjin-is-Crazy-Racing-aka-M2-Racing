@@ -7,7 +7,18 @@ namespace M2.Items
 {
     public static class ItemEffects
     {
+        // Local (single-player) bomb: cosmetic marker + its own arm/explosion runner.
         public static void SpawnBomb(Vector3 position, ItemDefinition definition)
+        {
+            GameObject marker = SpawnBombVisual(position, definition);
+            marker.AddComponent<BombRunner>().Init(definition);
+        }
+
+        // Just the visible bomb marker (no arm timer, no explosion). The networked path
+        // (Milestone 2b) spawns this cosmetically on every peer via RPC while the host runs
+        // the single authoritative explosion, so the visual is shared but the OverlapSphere
+        // damage resolves in exactly one place.
+        public static GameObject SpawnBombVisual(Vector3 position, ItemDefinition definition)
         {
             GameObject marker = new GameObject($"Bomb_{definition.itemName}");
             marker.transform.position = position;
@@ -21,7 +32,7 @@ namespace M2.Items
             spriteRenderer.sortingOrder = 5;
             spriteChild.AddComponent<BillboardSprite>();
 
-            marker.AddComponent<BombRunner>().Init(definition);
+            return marker;
         }
     }
 

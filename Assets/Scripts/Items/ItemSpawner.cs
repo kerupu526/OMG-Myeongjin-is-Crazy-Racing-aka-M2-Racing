@@ -1,6 +1,4 @@
 using System.Collections;
-using M2.Core;
-using M2.Player;
 using UnityEngine;
 
 namespace M2.Items
@@ -35,48 +33,11 @@ namespace M2.Items
         {
             ItemDefinition definition = ItemCatalog.CreateRandomForSpawn();
 
-            GameObject pickupObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            pickupObject.name = $"ItemPickup_{definition.itemName}";
-            pickupObject.transform.SetParent(transform);
-            pickupObject.transform.localPosition = Vector3.up * pickupHeight;
-            pickupObject.transform.localScale = Vector3.one * 1.2f;
-
-            // 2.5D rule (CLAUDE.md): items render as a billboard sprite, never a visible
-            // 3D mesh. This sphere stays only as the (invisible) pickup trigger volume.
-            Destroy(pickupObject.GetComponent<MeshRenderer>());
-            Destroy(pickupObject.GetComponent<MeshFilter>());
-
-            SphereCollider collider = pickupObject.GetComponent<SphereCollider>();
-            collider.isTrigger = true;
-            // Left at the primitive default (0.5, ~0.6m world radius after the 1.2x visual
-            // scale above) it barely out-sized the 1.2m-wide vehicle, making pickups feel too
-            // fiddly to actually grab while driving (playtester feedback: "먹기 쉽게 조금
-            // 널널하게"). Bigger than the visual sprite on purpose — a generous grab radius is
-            // the norm for arcade racers, not a hitbox bug.
-            collider.radius = 1.1f;
+            GameObject pickupObject = ItemPickupVisuals.Create(transform, definition, pickupHeight, withTriggerCollider: true);
 
             ItemPickup pickup = pickupObject.AddComponent<ItemPickup>();
             pickup.definition = definition;
             pickup.owner = this;
-
-            // Bobs the whole pickup (collider included) so it visibly floats in place.
-            pickupObject.AddComponent<FloatingBob>();
-
-            GameObject spriteChild = new GameObject("Sprite");
-            spriteChild.transform.SetParent(pickupObject.transform);
-            spriteChild.transform.localPosition = Vector3.zero;
-            spriteChild.transform.localScale = Vector3.one;
-            SpriteRenderer spriteRenderer = spriteChild.AddComponent<SpriteRenderer>();
-            spriteRenderer.sprite = PlaceholderSpriteFactory.CreateCircleSprite(ColorForType(definition.type), Color.black, 96, 64f);
-            spriteRenderer.sortingOrder = 5;
-            spriteChild.AddComponent<BillboardSprite>();
         }
-
-        static Color ColorForType(ItemType type) => type switch
-        {
-            ItemType.Accel => Color.yellow,
-            ItemType.Attack => Color.red,
-            _ => Color.cyan,
-        };
     }
 }
