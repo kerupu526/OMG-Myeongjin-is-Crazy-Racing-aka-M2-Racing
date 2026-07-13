@@ -67,12 +67,50 @@ namespace M2.Items
         {
             var type = (ItemType)Random.Range(0, 3);
             bool upgraded = Random.value < DerivedUpgradeChance;
+            return CreateForType(type, upgraded);
+        }
 
+        static ItemDefinition CreateForType(ItemType type, bool upgraded)
+        {
             return type switch
             {
                 ItemType.Accel => upgraded ? CreateAccelDerived() : CreateAccelBase(),
                 ItemType.Attack => upgraded ? CreateAttackDerived() : CreateAttackBase(),
                 _ => upgraded ? CreateDefenseDerived() : CreateDefenseBase(),
+            };
+        }
+
+        // --- Netcode (Milestone 2b) helpers ---
+        // The wire ID and the full definition are kept in sync purely by arithmetic:
+        // id = type * 2 + tier + 1. Only the byte ID crosses the network; every peer
+        // rebuilds the ItemDefinition locally so names/stats never travel.
+
+        public static NetItemId IdFor(ItemType type, int tier)
+        {
+            return (NetItemId)((int)type * 2 + tier + 1);
+        }
+
+        // Server-only: same uniform-type + 10%-derived roll as CreateRandomForSpawn,
+        // but returns the compact ID the server writes into replicated spawn state.
+        public static NetItemId CreateRandomIdForSpawn()
+        {
+            var type = (ItemType)Random.Range(0, 3);
+            int tier = Random.value < DerivedUpgradeChance ? 1 : 0;
+            return IdFor(type, tier);
+        }
+
+        // Rebuilds the full definition from a replicated ID. None -> null (empty slot).
+        public static ItemDefinition CreateFromId(NetItemId id)
+        {
+            return id switch
+            {
+                NetItemId.AccelBase => CreateAccelBase(),
+                NetItemId.AccelDerived => CreateAccelDerived(),
+                NetItemId.AttackBase => CreateAttackBase(),
+                NetItemId.AttackDerived => CreateAttackDerived(),
+                NetItemId.DefenseBase => CreateDefenseBase(),
+                NetItemId.DefenseDerived => CreateDefenseDerived(),
+                _ => null,
             };
         }
     }
