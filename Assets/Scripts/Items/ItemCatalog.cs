@@ -90,6 +90,13 @@ namespace M2.Items
             return (NetItemId)((int)type * 2 + tier + 1);
         }
 
+        // Inverse of the IdFor layout (id = type*2 + tier + 1): type = (id - 1) / 2.
+        // Only meaningful for a real item (id != None); callers guard None themselves.
+        public static ItemType TypeOf(NetItemId id)
+        {
+            return (ItemType)(((int)id - 1) / 2);
+        }
+
         // Server-only: same uniform-type + 10%-derived roll as CreateRandomForSpawn,
         // but returns the compact ID the server writes into replicated spawn state.
         public static NetItemId CreateRandomIdForSpawn()

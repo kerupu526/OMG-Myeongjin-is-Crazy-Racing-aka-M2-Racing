@@ -42,8 +42,9 @@ namespace M2.Editor
         {
             // Milestone 2a adds LapTracker (below) so the host's synced copy of each car counts
             // laps by passing through the race scene's Checkpoint triggers — see
-            // NetworkRaceManager. ItemSlots (and the full item roster) stay out of scope until
-            // Milestone 2b's server-authoritative item sync.
+            // NetworkRaceManager. Milestone 2b adds NetworkItemSlots (below) as the networked
+            // replacement for the local-only ItemSlots: server-authoritative slot contents,
+            // owner input -> ServerRpc for use.
             GameObject vehicle = GameObject.CreatePrimitive(PrimitiveType.Cube);
             vehicle.name = "NetworkVehicle";
             vehicle.tag = "Player";
@@ -66,6 +67,8 @@ namespace M2.Editor
             vehicle.AddComponent<NetworkObject>();
             vehicle.AddComponent<OwnerAuthoritativeNetworkTransform>();
             vehicle.AddComponent<NetworkVehicleSync>();
+            // Milestone 2b: networked inventory (replaces the local ItemSlots for online play).
+            vehicle.AddComponent<NetworkItemSlots>();
 
             TestTrackBuilder.CreateVehicleModel(vehicle.transform);
 

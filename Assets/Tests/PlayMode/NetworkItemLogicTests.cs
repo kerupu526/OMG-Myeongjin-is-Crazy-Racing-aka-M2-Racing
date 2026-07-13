@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using M2.Items;
+using M2.Network;
 
 namespace M2.Tests.PlayMode
 {
@@ -65,6 +66,69 @@ namespace M2.Tests.PlayMode
                 Assert.AreNotEqual(NetItemId.None, id, "A spawn roll must never produce an empty item.");
                 Assert.IsNotNull(ItemCatalog.CreateFromId(id), $"Rolled id {id} must rebuild to a definition.");
             }
+        }
+
+        [Test]
+        public void TypeOf_Recovers_The_Type_For_Every_Real_Item()
+        {
+            Assert.AreEqual(ItemType.Accel, ItemCatalog.TypeOf(NetItemId.AccelBase));
+            Assert.AreEqual(ItemType.Accel, ItemCatalog.TypeOf(NetItemId.AccelDerived));
+            Assert.AreEqual(ItemType.Attack, ItemCatalog.TypeOf(NetItemId.AttackBase));
+            Assert.AreEqual(ItemType.Attack, ItemCatalog.TypeOf(NetItemId.AttackDerived));
+            Assert.AreEqual(ItemType.Defense, ItemCatalog.TypeOf(NetItemId.DefenseBase));
+            Assert.AreEqual(ItemType.Defense, ItemCatalog.TypeOf(NetItemId.DefenseDerived));
+        }
+
+        // --- NetworkItemSlots fill/replace rule (mirrors local ItemSlots.CollectItem) ---
+
+        [Test]
+        public void ApplyCollect_Fills_Primary_Then_Secondary_Then_Replaces_Primary()
+        {
+            // Empty -> primary fills.
+            NetworkItemSlots.ApplyCollect(NetItemId.None, NetItemId.None, NetItemId.AccelBase,
+                out NetItemId p, out NetItemId s);
+            Assert.AreEqual(NetItemId.AccelBase, p);
+            Assert.AreEqual(NetItemId.None, s);
+
+            // Primary full -> secondary fills, primary untouched.
+            NetworkItemSlots.ApplyCollect(NetItemId.AccelBase, NetItemId.None, NetItemId.AttackBase,
+                out p, out s);
+            Assert.AreEqual(NetItemId.AccelBase, p);
+            Assert.AreEqual(NetItemId.AttackBase, s);
+
+            // Both full -> primary is replaced, secondary untouched.
+            NetworkItemSlots.ApplyCollect(NetItemId.AccelBase, NetItemId.AttackBase, NetItemId.DefenseDerived,
+                out p, out s);
+            Assert.AreEqual(NetItemId.DefenseDerived, p);
+            Assert.AreEqual(NetItemId.AttackBase, s);
+        }
+
+        // --- NetworkItemSlots use-slot selection (mirrors local ItemSlots use routing) ---
+
+        [Test]
+        public void SelectAccelSlot_Prefers_Primary_Then_Secondary()
+        {
+            Assert.AreEqual(ItemSlotChoice.Primary,
+                NetworkItemSlots.SelectAccelSlot(NetItemId.AccelBase, NetItemId.AttackBase));
+            Assert.AreEqual(ItemSlotChoice.Secondary,
+                NetworkItemSlots.SelectAccelSlot(NetItemId.AttackBase, NetItemId.AccelDerived));
+            Assert.AreEqual(ItemSlotChoice.None,
+                NetworkItemSlots.SelectAccelSlot(NetItemId.AttackBase, NetItemId.DefenseBase));
+            Assert.AreEqual(ItemSlotChoice.None,
+                NetworkItemSlots.SelectAccelSlot(NetItemId.None, NetItemId.None));
+        }
+
+        [Test]
+        public void SelectAttackDefenseSlot_Prefers_Primary_Then_Secondary_Skipping_Accel()
+        {
+            Assert.AreEqual(ItemSlotChoice.Primary,
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.AttackBase, NetItemId.AccelBase));
+            Assert.AreEqual(ItemSlotChoice.Secondary,
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.AccelBase, NetItemId.DefenseBase));
+            Assert.AreEqual(ItemSlotChoice.None,
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.AccelBase, NetItemId.AccelDerived));
+            Assert.AreEqual(ItemSlotChoice.None,
+                NetworkItemSlots.SelectAttackDefenseSlot(NetItemId.None, NetItemId.None));
         }
     }
 }

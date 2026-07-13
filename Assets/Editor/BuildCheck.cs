@@ -126,9 +126,10 @@ public static class BuildCheck
         var networkObject = prefab.GetComponent<Unity.Netcode.NetworkObject>();
         if (networkObject == null ||
             prefab.GetComponent<M2.Player.VehicleController>() == null ||
-            prefab.GetComponent<M2.Network.NetworkVehicleSync>() == null)
+            prefab.GetComponent<M2.Network.NetworkVehicleSync>() == null ||
+            prefab.GetComponent<M2.Network.NetworkItemSlots>() == null)
         {
-            Debug.LogError("M2_NETWORK_PREFAB_SMOKE_TEST_FAIL: NetworkObject/VehicleController/NetworkVehicleSync 중 하나가 없음");
+            Debug.LogError("M2_NETWORK_PREFAB_SMOKE_TEST_FAIL: NetworkObject/VehicleController/NetworkVehicleSync/NetworkItemSlots 중 하나가 없음");
             EditorApplication.Exit(1);
             return;
         }

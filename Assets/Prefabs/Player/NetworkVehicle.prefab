@@ -106,6 +106,7 @@ GameObject:
   - component: {fileID: 6753825407343901644}
   - component: {fileID: 926447431919002144}
   - component: {fileID: 7812917523075345037}
+  - component: {fileID: 5651173663137726373}
   m_Layer: 0
   m_Name: NetworkVehicle
   m_TagString: Player
@@ -307,6 +308,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: M2.Runtime::M2.Network.NetworkVehicleSync
   ShowTopMostFoldoutHeaderGroup: 1
   spawnSideOffset: 3
+--- !u!114 &5651173663137726373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1348012711100617852}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adbf1d77dda4afe4285329a0b33f056f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: M2.Runtime::M2.Network.NetworkItemSlots
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &2476299197440826711
 GameObject:
   m_ObjectHideFlags: 0
