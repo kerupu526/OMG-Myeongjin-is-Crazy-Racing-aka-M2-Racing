@@ -24,22 +24,54 @@ namespace M2.Network
         public Button joinButton;
         public Text statusText;
 
+        public event Action<string> StatusChanged;
+        public event Action<string, bool> SessionReady;
+
+        public bool HasActiveSession => activeSession != null;
+        public string ActiveRoomCode => activeSession != null ? activeSession.Code : string.Empty;
+        public bool IsHostingSession => activeSession != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
+
         bool subscribed;
         bool busy;
         ISession activeSession;
         RoomSettingsUI roomSettingsUi;
+        NetworkMenuUI menuUi;
 
         void Awake()
         {
             ConfigureVisibleUi();
-            Canvas canvas = FindFirstObjectByType<Canvas>();
+            Canvas canvas = ResolveCanvas();
             if (canvas != null)
             {
                 roomSettingsUi = canvas.GetComponent<RoomSettingsUI>();
                 if (roomSettingsUi == null) roomSettingsUi = canvas.gameObject.AddComponent<RoomSettingsUI>();
+
+                menuUi = canvas.GetComponent<NetworkMenuUI>();
+                if (menuUi == null) menuUi = canvas.gameObject.AddComponent<NetworkMenuUI>();
+                menuUi.Initialize(this, roomSettingsUi);
             }
             if (hostButton != null) hostButton.onClick.AddListener(StartHost);
             if (joinButton != null) joinButton.onClick.AddListener(StartClient);
+        }
+
+        Canvas ResolveCanvas()
+        {
+            if (hostButton != null)
+            {
+                Canvas buttonCanvas = hostButton.GetComponentInParent<Canvas>();
+                if (buttonCanvas != null) return buttonCanvas;
+            }
+            if (joinButton != null)
+            {
+                Canvas buttonCanvas = joinButton.GetComponentInParent<Canvas>();
+                if (buttonCanvas != null) return buttonCanvas;
+            }
+            if (joinCodeInputField != null)
+            {
+                Canvas inputCanvas = joinCodeInputField.GetComponentInParent<Canvas>();
+                if (inputCanvas != null) return inputCanvas;
+            }
+            return FindFirstObjectByType<Canvas>();
         }
 
         void Start()
@@ -129,6 +161,7 @@ namespace M2.Network
 
                 activeSession = await MultiplayerService.Instance.CreateSessionAsync(options);
                 SetStatus($"방 코드: {activeSession.Code}  ·  상대를 기다리는 중...");
+                SessionReady?.Invoke(activeSession.Code, true);
                 if (hostButton != null) hostButton.gameObject.SetActive(false);
                 if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
                 if (joinButton != null) joinButton.gameObject.SetActive(false);
@@ -154,6 +187,7 @@ namespace M2.Network
                 await EnsureServicesReadyAsync();
                 SetStatus($"방 {code} 참가 중...");
                 activeSession = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
+                SessionReady?.Invoke(activeSession.Code, false);
                 roomSettingsUi?.SetVisible(false);
             });
         }
@@ -229,10 +263,12 @@ namespace M2.Network
 
             if (networkManager.IsHost && clientId != networkManager.LocalClientId)
             {
-                if (statusText != null) statusText.gameObject.SetActive(true);
-                SetStatus(activeSession != null
+                string message = activeSession != null
                     ? $"방 코드: {activeSession.Code}  ·  상대 연결이 끊어졌습니다."
-                    : "상대 연결이 끊어졌습니다.");
+                    : "상대 연결이 끊어졌습니다.";
+                if (menuUi != null) menuUi.ShowLobby(ActiveRoomCode, true);
+                else if (statusText != null) statusText.gameObject.SetActive(true);
+                SetStatus(message);
             }
             else if (clientId == networkManager.LocalClientId)
             {
@@ -243,6 +279,11 @@ namespace M2.Network
 
         void HideConnectionUi()
         {
+            if (menuUi != null)
+            {
+                menuUi.HideMenu();
+                return;
+            }
             if (hostButton != null) hostButton.gameObject.SetActive(false);
             if (joinButton != null) joinButton.gameObject.SetActive(false);
             if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
@@ -252,6 +293,12 @@ namespace M2.Network
 
         void ShowConnectionUi()
         {
+            if (menuUi != null)
+            {
+                menuUi.ShowMain();
+                SetButtonsInteractable(true);
+                return;
+            }
             if (hostButton != null) hostButton.gameObject.SetActive(true);
             if (joinButton != null) joinButton.gameObject.SetActive(true);
             if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(true);
@@ -268,13 +315,15 @@ namespace M2.Network
 
         void SetStatus(string message)
         {
-            if (statusText == null) return;
-
-            bool hasRoomCode = message != null && message.StartsWith("방 코드:", StringComparison.Ordinal);
-            statusText.fontSize = hasRoomCode ? 42 : 30;
-            statusText.fontStyle = hasRoomCode ? FontStyle.Bold : FontStyle.Normal;
-            statusText.color = hasRoomCode ? new Color(1f, 0.851f, 0.239f) : Color.white;
-            statusText.text = message;
+            if (statusText != null)
+            {
+                bool hasRoomCode = message != null && message.StartsWith("방 코드:", StringComparison.Ordinal);
+                statusText.fontSize = hasRoomCode ? 42 : 30;
+                statusText.fontStyle = hasRoomCode ? FontStyle.Bold : FontStyle.Normal;
+                statusText.color = hasRoomCode ? new Color(1f, 0.851f, 0.239f) : Color.white;
+                statusText.text = message;
+            }
+            StatusChanged?.Invoke(message);
         }
     }
 }

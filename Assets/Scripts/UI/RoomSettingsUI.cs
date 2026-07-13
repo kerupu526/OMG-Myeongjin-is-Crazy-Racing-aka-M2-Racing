@@ -11,6 +11,7 @@ namespace M2.UI
         static readonly Color Ink = new Color(0.102f, 0.063f, 0.188f, 0.94f);
         static readonly Color Yellow = new Color(1f, 0.851f, 0.239f);
         static readonly Color Pink = new Color(1f, 0.184f, 0.620f);
+        static readonly Color Mint = new Color(0.714f, 0.953f, 0.420f);
 
         public GameManager gameManager;
         public RaceMode selectedMode = RaceMode.Item;
@@ -22,6 +23,9 @@ namespace M2.UI
         Button modeButton;
         Button lapButton;
         Button victoryButton;
+        Transform presentationParent;
+        bool useLobbyPresentation;
+        bool requestedVisible = true;
 
         void Start()
         {
@@ -46,7 +50,20 @@ namespace M2.UI
 
         public void SetVisible(bool visible)
         {
+            requestedVisible = visible;
             if (panel != null) panel.SetActive(visible);
+        }
+
+        /// <summary>
+        /// Lets the network menu place the existing room-rule controls into its room creation
+        /// card without changing the controls' behaviour or their GameManager integration.
+        /// The default standalone layout remains unchanged for local tests and older scenes.
+        /// </summary>
+        public void SetPresentationParent(Transform parent, bool lobbyPresentation)
+        {
+            presentationParent = parent;
+            useLobbyPresentation = lobbyPresentation;
+            if (panel != null) ApplyPresentationLayout();
         }
 
         public void ToggleMode()
@@ -76,7 +93,7 @@ namespace M2.UI
             if (panel != null) return;
 
             panel = new GameObject("RoomSettingsPanel", typeof(RectTransform));
-            panel.transform.SetParent(transform, false);
+            panel.transform.SetParent(presentationParent != null ? presentationParent : transform, false);
             Image background = panel.AddComponent<Image>();
             background.color = Ink;
             background.raycastTarget = false;
@@ -85,22 +102,102 @@ namespace M2.UI
             outline.effectDistance = new Vector2(2f, -2f);
             outline.useGraphicAlpha = false;
 
-            RectTransform rect = panel.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 0f);
-            rect.anchorMax = new Vector2(1f, 0f);
-            rect.pivot = new Vector2(1f, 0f);
-            rect.anchoredPosition = new Vector2(-20f, 118f);
-            rect.sizeDelta = new Vector2(430f, 222f);
-
             title = CreateText(panel.transform, "Title", 24, Yellow, TextAnchor.UpperCenter);
-            title.rectTransform.anchorMin = new Vector2(0f, 1f);
-            title.rectTransform.anchorMax = new Vector2(1f, 1f);
-            title.rectTransform.offsetMin = new Vector2(16f, -54f);
-            title.rectTransform.offsetMax = new Vector2(-16f, -10f);
-
             modeButton = CreateSettingButton("ModeButton", 64f, ToggleMode);
             lapButton = CreateSettingButton("LapButton", 6f, CycleItemLapCount);
             victoryButton = CreateSettingButton("VictoryButton", -52f, CycleItemVictoryCondition);
+            ApplyPresentationLayout();
+            panel.SetActive(requestedVisible);
+        }
+
+        void ApplyPresentationLayout()
+        {
+            if (panel == null) return;
+
+            Transform parent = presentationParent != null ? presentationParent : transform;
+            if (panel.transform.parent != parent) panel.transform.SetParent(parent, false);
+
+            RectTransform rect = panel.GetComponent<RectTransform>();
+            Image background = panel.GetComponent<Image>();
+            Outline outline = panel.GetComponent<Outline>();
+            if (useLobbyPresentation)
+            {
+                rect.anchorMin = new Vector2(0.5f, 0.5f);
+                rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = Vector2.zero;
+                rect.sizeDelta = new Vector2(480f, 390f);
+
+                background.color = Color.white;
+                outline.effectColor = Ink;
+                outline.effectDistance = new Vector2(4f, -4f);
+
+                UiTypography.Apply(title, UiFontRole.Display);
+                title.fontSize = 28;
+                title.color = Ink;
+                title.rectTransform.anchorMin = new Vector2(0f, 1f);
+                title.rectTransform.anchorMax = new Vector2(1f, 1f);
+                title.rectTransform.offsetMin = new Vector2(20f, -74f);
+                title.rectTransform.offsetMax = new Vector2(-20f, -12f);
+
+                LayoutSettingButton(modeButton, 92f, new Vector2(428f, 58f), Yellow, Ink, 26);
+                LayoutSettingButton(lapButton, 14f, new Vector2(428f, 58f), Mint, Ink, 26);
+                LayoutSettingButton(victoryButton, -64f, new Vector2(428f, 58f), SoftPink(), Ink, 26);
+            }
+            else
+            {
+                rect.anchorMin = new Vector2(1f, 0f);
+                rect.anchorMax = new Vector2(1f, 0f);
+                rect.pivot = new Vector2(1f, 0f);
+                rect.anchoredPosition = new Vector2(-20f, 118f);
+                rect.sizeDelta = new Vector2(430f, 222f);
+
+                background.color = Ink;
+                outline.effectColor = Yellow;
+                outline.effectDistance = new Vector2(2f, -2f);
+
+                UiTypography.Apply(title);
+                title.fontSize = 24;
+                title.color = Yellow;
+                title.rectTransform.anchorMin = new Vector2(0f, 1f);
+                title.rectTransform.anchorMax = new Vector2(1f, 1f);
+                title.rectTransform.offsetMin = new Vector2(16f, -54f);
+                title.rectTransform.offsetMax = new Vector2(-16f, -10f);
+
+                LayoutSettingButton(modeButton, 64f, new Vector2(390f, 46f), Pink, Color.white, 24);
+                LayoutSettingButton(lapButton, 6f, new Vector2(390f, 46f), Pink, Color.white, 24);
+                LayoutSettingButton(victoryButton, -52f, new Vector2(390f, 46f), Pink, Color.white, 24);
+            }
+
+            panel.SetActive(requestedVisible);
+        }
+
+        static Color SoftPink()
+        {
+            return new Color(1f, 0.616f, 0.878f);
+        }
+
+        static void LayoutSettingButton(Button button, float y, Vector2 size, Color color, Color textColor, int fontSize)
+        {
+            if (button == null) return;
+
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, y);
+            rect.sizeDelta = size;
+
+            Image image = button.GetComponent<Image>();
+            if (image != null) image.color = color;
+            Text text = button.GetComponentInChildren<Text>(true);
+            if (text == null) return;
+            UiTypography.Apply(text);
+            text.fontSize = fontSize;
+            text.color = textColor;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.rectTransform.offsetMin = Vector2.zero;
+            text.rectTransform.offsetMax = Vector2.zero;
         }
 
         Button CreateSettingButton(string name, float y, UnityEngine.Events.UnityAction action)

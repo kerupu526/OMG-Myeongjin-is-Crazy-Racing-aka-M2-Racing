@@ -136,8 +136,9 @@ namespace M2.Editor
             canvasObject.transform.SetParent(uiParent);
             Canvas canvas = canvasObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            // Keep this lobby canvas in constant pixels. A 1920px reference scaler made the
-            // room code and the freshly added room rules unreadable in the small Game preview.
+            // NetworkMenuUI configures this CanvasScaler at runtime to the supplied design's
+            // 1280×720 reference frame, keeping room codes and room rules readable on laptop
+            // displays without baking scene-specific scale settings into this builder.
             canvasObject.AddComponent<CanvasScaler>();
             canvasObject.AddComponent<GraphicRaycaster>();
 
