@@ -195,3 +195,5 @@
 - `M2PlayerProfile.WithPlateTag`/`TaggedDisplayName`을 추가해 닉네임 뒤 번호판 태그를 항상 유지한다. 꼬리의 낡은 `#...` 토큰은 현재 번호판으로 교체되므로 번호판을 바꾸면 태그도 갱신된다. 메인·아바타 미리보기·로비 폴백·로컬 결과·온라인 프로필 제출(`NetworkRaceManager`)·UI Toolkit HUD가 태그 포함 이름을 쓴다.
 - Unity Hub로 프로젝트를 열어 실제 Play Mode에서 확인했다: 입 3종·눈 3종·볼터치·왕관/캡모자 전환이 미리보기에 즉시 반영되고, 번호판 `#077` 선택 시 메인 카드가 `앙 #077`로 갱신됐다. 증빙은 `TestArtifacts/UI/2026-07-14-39th/`에 저장했다.
 - **진행 상태: ✅ 완료 — 배치 컴파일 성공, 실제 Play Mode 화면 확인, 헤드리스 PlayMode 84건 전원 통과까지 마쳤다.**
+- 이어서 ParrelSync Clone으로 실제 Relay 2인 로비를 재검증했다. 호스트가 방 코드 `M2-CSGA`를 생성하고 Clone이 같은 코드로 참가해, 양쪽 로비 카드에 방장/참가자 역할·`앙 #077` 태그 포함 이름·왕관+선글라스 아바타가 동일하게 복제됨을 확인했다. 참가자에게는 게임 설정이 잠금 표시됐다.
+- 양쪽 모두 `방 나가기`로 정상 이탈해 메인 메뉴로 복귀했고 콘솔 오류는 0건이었다(정보성 lobby patch 경고만 존재). 증빙은 `TestArtifacts/UI/2026-07-14-39th/03-clone-guest-lobby.png`, `04-host-lobby-two-players.png`다.
