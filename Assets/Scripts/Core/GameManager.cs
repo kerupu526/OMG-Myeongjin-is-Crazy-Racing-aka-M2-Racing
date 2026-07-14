@@ -121,10 +121,43 @@ namespace M2.Core
             StartCoroutine(RunRaceFlow());
         }
 
+        /// <summary>
+        /// Returns the authoritative race loop to its idle state without recreating the network
+        /// session. NetworkRaceManager calls this only after both players agree on a rematch or
+        /// a return to the room lobby.
+        /// </summary>
+        public void ResetRaceFlow()
+        {
+            StopAllCoroutines();
+            raceEnded = false;
+            raceFlowStarted = false;
+            startRequested = false;
+            TimeRemaining = 0f;
+            RaceElapsedTime = 0f;
+            finishResults.Clear();
+            lastRaceResults.Clear();
+            foreach (var pair in lapHandlers)
+            {
+                if (pair.Key != null) pair.Key.OnLapCompleted -= pair.Value;
+            }
+            lapHandlers.Clear();
+
+            if (raceTimer != null) raceTimer.StopRace();
+            foreach (LapTracker racer in racers)
+            {
+                if (racer != null) racer.ResetRaceProgress();
+            }
+
+            SetAllInputLocked(true);
+            SetState(RaceState.PreRace);
+        }
+
         public void ConfigureRoomSettings(RaceMode selectedMode, int requestedLapCount,
             VictoryCondition requestedVictoryCondition)
         {
-            raceMode = selectedMode;
+            // Room settings may arrive from a serialized UI value or an online RPC. Keep the
+            // authoritative race state inside the supported enum range before applying rules.
+            raceMode = selectedMode == RaceMode.Speed ? RaceMode.Speed : RaceMode.Item;
             if (raceMode == RaceMode.Speed)
             {
                 targetLapCount = RaceModeRules.SpeedModeLapCount;
@@ -133,7 +166,9 @@ namespace M2.Core
             else
             {
                 targetLapCount = RaceModeRules.NormalizeItemLapCount(requestedLapCount);
-                victoryCondition = requestedVictoryCondition;
+                victoryCondition = requestedVictoryCondition == VictoryCondition.StarBet
+                    ? VictoryCondition.StarBet
+                    : VictoryCondition.SimpleFinish;
             }
 
             ApplyRaceModeRules();

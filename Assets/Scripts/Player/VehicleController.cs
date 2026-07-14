@@ -161,6 +161,10 @@ namespace M2.Player
         float lastCollisionTime = -10f;
         const float collisionMemory = 0.15f;
         float lastWallHitEventTime = -Mathf.Infinity;
+        bool inputOverrideActive;
+        float inputOverrideThrottle;
+        float inputOverrideSteer;
+        bool inputOverrideDrift;
 
         // Wall-collision tracking: accumulated contact normal from the current physics step.
         // Reset at the top of FixedUpdate and rebuilt by OnCollisionStay. Used by
@@ -186,15 +190,17 @@ namespace M2.Player
             steerAction = new InputAction("Steer", InputActionType.Value, expectedControlType: "Axis");
             steerAction.AddCompositeBinding("1DAxis")
                 .With("Negative", "<Keyboard>/leftArrow")
+                .With("Positive", "<Keyboard>/rightArrow");
+            steerAction.AddCompositeBinding("1DAxis")
                 .With("Negative", "<Keyboard>/a")
-                .With("Positive", "<Keyboard>/rightArrow")
                 .With("Positive", "<Keyboard>/d");
 
             throttleAction = new InputAction("Throttle", InputActionType.Value, expectedControlType: "Axis");
             throttleAction.AddCompositeBinding("1DAxis")
                 .With("Negative", "<Keyboard>/downArrow")
+                .With("Positive", "<Keyboard>/upArrow");
+            throttleAction.AddCompositeBinding("1DAxis")
                 .With("Negative", "<Keyboard>/s")
-                .With("Positive", "<Keyboard>/upArrow")
                 .With("Positive", "<Keyboard>/w");
 
             driftAction = new InputAction("Drift", InputActionType.Button, "<Keyboard>/leftShift");
@@ -325,9 +331,9 @@ namespace M2.Player
             }
             else
             {
-                float throttleInput = throttleAction.ReadValue<float>();
-                float steerInput = steerAction.ReadValue<float>();
-                bool driftHeld = driftAction.IsPressed();
+                float throttleInput = inputOverrideActive ? inputOverrideThrottle : throttleAction.ReadValue<float>();
+                float steerInput = inputOverrideActive ? inputOverrideSteer : steerAction.ReadValue<float>();
+                bool driftHeld = inputOverrideActive ? inputOverrideDrift : driftAction.IsPressed();
 
                 if (driftHeld && !isDrifting)
                 {
@@ -549,6 +555,27 @@ namespace M2.Player
             }
         }
 
+        /// <summary>
+        /// Supplies deterministic steering/throttle for a bot, replay, or automated scenario.
+        /// The normal keyboard input path resumes when <see cref="ClearInputOverride"/> is called;
+        /// locks, stuns, collisions, and all movement rules still apply in either mode.
+        /// </summary>
+        public void SetInputOverride(float throttle, float steer, bool drift = false)
+        {
+            inputOverrideActive = true;
+            inputOverrideThrottle = Mathf.Clamp(throttle, -1f, 1f);
+            inputOverrideSteer = Mathf.Clamp(steer, -1f, 1f);
+            inputOverrideDrift = drift;
+        }
+
+        public void ClearInputOverride()
+        {
+            inputOverrideActive = false;
+            inputOverrideThrottle = 0f;
+            inputOverrideSteer = 0f;
+            inputOverrideDrift = false;
+        }
+
         public void SetAbsoluteSpeedLimitKph(float kilometersPerHour)
         {
             absoluteSpeedLimit = kilometersPerHour > 0f ? kilometersPerHour / 3.6f : 0f;
@@ -561,6 +588,55 @@ namespace M2.Player
         public void ClearAbsoluteSpeedLimit()
         {
             absoluteSpeedLimit = 0f;
+        }
+
+        /// <summary>
+        /// Clears transient physics/item state before an online rematch. Transform placement is
+        /// intentionally handled by the owning client in NetworkRaceManager so owner-authority
+        /// remains intact.
+        /// </summary>
+        public void ResetRaceState()
+        {
+            StopAndClear(ref driftBoostRoutine);
+            StopAndClear(ref speedBoostRoutine);
+            StopAndClear(ref stunRoutine);
+            StopAndClear(ref steeringInvertRoutine);
+            StopAndClear(ref knockbackRoutine);
+            StopAndClear(ref shieldRoutine);
+
+            currentSpeed = 0f;
+            itemSpeedBonus = 0f;
+            driftSpeedBonus = 0f;
+            usedWrongWayDistance = 0f;
+            isStunned = false;
+            steeringInverted = false;
+            isKnockedBack = false;
+            hasShield = false;
+            activeShieldStrength = M2.Items.ShieldStrength.None;
+            isDrifting = false;
+            driftHoldTime = 0f;
+            bounceVelocity = Vector3.zero;
+            wallContactNormal = Vector3.zero;
+            wallContactActive = false;
+            lastWallHitEventTime = -Mathf.Infinity;
+            inputLocked = true;
+            ClearInputOverride();
+
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+            moveDirection = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+        }
+
+        void StopAndClear(ref Coroutine routine)
+        {
+            if (routine != null) StopCoroutine(routine);
+            routine = null;
         }
 
         // --- Steering invert (아프리카TV 방송사고 존) ---

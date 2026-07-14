@@ -8,3 +8,7 @@
 - [NEXT_WORK.md](NEXT_WORK.md): 다음 구현 범위와 보류·결정 대기 사항
 
 새 작업을 시작할 때는 `CLAUDE.md` → `CURRENT_STATUS.md` → `DEVELOPMENT_WORKFLOW.md` 순서로 읽는다.
+
+## 공통 작업 규칙
+
+- **인터넷 사용 또는 외부 자료 액세스는 사용자의 요청에 따라 진행해야 하며, 에이전트 임의로 판단하고 사용하지 않는다.**

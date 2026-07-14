@@ -63,5 +63,15 @@ namespace M2.Core
                 nextExpectedIndex = index + 1;
             }
         }
+
+        /// <summary>
+        /// Clears this racer's lap state for a synchronized online rematch while retaining the
+        /// scene's checkpoint lookup table built in Start().
+        /// </summary>
+        public void ResetRaceProgress()
+        {
+            LapCount = 0;
+            nextExpectedIndex = lastCheckpointIndex > 0 ? 1 : 0;
+        }
     }
 }

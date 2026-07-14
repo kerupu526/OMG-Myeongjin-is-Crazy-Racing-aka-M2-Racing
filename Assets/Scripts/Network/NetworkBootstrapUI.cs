@@ -253,7 +253,13 @@ namespace M2.Network
 
             bool localClientConnected = !networkManager.IsHost && clientId == networkManager.LocalClientId;
             bool remoteJoinedHost = networkManager.IsHost && clientId != networkManager.LocalClientId;
-            if (localClientConnected || remoteJoinedHost) HideConnectionUi();
+            if (localClientConnected || remoteJoinedHost)
+            {
+                // Stay on the formal lobby until both racers explicitly confirm readiness.
+                // Hiding it here used to skip the host's final rule/stage review entirely.
+                if (menuUi != null) menuUi.ShowLobby(ActiveRoomCode, networkManager.IsHost);
+                else HideConnectionUi();
+            }
         }
 
         void HandleClientDisconnected(ulong clientId)
@@ -305,6 +311,21 @@ namespace M2.Network
             if (statusText != null) statusText.gameObject.SetActive(true);
             roomSettingsUi?.SetVisible(true);
             SetButtonsInteractable(true);
+        }
+
+        /// <summary>
+        /// Leaves the current Relay/NGO race from a result card's "메인으로" action. The local
+        /// transport is shut down first so the peer receives the normal disconnect path instead
+        /// of being left in a divergent local-only rematch.
+        /// </summary>
+        public void ExitSessionToMain()
+        {
+            if (busy) return;
+            activeSession = null;
+            NetworkManager networkManager = NetworkManager.Singleton;
+            if (networkManager != null && networkManager.IsListening) networkManager.Shutdown();
+            ShowConnectionUi();
+            SetStatus("메인으로 돌아왔습니다. 새 방을 만들거나 방 코드로 참가할 수 있습니다.");
         }
 
         void SetButtonsInteractable(bool interactable)

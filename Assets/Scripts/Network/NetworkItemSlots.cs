@@ -130,6 +130,18 @@ namespace M2.Network
             ApplySpeedBoostOwnerRpc(gasoline.speedBonus, gasoline.duration);
         }
 
+        /// <summary>Server-only inventory cleanup used when the same Relay session starts a new round.</summary>
+        public void ServerResetForNewRound()
+        {
+            if (!IsServer) return;
+            netPrimary.Value = (byte)NetItemId.None;
+            netSecondary.Value = (byte)NetItemId.None;
+            primaryHeldTime = 0f;
+            secondaryHeldTime = 0f;
+            serverC4Positions.Clear();
+            ClearRoundVisualsRpc();
+        }
+
         void ClearSlot(ItemSlotChoice choice)
         {
             if (choice == ItemSlotChoice.Primary) netPrimary.Value = (byte)NetItemId.None;
@@ -318,6 +330,16 @@ namespace M2.Network
 
         [Rpc(SendTo.Everyone)]
         void SpawnHeartEffectRpc(Vector3 position) => ItemEffects.SpawnHeartEffect(position);
+
+        [Rpc(SendTo.Everyone)]
+        void ClearRoundVisualsRpc()
+        {
+            for (int i = 0; i < attackVisuals.Count; i++)
+            {
+                if (attackVisuals[i].gameObject != null) Destroy(attackVisuals[i].gameObject);
+            }
+            attackVisuals.Clear();
+        }
 
         static IEnumerator DestroyAfter(GameObject go, float seconds)
         {

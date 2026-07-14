@@ -45,10 +45,14 @@ namespace M2.Network
         Text countdownLabel;
         Text resultTitleLabel;
         Text resultBodyLabel;
+        Text resultActionLabel;
         Image primaryIcon;
         Image secondaryIcon;
         Image localAvatar;
         Image opponentAvatar;
+        Button rematchButton;
+        Button lobbyButton;
+        Button mainButton;
 
         void Awake()
         {
@@ -201,14 +205,24 @@ namespace M2.Network
 
             GameObject card = CreateCard(resultOverlay.transform, "ResultCard", new Color(Ink.r, Ink.g, Ink.b, 0.97f), Yellow);
             SetRect(card.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                RaceHUD.ScaleGameplayHud(new Vector2(0f, 12f)), RaceHUD.ScaleGameplayHud(new Vector2(670f, 420f)));
+                RaceHUD.ScaleGameplayHud(new Vector2(0f, 12f)), RaceHUD.ScaleGameplayHud(new Vector2(720f, 524f)));
             resultTitleLabel = CreateText("Title", card.transform, 48, Yellow, TextAnchor.MiddleCenter, UiFontRole.Display);
             SetRect(resultTitleLabel.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                RaceHUD.ScaleGameplayHud(new Vector2(0f, -66f)), RaceHUD.ScaleGameplayHud(new Vector2(570f, 70f)));
+                RaceHUD.ScaleGameplayHud(new Vector2(0f, -58f)), RaceHUD.ScaleGameplayHud(new Vector2(630f, 70f)));
             AddOutline(resultTitleLabel.gameObject, Ink, new Vector2(3f, -3f));
             resultBodyLabel = CreateText("Body", card.transform, 28, Color.white, TextAnchor.MiddleCenter);
             SetRect(resultBodyLabel.rectTransform, Vector2.zero, Vector2.one, RaceHUD.ScaleGameplayHud(new Vector2(36f, 42f)),
-                RaceHUD.ScaleGameplayHud(new Vector2(-36f, -120f)));
+                RaceHUD.ScaleGameplayHud(new Vector2(-36f, -210f)));
+            rematchButton = CreateResultButton(card.transform, "RematchButton", "다시 하기", new Vector2(-220f, 90f), Pink,
+                Color.white, () => raceManager?.RequestRematch());
+            lobbyButton = CreateResultButton(card.transform, "ReturnToLobbyButton", "로비로", new Vector2(0f, 90f), Mint,
+                Ink, () => raceManager?.RequestReturnToLobby());
+            mainButton = CreateResultButton(card.transform, "ReturnToMainButton", "메인으로", new Vector2(220f, 90f), Yellow,
+                Ink, ReturnToMain);
+            resultActionLabel = CreateText("ActionStatus", card.transform, 17, new Color(1f, 1f, 1f, 0.85f),
+                TextAnchor.MiddleCenter);
+            SetRect(resultActionLabel.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                RaceHUD.ScaleGameplayHud(new Vector2(0f, 38f)), RaceHUD.ScaleGameplayHud(new Vector2(600f, 28f)));
             resultOverlay.SetActive(false);
         }
 
@@ -334,6 +348,7 @@ namespace M2.Network
                     $"{BuildResultLine(opponentRacer, opponentName, opponentColor, opponentLaps, targetLaps, showStars)}\n\n" +
                     (draw ? "두 레이서의 기록이 동점으로 처리되었습니다." :
                         localWon ? "가장 먼저 결승 조건을 달성했습니다!" : "상대 레이서가 먼저 결승 조건을 달성했습니다.");
+                RefreshResultActions();
                 return;
             }
 
@@ -412,7 +427,40 @@ namespace M2.Network
                 ? FormatTime(racer.FinishTime)
                 : $"미완주 · {laps}/{targetLaps}바퀴";
             string stars = showStars ? $" · ★ {racer.Stars}/6" : string.Empty;
-            return $"<size=24><color=#{ColorUtility.ToHtmlStringRGB(color)}>{placement} {displayName}</color> · {record}{stars}</size>";
+            string plate = racer.HasProfile ? $" {M2PlayerProfile.ResolvePlateLabel(racer.Appearance.PlateIndex)}" : string.Empty;
+            return $"<size=24><color=#{ColorUtility.ToHtmlStringRGB(color)}>{placement} {displayName}{plate}</color> · {record}{stars}</size>";
+        }
+
+        void RefreshResultActions()
+        {
+            if (rematchButton == null || lobbyButton == null || mainButton == null) return;
+            bool localIsHost = LocalIsHost();
+            int localChoice = localIsHost ? raceManager.HostPostRaceChoice : raceManager.ClientPostRaceChoice;
+            int opponentChoice = localIsHost ? raceManager.ClientPostRaceChoice : raceManager.HostPostRaceChoice;
+            bool awaiting = localChoice != 0;
+
+            rematchButton.interactable = !awaiting;
+            lobbyButton.interactable = !awaiting;
+            mainButton.interactable = true;
+            SetResultButtonLabel(rematchButton, localChoice == 1 ? "다시 하기 · 대기" : "다시 하기");
+            SetResultButtonLabel(lobbyButton, localChoice == 2 ? "로비로 · 대기" : "로비로");
+
+            if (resultActionLabel != null)
+            {
+                resultActionLabel.text = localChoice == 0
+                    ? "다시 하기 또는 로비로는 상대 레이서의 같은 선택을 기다립니다."
+                    : opponentChoice == 0
+                        ? "내 선택을 보냈습니다. 상대 레이서의 응답을 기다리는 중입니다."
+                        : opponentChoice == localChoice
+                            ? "두 레이서의 선택을 확인했습니다. 화면을 전환하는 중입니다."
+                            : "상대 레이서가 다른 선택을 했습니다. 메인으로 나가거나 다시 선택하세요.";
+            }
+        }
+
+        void ReturnToMain()
+        {
+            NetworkBootstrapUI bootstrap = FindFirstObjectByType<NetworkBootstrapUI>();
+            if (bootstrap != null) bootstrap.ExitSessionToMain();
         }
 
         static string StateLabel(RaceState state) => state switch
@@ -442,6 +490,39 @@ namespace M2.Network
             image.raycastTarget = false;
             AddOutline(card, border, new Vector2(3f, -3f));
             return card;
+        }
+
+        static Button CreateResultButton(Transform parent, string name, string label, Vector2 position,
+            Color fill, Color labelColor, UnityEngine.Events.UnityAction action)
+        {
+            GameObject buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+            Image image = buttonObject.GetComponent<Image>();
+            image.color = fill;
+            AddOutline(buttonObject, Ink, new Vector2(2f, -2f));
+            Button button = buttonObject.GetComponent<Button>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.9f);
+            colors.pressedColor = new Color(0.76f, 0.76f, 0.76f, 1f);
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.42f);
+            button.colors = colors;
+            if (action != null) button.onClick.AddListener(action);
+            SetRect(buttonObject.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                RaceHUD.ScaleGameplayHud(position), RaceHUD.ScaleGameplayHud(new Vector2(188f, 56f)));
+            Text text = CreateText("Label", buttonObject.transform, 22, labelColor, TextAnchor.MiddleCenter, UiFontRole.Body);
+            text.text = label;
+            Stretch(text.rectTransform, RaceHUD.ScaleGameplayHud(new Vector2(8f, 4f)),
+                RaceHUD.ScaleGameplayHud(new Vector2(-8f, -4f)));
+            AddOutline(text.gameObject, labelColor == Ink ? Color.white : Ink, new Vector2(1f, -1f));
+            return button;
+        }
+
+        static void SetResultButtonLabel(Button button, string label)
+        {
+            if (button == null) return;
+            Text text = button.GetComponentInChildren<Text>(true);
+            if (text != null) text.text = label;
         }
 
         static Text CreateText(string name, Transform parent, int fontSize, Color color, TextAnchor alignment,

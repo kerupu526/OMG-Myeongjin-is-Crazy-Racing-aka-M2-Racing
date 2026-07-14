@@ -73,7 +73,7 @@ namespace M2.Tests.PlayMode
             Assert.IsTrue(gameOverFired, "Reaching full temperature should fire OnBurnGameOver immediately.");
             Assert.IsTrue(gauge.IsDepleted);
 
-            Press(Keyboard.current.upArrowKey);
+            vehicle.SetInputOverride(1f, 0f);
             for (int i = 0; i < 10; i++)
             {
                 yield return new WaitForFixedUpdate();

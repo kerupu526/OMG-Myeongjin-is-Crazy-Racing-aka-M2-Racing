@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -33,7 +34,7 @@ namespace M2.Tests.PlayMode
         public IEnumerator Vehicle_Accelerates_When_Throttle_Held()
         {
             yield return null;
-            Press(Keyboard.current.upArrowKey);
+            vehicle.SetInputOverride(1f, 0f);
 
             for (int i = 0; i < 30; i++)
             {
@@ -46,12 +47,30 @@ namespace M2.Tests.PlayMode
             // release is unnecessary here.
         }
 
+        [Test]
+        public void Keyboard_Bindings_Keep_Arrow_And_Wasd_Controls()
+        {
+            InputAction throttle = typeof(VehicleController)
+                .GetField("throttleAction", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.GetValue(vehicle) as InputAction;
+            Assert.IsNotNull(throttle);
+            Assert.IsTrue(HasBinding(throttle, "<Keyboard>/upArrow"));
+            Assert.IsTrue(HasBinding(throttle, "<Keyboard>/w"));
+
+            InputAction steering = typeof(VehicleController)
+                .GetField("steerAction", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.GetValue(vehicle) as InputAction;
+            Assert.IsNotNull(steering);
+            Assert.IsTrue(HasBinding(steering, "<Keyboard>/rightArrow"));
+            Assert.IsTrue(HasBinding(steering, "<Keyboard>/d"));
+        }
+
         [UnityTest]
         public IEnumerator Vehicle_Stays_Stopped_When_Input_Locked()
         {
             vehicle.SetInputLocked(true);
             yield return null;
-            Press(Keyboard.current.upArrowKey);
+            vehicle.SetInputOverride(1f, 0f);
 
             for (int i = 0; i < 30; i++)
             {
@@ -64,11 +83,8 @@ namespace M2.Tests.PlayMode
         [UnityTest]
         public IEnumerator ApplyKnockback_Overrides_Velocity_And_Suspends_Throttle_Control()
         {
-            // Press early (right after the initial frame, before any WaitForFixedUpdate) —
-            // calling Press()/Release() after physics steps have already run tends to throw
-            // "does not have an associated state" from the Input System's own test fixture.
             yield return null;
-            Press(Keyboard.current.upArrowKey);
+            vehicle.SetInputOverride(1f, 0f);
 
             vehicle.ApplyKnockback(new Vector3(5f, 0f, 0f), 0.3f);
             yield return new WaitForFixedUpdate();
@@ -85,16 +101,10 @@ namespace M2.Tests.PlayMode
         [UnityTest]
         public IEnumerator SetSteeringInvertedFor_Flips_Turn_Direction()
         {
-            // Both keys pressed up front, before any WaitForFixedUpdate (see the comment on
-            // ApplyKnockback_Overrides_Velocity_And_Suspends_Throttle_Control above), and with
-            // a frame between them — two Press() calls back-to-back with no yield in between
-            // silently lost the first one (car never moved, yaw stayed flat at 0 the whole test).
             yield return null;
             vehicle.acceleration = 100f;
             vehicle.SetSteeringInvertedFor(5f);
-            Press(Keyboard.current.upArrowKey);
-            yield return null;
-            Press(Keyboard.current.rightArrowKey);
+            vehicle.SetInputOverride(1f, 1f);
 
             for (int i = 0; i < 20; i++)
             {
@@ -127,7 +137,7 @@ namespace M2.Tests.PlayMode
             Assert.IsTrue(vehicle.IsOwnedLocally,
                 "Without a NetworkObject component, the vehicle must always be treated as locally owned.");
 
-            Press(Keyboard.current.upArrowKey);
+            vehicle.SetInputOverride(1f, 0f);
             for (int i = 0; i < 30; i++)
             {
                 yield return new WaitForFixedUpdate();
@@ -135,6 +145,15 @@ namespace M2.Tests.PlayMode
 
             Assert.Greater(vehicle.CurrentSpeed, 0f,
                 "The ownership gate must not block input/simulation in the existing non-networked local flow.");
+        }
+
+        static bool HasBinding(InputAction action, string path)
+        {
+            foreach (InputBinding binding in action.bindings)
+            {
+                if (binding.path == path) return true;
+            }
+            return false;
         }
     }
 }

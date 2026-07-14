@@ -9,9 +9,24 @@ namespace M2.Tests.PlayMode
         [Test]
         public void Avatar_Palette_Normalizes_Indices_Without_Writing_PlayerPrefs()
         {
-            Assert.AreEqual(M2PlayerProfile.ResolveAvatarColor(0), M2PlayerProfile.ResolveAvatarColor(3));
-            Assert.AreEqual(M2PlayerProfile.ResolveAvatarColor(2), M2PlayerProfile.ResolveAvatarColor(-1));
+            Assert.AreEqual(M2PlayerProfile.ResolveAvatarColor(0), M2PlayerProfile.ResolveAvatarColor(6));
+            Assert.AreEqual(M2PlayerProfile.ResolveAvatarColor(5), M2PlayerProfile.ResolveAvatarColor(-1));
             Assert.AreNotEqual(M2PlayerProfile.ResolveAvatarColor(0), M2PlayerProfile.ResolveAvatarColor(1));
+        }
+
+        [Test]
+        public void Avatar_Appearance_Normalizes_All_Synchronized_Cosmetic_Choices()
+        {
+            M2AvatarAppearance appearance = new M2AvatarAppearance(
+                7, (M2AvatarEyes)4, (M2AvatarMouth)(-1), true, false, (M2AvatarHat)5, 4);
+
+            Assert.AreEqual(1, appearance.BodyColorIndex);
+            Assert.AreEqual(M2AvatarEyes.Happy, appearance.Eyes);
+            Assert.AreEqual(M2AvatarMouth.Flat, appearance.Mouth);
+            Assert.IsTrue(appearance.HasCheeks);
+            Assert.IsFalse(appearance.HasEars);
+            Assert.AreEqual(M2AvatarHat.Crown, appearance.Hat);
+            Assert.AreEqual("#077", M2PlayerProfile.ResolvePlateLabel(appearance.PlateIndex));
         }
 
         [Test]

@@ -53,11 +53,15 @@ namespace M2.Tests.PlayMode
             AssertReadableCard(root, "PrimaryItemCard", RaceHUD.ScaleGameplayHud(new Vector2(170f, 170f)));
             AssertReadableCard(root, "SecondaryItemCard", RaceHUD.ScaleGameplayHud(new Vector2(170f, 170f)));
             AssertReadableCard(root, "ItemDetailCard", RaceHUD.ScaleGameplayHud(new Vector2(590f, 130f)));
-            AssertReadableCard(root.Find("ResultOverlay"), "ResultCard", RaceHUD.ScaleGameplayHud(new Vector2(670f, 420f)));
+            Transform resultOverlay = root.Find("ResultOverlay");
+            AssertReadableCard(resultOverlay, "ResultCard", RaceHUD.ScaleGameplayHud(new Vector2(720f, 524f)));
 
             Assert.IsNotNull(root.Find("PrimaryItemCard/Icon").GetComponent<Image>());
             Assert.IsNotNull(root.Find("SecondaryItemCard/Icon").GetComponent<Image>());
             Assert.IsNotNull(root.Find("CountdownCard/Label").GetComponent<Text>());
+            Assert.IsNotNull(resultOverlay.Find("ResultCard/RematchButton").GetComponent<Button>());
+            Assert.IsNotNull(resultOverlay.Find("ResultCard/ReturnToLobbyButton").GetComponent<Button>());
+            Assert.IsNotNull(resultOverlay.Find("ResultCard/ReturnToMainButton").GetComponent<Button>());
             Assert.IsFalse(root.Find("ResultOverlay").gameObject.activeSelf);
         }
 

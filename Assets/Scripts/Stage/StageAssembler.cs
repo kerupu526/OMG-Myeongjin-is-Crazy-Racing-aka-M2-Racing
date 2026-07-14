@@ -120,7 +120,11 @@ namespace M2.Stage
             {
                 // Offset from checkpoints/items so bubbles don't stack on top of either.
                 float theta = (i + 0.25f) * Mathf.PI * 2f / OxygenBubbleSpawnCount;
-                Vector3 position = geo.PointAt(theta);
+                // Alternate lanes instead of placing every recovery pickup on the centerline.
+                // This makes each bubble visible as a deliberate routing reward and prevents
+                // it from visually stacking with the circuit's center-line item markers.
+                float lateral = (i % 2 == 0 ? -1f : 1f) * geo.TrackWidth * 0.18f;
+                Vector3 position = geo.OffsetPointAt(theta, lateral);
 
                 GameObject spawner = new GameObject($"OxygenBubbleSpawner_{i}");
                 spawner.transform.SetParent(parent);
@@ -136,14 +140,18 @@ namespace M2.Stage
                 // Offset again, pulled to one side of the track band (via the local normal,
                 // not a from-origin approximation — the centerline isn't a plain ellipse
                 // anymore) so hazards are avoidable, not a guaranteed hit.
-                float theta = (i + 0.75f) * Mathf.PI * 2f / TerrainHazardCount;
-                Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * 0.25f);
+                float theta = (i + 0.72f) * Mathf.PI * 2f / TerrainHazardCount;
+                // Alternate sides so three rocks do not read as one repeated wall-side row.
+                // Both offsets remain well inside the track edge, leaving a full car-width
+                // escape lane on the opposite side.
+                float lateral = (i % 2 == 0 ? 0.29f : -0.27f) * geo.TrackWidth;
+                Vector3 position = geo.OffsetPointAt(theta, lateral);
 
                 GameObject hazard = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 hazard.name = $"TerrainHazard_{i}";
                 hazard.transform.SetParent(parent);
                 hazard.transform.position = position + Vector3.up * 0.5f;
-                hazard.transform.localScale = new Vector3(1.5f, 1f, 1.5f);
+                hazard.transform.localScale = new Vector3(1.35f, 1f, 1.35f);
 
                 // The cube stays as the invisible collision proxy (TerrainHazard needs
                 // OnCollisionEnter, i.e. a solid non-trigger collider sized like this box) — a
@@ -158,7 +166,7 @@ namespace M2.Stage
                 // Keep it separate from the collider proxy so the collision footprint remains
                 // deterministic while art can be changed without altering gameplay.
                 AttachStagePrefabVisual(hazard.transform, StageArtPrefabId.BikiniTerrainRock,
-                    new Color(0.52f, 0.48f, 0.42f), modelScale: 1.4f,
+                    new Color(0.52f, 0.48f, 0.42f), modelScale: 1.28f,
                     localPosition: new Vector3(0f, -0.5f, 0f));
 
                 hazard.AddComponent<TerrainHazard>();
@@ -260,20 +268,22 @@ namespace M2.Stage
 
         static void CreateBroadcastTowerProp(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
         {
-            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * (geo.TrackWidth / 2f + 4f);
+            // Move the tall silhouette farther beyond the wall than the camera/trigger props;
+            // at +4m it overlapped the outer edge in tight bends and dominated the racing view.
+            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * (geo.TrackWidth / 2f + 6f);
             GameObject tower = new GameObject("BroadcastTowerProp");
             tower.transform.SetParent(parent);
             tower.transform.position = geo.OffsetPointAt(theta + 0.04f * Mathf.PI * 2f, edgeOffset);
             tower.transform.rotation = Quaternion.LookRotation(geo.TangentAt(theta), Vector3.up);
             AttachStagePrefabVisual(tower.transform, StageArtPrefabId.AfricaBroadcastTower,
-                new Color(0.34f, 0.34f, 0.42f), modelScale: 0.55f);
+                new Color(0.34f, 0.34f, 0.42f), modelScale: 0.68f);
         }
 
         static void CreateWarningSign(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
         {
             // Right at the track edge on the danger side — visible without blocking the
             // drivable lane (the zones themselves already leave the other side clear).
-            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * geo.TrackWidth / 2f;
+            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * (geo.TrackWidth / 2f + 0.7f);
             Vector3 position = geo.OffsetPointAt(theta, edgeOffset);
             Vector3 tangent = geo.TangentAt(theta);
 
@@ -310,7 +320,9 @@ namespace M2.Stage
         // Blockbench asset here, same tradeoff already made for LavaZone/GhastFireball.
         static void CreateBroadcastCameraProp(Transform parent, TrackGeometry geo, float theta, float lateralOffsetRatio)
         {
-            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * geo.TrackWidth / 2f;
+            // Keep the tripod off the asphalt; only its visual needs to be noticed before the
+            // warning zone, not occupy the same lane as a player trying to avoid it.
+            float edgeOffset = (lateralOffsetRatio >= 0f ? 1f : -1f) * (geo.TrackWidth / 2f + 1.2f);
             Vector3 position = geo.OffsetPointAt(theta, edgeOffset);
             Vector3 tangent = geo.TangentAt(theta);
 
@@ -429,8 +441,8 @@ namespace M2.Stage
             // narrower track that covered most of the road with barely a sliver to dodge
             // through. Shrunk + pushed further toward one edge so roughly half the track
             // width stays clear on the other side (playtester feedback: "피하기 어려워").
-            const float sizeRatio = 0.3f;
-            const float offsetRatio = 0.32f;
+            const float sizeRatio = 0.28f;
+            const float offsetRatio = 0.34f;
             Vector3 position = geo.OffsetPointAt(theta, geo.TrackWidth * offsetRatio);
 
             GameObject lava = new GameObject("LavaZone");
@@ -457,7 +469,7 @@ namespace M2.Stage
             // A ring of authored castle-rock prefabs frames the pool. Angle-derived, not
             // Random, so rebuilding or hot-switching keeps the same readable race line.
             float halfSize = geo.TrackWidth * sizeRatio * 0.5f;
-            const int rockCount = 8;
+            const int rockCount = 6;
             for (int i = 0; i < rockCount; i++)
             {
                 float angle = (i / (float)rockCount) * 360f;
@@ -534,7 +546,9 @@ namespace M2.Stage
             // its trigger remains the deliberately narrow lane above, not the decorative mesh.
             GameObject arch = new GameObject("CoolingArchProp");
             arch.transform.SetParent(oasis.transform);
-            arch.transform.localPosition = new Vector3(0f, groundLocalY, halfLength * 0.85f);
+            // Put the arch on the approach side so it reads as a cooling landmark before a
+            // player commits to the lane, rather than filling the exit view.
+            arch.transform.localPosition = new Vector3(0f, groundLocalY, -halfLength * 0.85f);
             AttachStagePrefabVisual(arch.transform, StageArtPrefabId.NetherCoolingArch,
                 new Color(0.24f, 0.34f, 0.36f), modelScale: 0.45f);
 
@@ -543,7 +557,9 @@ namespace M2.Stage
 
         static void CreateGhastFireball(Transform parent, Transform trackCenter, TrackGeometry geo)
         {
-            const float theta = 0.35f * Mathf.PI * 2f + 0.1f * Mathf.PI * 2f;
+            // Separate it from the lava pool by almost a quarter-lap. The old +0.1 lap spacing
+            // made the two orange hazards read as one unavoidable cluster at racing speed.
+            const float theta = 0.35f * Mathf.PI * 2f + 0.19f * Mathf.PI * 2f;
             // Offset to the side of the track (like the terrain hazards / lava zone) instead of
             // dead-center on the racing line where the car couldn't help hitting it every lap —
             // that centerline placement is why Nether felt like it randomly grabbed you mid-road.

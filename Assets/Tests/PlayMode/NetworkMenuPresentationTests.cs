@@ -44,12 +44,26 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual("Avatar", menu.CurrentScreenName);
             Assert.IsTrue(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar").gameObject.activeSelf);
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar/AvatarEditorCard/AvatarNameInput"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar/AvatarPreviewCard/AvatarPreview/FaceEyes"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar/AvatarPreviewCard/AvatarPreview/FaceMouth"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Avatar/AvatarPreviewCard/AvatarPreview/FacePlate"));
 
             menu.ShowSettings();
             Assert.AreEqual("Settings", menu.CurrentScreenName);
             Assert.IsTrue(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings").gameObject.activeSelf);
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/MasterVolumeSlider"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/BgmVolumeSlider"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/SfxVolumeSlider"));
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/FullscreenToggle"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/QualityHighButton"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Settings/SettingsCard/LanguageEnglishButton"));
+
+            menu.ShowLobby("", true);
+            Assert.AreEqual("Lobby", menu.CurrentScreenName);
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/LobbyReadyButton"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/StageBikiniButton"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/StageAfricaButton"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/StageNetherButton"));
         }
 
         [UnityTest]

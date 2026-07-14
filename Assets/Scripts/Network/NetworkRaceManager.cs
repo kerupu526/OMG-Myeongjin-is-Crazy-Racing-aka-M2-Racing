@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using M2.Core;
 using M2.Player;
+using M2.Stage;
 using M2.UI;
 using Unity.Collections;
 using Unity.Netcode;
@@ -16,7 +17,8 @@ namespace M2.Network
     public readonly struct NetworkRacerResult
     {
         public string DisplayName { get; }
-        public int AvatarColorIndex { get; }
+        public M2AvatarAppearance Appearance { get; }
+        public int AvatarColorIndex => Appearance.BodyColorIndex;
         public int Rank { get; }
         public bool Finished { get; }
         public float FinishTime { get; }
@@ -24,15 +26,22 @@ namespace M2.Network
 
         public bool HasProfile => !string.IsNullOrWhiteSpace(DisplayName);
 
-        public NetworkRacerResult(string displayName, int avatarColorIndex, int rank,
+        public NetworkRacerResult(string displayName, M2AvatarAppearance appearance, int rank,
             bool finished, float finishTime, int stars)
         {
             DisplayName = displayName;
-            AvatarColorIndex = avatarColorIndex;
+            Appearance = M2PlayerProfile.NormalizeAppearance(appearance);
             Rank = rank;
             Finished = finished;
             FinishTime = finishTime;
             Stars = stars;
+        }
+
+        public NetworkRacerResult(string displayName, int avatarColorIndex, int rank,
+            bool finished, float finishTime, int stars)
+            : this(displayName, new M2AvatarAppearance(avatarColorIndex, M2AvatarEyes.Round,
+                M2AvatarMouth.Smile, true, true, M2AvatarHat.Cap, 0), rank, finished, finishTime, stars)
+        {
         }
     }
 
@@ -82,10 +91,31 @@ namespace M2.Network
         readonly NetworkVariable<int> netVictoryCondition = new NetworkVariable<int>((int)VictoryCondition.SimpleFinish);
         readonly NetworkVariable<int> netTargetLapCount = new NetworkVariable<int>(3);
         readonly NetworkVariable<float> netSpeedModeMaximumKph = new NetworkVariable<float>(RaceModeRules.SpeedModeMaximumKph);
+        // The connected scene doubles as the lobby. The host owns rules/stage selection, while
+        // both racers independently mark themselves ready before the authoritative flow begins.
+        readonly NetworkVariable<bool> netLobbyOpen = new NetworkVariable<bool>(true);
+        readonly NetworkVariable<int> netSelectedStage = new NetworkVariable<int>((int)StageType.BikiniCity);
+        readonly NetworkVariable<bool> netHostReady = new NetworkVariable<bool>(false);
+        readonly NetworkVariable<bool> netClientReady = new NetworkVariable<bool>(false);
+        // 0 = none, 1 = rematch, 2 = return to lobby. Each racer submits one choice.
+        readonly NetworkVariable<int> netHostPostRaceChoice = new NetworkVariable<int>(0);
+        readonly NetworkVariable<int> netClientPostRaceChoice = new NetworkVariable<int>(0);
         readonly NetworkVariable<FixedString64Bytes> netHostDisplayName = new NetworkVariable<FixedString64Bytes>("");
         readonly NetworkVariable<int> netHostAvatarColorIndex = new NetworkVariable<int>(0);
+        readonly NetworkVariable<int> netHostAvatarEyes = new NetworkVariable<int>((int)M2AvatarEyes.Round);
+        readonly NetworkVariable<int> netHostAvatarMouth = new NetworkVariable<int>((int)M2AvatarMouth.Smile);
+        readonly NetworkVariable<bool> netHostAvatarCheeks = new NetworkVariable<bool>(true);
+        readonly NetworkVariable<bool> netHostAvatarEars = new NetworkVariable<bool>(true);
+        readonly NetworkVariable<int> netHostAvatarHat = new NetworkVariable<int>((int)M2AvatarHat.Cap);
+        readonly NetworkVariable<int> netHostAvatarPlate = new NetworkVariable<int>(0);
         readonly NetworkVariable<FixedString64Bytes> netClientDisplayName = new NetworkVariable<FixedString64Bytes>("");
         readonly NetworkVariable<int> netClientAvatarColorIndex = new NetworkVariable<int>(0);
+        readonly NetworkVariable<int> netClientAvatarEyes = new NetworkVariable<int>((int)M2AvatarEyes.Round);
+        readonly NetworkVariable<int> netClientAvatarMouth = new NetworkVariable<int>((int)M2AvatarMouth.Smile);
+        readonly NetworkVariable<bool> netClientAvatarCheeks = new NetworkVariable<bool>(true);
+        readonly NetworkVariable<bool> netClientAvatarEars = new NetworkVariable<bool>(true);
+        readonly NetworkVariable<int> netClientAvatarHat = new NetworkVariable<int>((int)M2AvatarHat.Cap);
+        readonly NetworkVariable<int> netClientAvatarPlate = new NetworkVariable<int>(0);
         // 0 = no result yet, 1 = someone won, 2 = draw.
         readonly NetworkVariable<int> netResult = new NetworkVariable<int>(0);
         readonly NetworkVariable<ulong> netWinnerClientId = new NetworkVariable<ulong>(0);
@@ -109,14 +139,21 @@ namespace M2.Network
         public VictoryCondition CurrentVictoryCondition => (VictoryCondition)netVictoryCondition.Value;
         public int TargetLapCount => netTargetLapCount.Value;
         public float SpeedModeMaximumKph => netSpeedModeMaximumKph.Value;
+        public bool LobbyOpen => netLobbyOpen.Value;
+        public StageType SelectedStage => (StageType)netSelectedStage.Value;
+        public bool HostReady => netHostReady.Value;
+        public bool ClientReady => netClientReady.Value;
+        public bool BothPlayersReady => netHostReady.Value && netClientReady.Value;
+        public int HostPostRaceChoice => netHostPostRaceChoice.Value;
+        public int ClientPostRaceChoice => netClientPostRaceChoice.Value;
         public int Result => netResult.Value;
         public ulong WinnerClientId => netWinnerClientId.Value;
         public string DrawReason => netDrawReason.Value.ToString();
         public NetworkRacerResult HostRacer => new NetworkRacerResult(netHostDisplayName.Value.ToString(),
-            netHostAvatarColorIndex.Value, netHostRank.Value, netHostFinished.Value,
+            ReadAppearance(true), netHostRank.Value, netHostFinished.Value,
             netHostFinishTime.Value, netHostStars.Value);
         public NetworkRacerResult ClientRacer => new NetworkRacerResult(netClientDisplayName.Value.ToString(),
-            netClientAvatarColorIndex.Value, netClientRank.Value, netClientFinished.Value,
+            ReadAppearance(false), netClientRank.Value, netClientFinished.Value,
             netClientFinishTime.Value, netClientStars.Value);
 
         // --- Server-only authoritative references ---
@@ -127,6 +164,7 @@ namespace M2.Network
         bool flowBegun;
         bool eventsHooked;
         NetworkItemSpawnManager itemSpawnManager;
+        NetworkStageTheme stageTheme;
 
         void Awake()
         {
@@ -153,9 +191,11 @@ namespace M2.Network
             netState.OnValueChanged += HandleStateChangedForInputLock;
             netRaceMode.OnValueChanged += HandleRaceRulesChanged;
             netSpeedModeMaximumKph.OnValueChanged += HandleSpeedLimitChanged;
+            netSelectedStage.OnValueChanged += HandleStageChanged;
             ApplyLocalInputLock((RaceState)netState.Value);
             ApplyLocalRaceRules();
             ApplyItemSpawnRules();
+            ApplySelectedStageTheme();
         }
 
         public override void OnNetworkDespawn()
@@ -163,6 +203,7 @@ namespace M2.Network
             netState.OnValueChanged -= HandleStateChangedForInputLock;
             netRaceMode.OnValueChanged -= HandleRaceRulesChanged;
             netSpeedModeMaximumKph.OnValueChanged -= HandleSpeedLimitChanged;
+            netSelectedStage.OnValueChanged -= HandleStageChanged;
             UnhookGameManagerEvents();
         }
 
@@ -208,6 +249,7 @@ namespace M2.Network
             netTimeRemaining.Value = gameManager != null ? gameManager.TimeRemaining : 0f;
             if (hostTracker != null) netHostLaps.Value = hostTracker.LapCount;
             if (clientTracker != null) netClientLaps.Value = clientTracker.LapCount;
+            TryResolvePostRaceChoice();
         }
 
         void SyncRoomSettings()
@@ -260,11 +302,251 @@ namespace M2.Network
                 }
             }
 
-            if (found >= requiredPlayers && hostTracker != null)
+            if (found >= requiredPlayers && hostTracker != null && clientTracker != null)
             {
+                if (netLobbyOpen.Value)
+                {
+                    // A room is not allowed to launch just because the second transport
+                    // connection appeared. Both players visibly confirm the current host rules.
+                    if (!BothPlayersReady) return;
+                    netLobbyOpen.Value = false;
+                }
                 flowBegun = true;
                 gameManager.BeginRaceFlow();
             }
+        }
+
+        // ---- Lobby rules and readiness ------------------------------------------------------
+
+        /// <summary>Sets this client's ready chip. The server stores the sender identity itself.</summary>
+        public void RequestLobbyReady(bool ready)
+        {
+            if (!IsClient || !LobbyOpen) return;
+            if (IsServer)
+            {
+                SetRacerReady(NetworkManager.LocalClientId, ready);
+            }
+            else
+            {
+                RequestLobbyReadyRpc(ready);
+            }
+        }
+
+        /// <summary>
+        /// Host-only lobby configuration. Calling this on the host updates both the visible
+        /// lobby data and the server's GameManager; clients can only receive the result.
+        /// </summary>
+        public void RequestLobbySettings(RaceMode mode, int itemLapCount,
+            VictoryCondition victoryCondition, StageType stage)
+        {
+            if (!IsClient || !LobbyOpen) return;
+            if (IsServer)
+            {
+                ApplyLobbySettings(NetworkManager.LocalClientId, mode, itemLapCount, victoryCondition, stage);
+            }
+            else
+            {
+                RequestLobbySettingsRpc((int)mode, itemLapCount, (int)victoryCondition, (int)stage);
+            }
+        }
+
+        /// <summary>Republishes the saved local avatar after the player edits it in the lobby.</summary>
+        public void RequestProfileUpdate()
+        {
+            if (IsClient) SubmitLocalProfile();
+        }
+
+        [Rpc(SendTo.Server)]
+        void RequestLobbyReadyRpc(bool ready, RpcParams rpcParams = default)
+        {
+            SetRacerReady(rpcParams.Receive.SenderClientId, ready);
+        }
+
+        [Rpc(SendTo.Server)]
+        void RequestLobbySettingsRpc(int mode, int itemLapCount, int victoryCondition, int stage,
+            RpcParams rpcParams = default)
+        {
+            ApplyLobbySettings(rpcParams.Receive.SenderClientId, (RaceMode)mode, itemLapCount,
+                (VictoryCondition)victoryCondition, (StageType)stage);
+        }
+
+        void SetRacerReady(ulong clientId, bool ready)
+        {
+            if (!IsServer || !netLobbyOpen.Value || NetworkManager == null) return;
+            if (clientId == NetworkManager.ServerClientId) netHostReady.Value = ready;
+            else netClientReady.Value = ready;
+        }
+
+        void ApplyLobbySettings(ulong senderClientId, RaceMode mode, int itemLapCount,
+            VictoryCondition victoryCondition, StageType stage)
+        {
+            if (!IsServer || !netLobbyOpen.Value || NetworkManager == null ||
+                senderClientId != NetworkManager.ServerClientId)
+            {
+                return;
+            }
+
+            RaceMode normalizedMode = NormalizeRaceMode(mode);
+            VictoryCondition normalizedVictory = NormalizeVictoryCondition(victoryCondition);
+            StageType normalizedStage = NormalizeStage(stage);
+            gameManager ??= FindFirstObjectByType<GameManager>();
+            if (gameManager != null)
+            {
+                gameManager.ConfigureRoomSettings(normalizedMode, itemLapCount, normalizedVictory);
+                netRaceMode.Value = (int)gameManager.raceMode;
+                netVictoryCondition.Value = (int)gameManager.victoryCondition;
+                netTargetLapCount.Value = gameManager.targetLapCount;
+                netSpeedModeMaximumKph.Value = gameManager.speedModeMaximumKph;
+            }
+            else
+            {
+                netRaceMode.Value = (int)normalizedMode;
+                netTargetLapCount.Value = normalizedMode == RaceMode.Speed
+                    ? RaceModeRules.SpeedModeLapCount
+                    : RaceModeRules.NormalizeItemLapCount(itemLapCount);
+                netVictoryCondition.Value = (int)(normalizedMode == RaceMode.Speed
+                    ? VictoryCondition.SimpleFinish
+                    : normalizedVictory);
+            }
+
+            netSelectedStage.Value = (int)normalizedStage;
+            // Any rule change requires a fresh acknowledgement on both sides.
+            netHostReady.Value = false;
+            netClientReady.Value = false;
+            ApplyItemSpawnRules();
+        }
+
+        static StageType NormalizeStage(StageType stage)
+        {
+            return stage switch
+            {
+                StageType.BikiniCity => StageType.BikiniCity,
+                StageType.AfricaTv => StageType.AfricaTv,
+                StageType.NetherFortress => StageType.NetherFortress,
+                _ => StageType.BikiniCity,
+            };
+        }
+
+        static RaceMode NormalizeRaceMode(RaceMode mode) =>
+            mode == RaceMode.Speed ? RaceMode.Speed : RaceMode.Item;
+
+        static VictoryCondition NormalizeVictoryCondition(VictoryCondition condition) =>
+            condition == VictoryCondition.StarBet ? VictoryCondition.StarBet : VictoryCondition.SimpleFinish;
+
+        // ---- Post-race navigation ----------------------------------------------------------
+
+        /// <summary>Requests a synchronized rematch. The next race only begins after both agree.</summary>
+        public void RequestRematch()
+        {
+            RequestPostRaceChoice(1);
+        }
+
+        /// <summary>Requests a synchronized return to the connected room lobby.</summary>
+        public void RequestReturnToLobby()
+        {
+            RequestPostRaceChoice(2);
+        }
+
+        void RequestPostRaceChoice(int choice)
+        {
+            if (!IsClient || Result == 0 || choice < 1 || choice > 2) return;
+            if (IsServer)
+            {
+                SetPostRaceChoice(NetworkManager.LocalClientId, choice);
+            }
+            else
+            {
+                RequestPostRaceChoiceRpc(choice);
+            }
+        }
+
+        [Rpc(SendTo.Server)]
+        void RequestPostRaceChoiceRpc(int choice, RpcParams rpcParams = default)
+        {
+            SetPostRaceChoice(rpcParams.Receive.SenderClientId, choice);
+        }
+
+        void SetPostRaceChoice(ulong clientId, int choice)
+        {
+            if (!IsServer || Result == 0 || NetworkManager == null || choice < 1 || choice > 2) return;
+            if (clientId == NetworkManager.ServerClientId) netHostPostRaceChoice.Value = choice;
+            else netClientPostRaceChoice.Value = choice;
+        }
+
+        void TryResolvePostRaceChoice()
+        {
+            if (!IsServer || Result == 0) return;
+            int hostChoice = netHostPostRaceChoice.Value;
+            int clientChoice = netClientPostRaceChoice.Value;
+            if (hostChoice == 0 || clientChoice == 0 || hostChoice != clientChoice) return;
+
+            ResetRound(hostChoice == 2);
+        }
+
+        void ResetRound(bool returnToLobby)
+        {
+            if (!IsServer) return;
+
+            gameManager ??= FindFirstObjectByType<GameManager>();
+            gameManager?.ResetRaceFlow();
+            if (NetworkManager != null)
+            {
+                foreach (var client in NetworkManager.ConnectedClientsList)
+                {
+                    NetworkObject playerObject = client.PlayerObject;
+                    if (playerObject == null) continue;
+                    NetworkItemSlots slots = playerObject.GetComponent<NetworkItemSlots>();
+                    if (slots != null) slots.ServerResetForNewRound();
+                }
+            }
+
+            flowBegun = false;
+            netLobbyOpen.Value = returnToLobby;
+            netHostReady.Value = false;
+            netClientReady.Value = false;
+            netHostPostRaceChoice.Value = 0;
+            netClientPostRaceChoice.Value = 0;
+            netResult.Value = 0;
+            netWinnerClientId.Value = 0;
+            netDrawReason.Value = "";
+            netHostLaps.Value = 0;
+            netClientLaps.Value = 0;
+            netHostFinished.Value = false;
+            netClientFinished.Value = false;
+            netHostFinishTime.Value = 0f;
+            netClientFinishTime.Value = 0f;
+            netHostStars.Value = 0;
+            netClientStars.Value = 0;
+            netHostRank.Value = 0;
+            netClientRank.Value = 0;
+            netTimeRemaining.Value = 0f;
+            netCountdown.Value = -1;
+            netState.Value = (int)RaceState.PreRace;
+            ApplyItemSpawnRules();
+            ResetLocalRoundRpc();
+        }
+
+        [Rpc(SendTo.Everyone)]
+        void ResetLocalRoundRpc()
+        {
+            NetworkObject playerObject = NetworkManager != null && NetworkManager.LocalClient != null
+                ? NetworkManager.LocalClient.PlayerObject
+                : null;
+            if (playerObject == null) return;
+
+            LapTracker tracker = playerObject.GetComponent<LapTracker>();
+            if (tracker != null) tracker.ResetRaceProgress();
+            VehicleController vehicle = playerObject.GetComponent<VehicleController>();
+            if (vehicle != null) vehicle.ResetRaceState();
+
+            // Vehicle movement is owner-authoritative, so only its local owner moves back to
+            // the grid; OwnerAuthoritativeNetworkTransform then replicates the reset to peers.
+            if (!playerObject.IsOwner) return;
+            RaceStartGrid grid = FindFirstObjectByType<RaceStartGrid>();
+            if (grid == null) return;
+            bool isServerOwned = playerObject.OwnerClientId == NetworkManager.ServerClientId;
+            grid.GetSlot(isServerOwned, out Vector3 position, out Quaternion rotation);
+            playerObject.transform.SetPositionAndRotation(position, rotation);
         }
 
         void HandleStateChanged(RaceState state)
@@ -306,39 +588,79 @@ namespace M2.Network
         {
             FixedString64Bytes displayName = new FixedString64Bytes(
                 M2PlayerProfile.NormalizeDisplayName(M2PlayerProfile.DisplayName));
-            int avatarColorIndex = M2PlayerProfile.AvatarColorIndex;
+            M2AvatarAppearance appearance = M2PlayerProfile.Appearance;
             if (IsServer)
             {
-                WriteRacerProfile(NetworkManager.ServerClientId, displayName, avatarColorIndex);
+                WriteRacerProfile(NetworkManager.ServerClientId, displayName, appearance);
             }
             else
             {
-                SubmitLocalProfileRpc(displayName, avatarColorIndex);
+                SubmitLocalProfileRpc(displayName, appearance.BodyColorIndex, (int)appearance.Eyes,
+                    (int)appearance.Mouth, appearance.HasCheeks, appearance.HasEars,
+                    (int)appearance.Hat, appearance.PlateIndex);
             }
         }
 
         [Rpc(SendTo.Server)]
-        void SubmitLocalProfileRpc(FixedString64Bytes displayName, int avatarColorIndex,
+        void SubmitLocalProfileRpc(FixedString64Bytes displayName, int avatarColorIndex, int eyes, int mouth,
+            bool cheeks, bool ears, int hat, int plate,
             RpcParams rpcParams = default)
         {
             if (!IsServer) return;
-            WriteRacerProfile(rpcParams.Receive.SenderClientId, displayName, avatarColorIndex);
+            WriteRacerProfile(rpcParams.Receive.SenderClientId, displayName,
+                new M2AvatarAppearance(avatarColorIndex, (M2AvatarEyes)eyes, (M2AvatarMouth)mouth,
+                    cheeks, ears, (M2AvatarHat)hat, plate));
         }
 
-        void WriteRacerProfile(ulong clientId, FixedString64Bytes displayName, int avatarColorIndex)
+        void WriteRacerProfile(ulong clientId, FixedString64Bytes displayName, M2AvatarAppearance appearance)
         {
             string normalizedName = M2PlayerProfile.NormalizeDisplayName(displayName.ToString());
             FixedString64Bytes normalizedFixedName = new FixedString64Bytes(normalizedName);
-            int normalizedColorIndex = M2PlayerProfile.NormalizeAvatarColorIndex(avatarColorIndex);
+            M2AvatarAppearance normalizedAppearance = M2PlayerProfile.NormalizeAppearance(appearance);
             if (clientId == NetworkManager.ServerClientId)
             {
                 netHostDisplayName.Value = normalizedFixedName;
-                netHostAvatarColorIndex.Value = normalizedColorIndex;
+                WriteAppearance(true, normalizedAppearance);
             }
             else
             {
                 netClientDisplayName.Value = normalizedFixedName;
-                netClientAvatarColorIndex.Value = normalizedColorIndex;
+                WriteAppearance(false, normalizedAppearance);
+            }
+        }
+
+        M2AvatarAppearance ReadAppearance(bool host)
+        {
+            return host
+                ? new M2AvatarAppearance(netHostAvatarColorIndex.Value, (M2AvatarEyes)netHostAvatarEyes.Value,
+                    (M2AvatarMouth)netHostAvatarMouth.Value, netHostAvatarCheeks.Value,
+                    netHostAvatarEars.Value, (M2AvatarHat)netHostAvatarHat.Value, netHostAvatarPlate.Value)
+                : new M2AvatarAppearance(netClientAvatarColorIndex.Value, (M2AvatarEyes)netClientAvatarEyes.Value,
+                    (M2AvatarMouth)netClientAvatarMouth.Value, netClientAvatarCheeks.Value,
+                    netClientAvatarEars.Value, (M2AvatarHat)netClientAvatarHat.Value, netClientAvatarPlate.Value);
+        }
+
+        void WriteAppearance(bool host, M2AvatarAppearance appearance)
+        {
+            if (host)
+            {
+                netHostAvatarColorIndex.Value = appearance.BodyColorIndex;
+                netHostAvatarEyes.Value = (int)appearance.Eyes;
+                netHostAvatarMouth.Value = (int)appearance.Mouth;
+                netHostAvatarCheeks.Value = appearance.HasCheeks;
+                netHostAvatarEars.Value = appearance.HasEars;
+                netHostAvatarHat.Value = (int)appearance.Hat;
+                netHostAvatarPlate.Value = appearance.PlateIndex;
+            }
+            else
+            {
+                netClientAvatarColorIndex.Value = appearance.BodyColorIndex;
+                netClientAvatarEyes.Value = (int)appearance.Eyes;
+                netClientAvatarMouth.Value = (int)appearance.Mouth;
+                netClientAvatarCheeks.Value = appearance.HasCheeks;
+                netClientAvatarEars.Value = appearance.HasEars;
+                netClientAvatarHat.Value = (int)appearance.Hat;
+                netClientAvatarPlate.Value = appearance.PlateIndex;
             }
         }
 
@@ -390,6 +712,19 @@ namespace M2.Network
         }
 
         void HandleSpeedLimitChanged(float _, float __) => ApplyLocalRaceRules();
+
+        void HandleStageChanged(int _, int __) => ApplySelectedStageTheme();
+
+        void ApplySelectedStageTheme()
+        {
+            if (stageTheme == null)
+            {
+                GameObject root = GameObject.Find("NetworkStageTheme") ?? new GameObject("NetworkStageTheme");
+                stageTheme = root.GetComponent<NetworkStageTheme>();
+                if (stageTheme == null) stageTheme = root.AddComponent<NetworkStageTheme>();
+            }
+            stageTheme.Apply(NormalizeStage(SelectedStage));
+        }
 
         void ApplyLocalInputLock(RaceState state)
         {

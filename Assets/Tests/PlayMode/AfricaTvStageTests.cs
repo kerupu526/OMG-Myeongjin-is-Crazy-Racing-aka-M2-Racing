@@ -54,7 +54,7 @@ namespace M2.Tests.PlayMode
             yield return null;
             mentalGauge.ModifyValue(mentalGauge.maxValue); // fill it completely -> HandleDepleted locks input
 
-            Press(Keyboard.current.upArrowKey);
+            vehicle.SetInputOverride(1f, 0f);
             for (int i = 0; i < 5; i++)
             {
                 yield return new WaitForFixedUpdate();

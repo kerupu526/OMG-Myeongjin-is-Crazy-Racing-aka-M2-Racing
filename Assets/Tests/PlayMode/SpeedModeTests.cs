@@ -84,6 +84,18 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(RaceModeRules.SpeedModeGasolineInterval, gameManager.speedModeGasolineInterval, 0.001f);
         }
 
+        [Test]
+        public void Room_Settings_Normalize_Unsupported_Enum_Values()
+        {
+            GameManager gameManager = CreateGameManager();
+
+            gameManager.ConfigureRoomSettings((RaceMode)99, 4, (VictoryCondition)99);
+
+            Assert.AreEqual(RaceMode.Item, gameManager.raceMode);
+            Assert.AreEqual(5, gameManager.targetLapCount);
+            Assert.AreEqual(VictoryCondition.SimpleFinish, gameManager.victoryCondition);
+        }
+
         [UnityTest]
         public IEnumerator Speed_Mode_Disables_Track_Item_Pickups()
         {
