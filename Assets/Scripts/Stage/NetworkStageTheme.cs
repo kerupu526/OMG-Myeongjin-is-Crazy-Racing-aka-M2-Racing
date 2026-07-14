@@ -40,33 +40,36 @@ namespace M2.Stage
 
         void BuildBikiniTheme(Transform parent)
         {
+            // NetworkRace currently retains the Bikini City circuit even while the lobby cycles
+            // a visual stage theme.  Keep decoration past that circuit's scaled outer bounds
+            // (x ±90, z roughly -48..44) so a tall prop never sits in the racing lane.
             CreatePrefabProp(parent, "BikiniRock_A", StageArtPrefabId.BikiniTerrainRock,
-                new Vector3(-47f, 0f, 34f), 1.6f, new Color(0.54f, 0.49f, 0.41f));
+                new Vector3(-104f, 0f, 52f), 1.6f, new Color(0.54f, 0.49f, 0.41f));
             CreatePrefabProp(parent, "BikiniRock_B", StageArtPrefabId.BikiniTerrainRock,
-                new Vector3(42f, 0f, -37f), 1.25f, new Color(0.46f, 0.57f, 0.52f));
-            CreateBanner(parent, "BikiniStageSign", new Vector3(0f, 2.6f, -50f),
+                new Vector3(103f, 0f, -61f), 1.25f, new Color(0.46f, 0.57f, 0.52f));
+            CreateBanner(parent, "BikiniStageSign", new Vector3(0f, 2.6f, -68f),
                 new Vector3(8f, 1.7f, 0.25f), new Color(0.373f, 0.847f, 0.961f));
         }
 
         void BuildAfricaTheme(Transform parent)
         {
             CreatePrefabProp(parent, "BroadcastTower_A", StageArtPrefabId.AfricaBroadcastTower,
-                new Vector3(-48f, 0f, 30f), 0.72f, new Color(0.34f, 0.34f, 0.44f));
+                new Vector3(-108f, 0f, 58f), 0.72f, new Color(0.34f, 0.34f, 0.44f));
             CreatePrefabProp(parent, "BroadcastTower_B", StageArtPrefabId.AfricaBroadcastTower,
-                new Vector3(47f, 0f, -29f), 0.58f, new Color(0.45f, 0.30f, 0.56f));
-            CreateBanner(parent, "BroadcastStageSign", new Vector3(0f, 2.8f, -50f),
+                new Vector3(108f, 0f, -65f), 0.58f, new Color(0.45f, 0.30f, 0.56f));
+            CreateBanner(parent, "BroadcastStageSign", new Vector3(0f, 2.8f, -70f),
                 new Vector3(9f, 1.9f, 0.25f), new Color(1f, 0.184f, 0.620f));
         }
 
         void BuildNetherTheme(Transform parent)
         {
             CreatePrefabProp(parent, "LavaRock_A", StageArtPrefabId.NetherLavaRock,
-                new Vector3(-48f, 0f, 28f), 1.45f, new Color(0.62f, 0.16f, 0.08f));
+                new Vector3(-106f, 0f, 57f), 1.45f, new Color(0.62f, 0.16f, 0.08f));
             CreatePrefabProp(parent, "LavaRock_B", StageArtPrefabId.NetherLavaRock,
-                new Vector3(48f, 0f, -28f), 1.25f, new Color(0.72f, 0.28f, 0.06f));
+                new Vector3(106f, 0f, -64f), 1.25f, new Color(0.72f, 0.28f, 0.06f));
             CreatePrefabProp(parent, "CoolingArch", StageArtPrefabId.NetherCoolingArch,
-                new Vector3(0f, 0f, -50f), 0.78f, new Color(0.30f, 0.18f, 0.26f));
-            CreateBanner(parent, "NetherStageSign", new Vector3(0f, 3.1f, -50f),
+                new Vector3(0f, 0f, -72f), 0.78f, new Color(0.30f, 0.18f, 0.26f));
+            CreateBanner(parent, "NetherStageSign", new Vector3(0f, 3.1f, -72f),
                 new Vector3(8.5f, 1.55f, 0.25f), new Color(1f, 0.36f, 0.16f));
         }
 

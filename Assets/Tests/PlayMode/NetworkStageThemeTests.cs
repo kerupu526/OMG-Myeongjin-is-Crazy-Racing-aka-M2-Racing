@@ -30,6 +30,14 @@ namespace M2.Tests.PlayMode
             {
                 Assert.IsFalse(collider.enabled, "Lobby stage-theme props must never alter race collision.");
             }
+
+            foreach (Transform child in root)
+            {
+                Vector3 position = child.localPosition;
+                bool outsideNetworkRaceLane = Mathf.Abs(position.x) >= 98f || Mathf.Abs(position.z) >= 60f;
+                Assert.IsTrue(outsideNetworkRaceLane,
+                    $"{child.name} must remain outside NetworkRace's drivable Bikini City lane.");
+            }
         }
     }
 }
