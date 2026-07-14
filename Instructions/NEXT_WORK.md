@@ -2,6 +2,37 @@
 
 기준일: 2026-07-13
 
+## 35차 UI Toolkit 재구축 계획 — Figma 기준
+
+현재 `NetworkMenuUI`는 런타임에서 uGUI `GameObject`와 절대 좌표를 대량 생성한다. 1280×720 기준에서도 아바타 선택·로비 설정·환경설정의 텍스트와 컨트롤이 겹치는 문제가 실제 실행 화면에서 확인됐으므로, 이 구조의 추가 보정은 중단한다.
+
+### 시각 기준과 자산
+
+- 기준 Figma: `lfLnf75LdgHNeiCpzgaVKU`의 사용자 제공 시안. 메인·로비·HUD·결과·아바타·환경설정이 이미 배치되어 있으며, 1280×720 화면 프레임과 Jua / Black Han Sans / Fredoka 서체를 사용한다.
+- 원본 자산: `M2 레이싱 게임 UI 디자인/uploads/` 및 `(2)/figma/uploads/`의 SVG/PNG. `add`, `door`, `mask`, `settings`, `map`, `racing-flag`, `checkmark`, `restart`, `trophy`, `first-place-medal`, `second-place-medal`, `banana`, `bomb`, `Gasoline`, 스테이지 아이콘을 우선 반입한다. 이 폴더를 런타임에서 직접 참조하지 않는다.
+- Figma 파일에는 로컬 토큰·컴포넌트·연결 라이브러리가 없다. Figma 편집 권한이 확인되면 먼저 M2 전용 토큰과 컴포넌트를 만든 뒤 화면에 인스턴스로 조립한다.
+
+### 후속 구현 순서
+
+1. **기반** — `Assets/UI Toolkit/M2/`에 `M2Theme.uss`, 공통 `M2Shell.uxml`, 아이콘 `VisualElement` 규칙, 1280×720 기준 레이아웃 토큰을 만든다. 배경 그라데이션, 진한 외곽선, 그림자, 카드·칩·버튼 상태를 USS로만 정의한다.
+2. **공통 컴포넌트** — UXML 템플릿으로 `M2Button`, `M2IconButton`, `M2Panel`, `M2PlayerCard`, `M2RoomCode`, `M2Chip`, `M2SliderRow`, `M2Toast`를 만들고, Figma에서 상태·크기·아이콘 슬롯을 정의한다. 텍스트를 이모지로 대체하지 않고 SVG/PNG 아이콘을 사용한다.
+3. **메뉴 전환 1차** — 메인, 방 만들기, 방 참가, 로비를 UI Toolkit으로 교체한다. 기존 `NetworkBootstrapUI`, `RoomSettingsUI`, `M2PlayerProfile`의 공개 동작은 어댑터로 연결하고, 새 `M2-XXXX` 코드만 표시·입력한다.
+4. **메뉴 전환 2차** — 아바타·환경설정·온라인 HUD·결과를 UXML/USS로 이행한다. 선택 컨트롤은 반응형 `flex`/`grid` 구조로 만들고, 같은 화면에 절대 좌표로 개별 텍스트를 겹쳐 놓지 않는다.
+5. **검증·정리** — 1280×720과 1920×1080에서 메인/로비/아바타/설정/HUD/결과를 점검한다. 기존 uGUI는 새 화면이 동등 기능을 통과할 때까지 제거하지 않으며, 사용자 미커밋 씬은 건드리지 않는다.
+
+### Figma 작업 순서
+
+1. `Foundations`: 색·공간·반경·테두리·그림자·타이포그래피 토큰을 만든다.
+2. `Components`: 아이콘 버튼, 큰 메뉴 버튼, 칩, 플레이어 카드, 방 코드 카드, 설정 행을 하나씩 변형·상태까지 만든다.
+3. `Screens`: 메인 → 로비 → HUD/결과 → 아바타/설정 순서로 새 컴포넌트 인스턴스를 조립하고 각 화면을 캡처 검수한다.
+4. Figma 토큰과 UXML/USS 클래스명을 일대일 표로 남겨 구현 단계에서 색상·여백을 재해석하지 않게 한다.
+
+### 방 코드 계약
+
+- 사용자 입력·표시·세션 ID는 `M2-` 뒤에 숫자·대문자 4자리(`M2-1L4G`)를 사용한다.
+- 호스트는 충돌 시 새 코드를 다시 생성하고, 참가자는 같은 문자열을 세션 ID로 참가한다. Unity가 별도로 생성하는 서비스 join code는 UI에 노출하지 않는다.
+- 실제 호스트/Clone 2인 테스트에서 생성·참가·로비 표시가 모두 같은 코드를 유지하는지 검증한다.
+
 ## 32차 UI 실제 구현 반영 현황
 
 기준 디자인은 사용자가 제공한 `M2 레이싱 게임 UI 디자인/M2 Racing UI.html`이다. 이번 연속 작업에서는 기존 기능 확인용 표현을 다음처럼 실제 Unity UI 흐름으로 교체·연결했다.
@@ -36,6 +67,8 @@
    - 사용자 수정 중인 씬을 저장하거나 재생성하지 않은 상태에서 안전한 별도 테스트 경로를 사용한다.
 
 ## 검증 상태
+
+- 39차(2026-07-14): UI Toolkit 최종 보정 뒤 헤드리스 PlayMode 전체 84건 전원 통과(실패·건너뜀·inconclusive 0건). 실제 Play Mode 화면 캡처 증빙만 사용자 재개 후 남긴다.
 
 - 이번 연속 작업에서 직접 실행한 PlayMode 범위: `M2PlayerProfileTests` 2건, `M2GameSettingsTests` 1건, `NetworkMenuPresentationTests` 2건, `RaceFlowPresentationTests` 3건 — 모두 통과했다.
 - 이전에 실행한 `SpeedModeTests` 5건도 통과했다.
