@@ -30,6 +30,7 @@ namespace M2.Network
         public bool HasActiveSession => activeSession != null;
         public string ActiveRoomCode => activeSession != null ? activeSession.Code : string.Empty;
         public bool IsHostingSession => activeSession != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
+        public bool IsSessionOperationInProgress => busy;
 
         bool subscribed;
         bool busy;
@@ -264,6 +265,11 @@ namespace M2.Network
 
         void HandleClientDisconnected(ulong clientId)
         {
+            // Session API teardown deliberately stops NGO after the room is deleted/left. That
+            // disconnect is expected, so do not briefly reopen the lobby with a false failure
+            // message while the normal exit flow is still finishing.
+            if (busy) return;
+
             NetworkManager networkManager = NetworkManager.Singleton;
             if (networkManager == null) return;
 
@@ -314,18 +320,64 @@ namespace M2.Network
         }
 
         /// <summary>
-        /// Leaves the current Relay/NGO race from a result card's "메인으로" action. The local
-        /// transport is shut down first so the peer receives the normal disconnect path instead
-        /// of being left in a divergent local-only rematch.
+        /// Leaves the current Relay/NGO race from a result card or the formal lobby. The
+        /// Multiplayer session owns the NGO lifecycle, so it must be asked to stop the network
+        /// before the local manager is touched. Directly calling NetworkManager.Shutdown here
+        /// makes the package observe an out-of-band shutdown and leaves a warning on exit.
         /// </summary>
-        public void ExitSessionToMain()
+        public async void ExitSessionToMain()
         {
             if (busy) return;
+
+            busy = true;
+            SetButtonsInteractable(false);
+            ISession session = activeSession;
             activeSession = null;
+
+            try
+            {
+                if (session != null)
+                {
+                    if (session.IsHost)
+                    {
+                        await session.AsHost().DeleteAsync();
+                    }
+                    else
+                    {
+                        await session.LeaveAsync();
+                    }
+                }
+                else
+                {
+                    ShutdownUnmanagedNetwork();
+                }
+
+                if (this == null) return;
+                ShowConnectionUi();
+                SetStatus("방을 나왔습니다. 새 방을 만들거나 방 코드로 참가할 수 있습니다.");
+            }
+            catch (Exception exception)
+            {
+                // A direct transport can exist in legacy or failed session paths. Keep this
+                // fallback narrow so normal Relay sessions always use their owned shutdown path.
+                ShutdownUnmanagedNetwork();
+                if (this == null) return;
+                ShowConnectionUi();
+                SetStatus($"방 종료 중 문제가 발생했습니다: {exception.Message}");
+            }
+            finally
+            {
+                if (this != null) busy = false;
+            }
+        }
+
+        static void ShutdownUnmanagedNetwork()
+        {
             NetworkManager networkManager = NetworkManager.Singleton;
-            if (networkManager != null && networkManager.IsListening) networkManager.Shutdown();
-            ShowConnectionUi();
-            SetStatus("메인으로 돌아왔습니다. 새 방을 만들거나 방 코드로 참가할 수 있습니다.");
+            if (networkManager != null && networkManager.IsListening)
+            {
+                networkManager.Shutdown();
+            }
         }
 
         void SetButtonsInteractable(bool interactable)

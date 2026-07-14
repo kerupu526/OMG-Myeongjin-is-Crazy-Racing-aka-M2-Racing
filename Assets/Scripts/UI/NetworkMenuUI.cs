@@ -85,6 +85,7 @@ namespace M2.UI
         Text avatarAppearanceSummary;
         Button lobbyReadyButton;
         Text lobbyReadyButtonLabel;
+        Button lobbyLeaveButton;
         Button lobbyModeButton;
         Button lobbyLapButton;
         Button lobbyVictoryButton;
@@ -882,9 +883,11 @@ namespace M2.UI
                 CreateButton(settings.transform, "StageNetherButton", "네더요새", new Vector2(150f, -82f),
                     new Vector2(138f, 52f), Purple, Color.white, () => SelectLobbyStage(StageType.NetherFortress)),
             };
-            lobbyReadyButton = CreateButton(settings.transform, "LobbyReadyButton", "", new Vector2(0f, -148f),
-                new Vector2(452f, 66f), Mint, Ink, ToggleLobbyReady);
+            lobbyReadyButton = CreateButton(settings.transform, "LobbyReadyButton", "", new Vector2(-116f, -148f),
+                new Vector2(220f, 66f), Mint, Ink, ToggleLobbyReady);
             lobbyReadyButtonLabel = lobbyReadyButton.GetComponentInChildren<Text>();
+            lobbyLeaveButton = CreateButton(settings.transform, "LobbyLeaveButton", "방 나가기", new Vector2(116f, -148f),
+                new Vector2(220f, 66f), Color.white, Ink, LeaveLobby);
             lobbyRules = CreateText(settings.transform, "Rules", "", 20, Purple, TextAnchor.MiddleCenter);
             SetAnchored(lobbyRules.rectTransform, new Vector2(0f, -207f), new Vector2(450f, 46f));
 
@@ -1160,6 +1163,12 @@ namespace M2.UI
 
         void RefreshOnlineLobbyPresentation()
         {
+            if (lobbyLeaveButton != null)
+            {
+                lobbyLeaveButton.interactable = bootstrap != null && bootstrap.HasActiveSession &&
+                    !bootstrap.IsSessionOperationInProgress;
+            }
+
             if (raceManager == null)
             {
                 RefreshLobbyRules();
@@ -1313,6 +1322,19 @@ namespace M2.UI
             if (raceManager == null) return;
             bool localReady = IsLocalHost() ? raceManager.HostReady : raceManager.ClientReady;
             raceManager.RequestLobbyReady(!localReady);
+        }
+
+        void LeaveLobby()
+        {
+            if (bootstrap == null || !bootstrap.HasActiveSession)
+            {
+                ShowMain();
+                return;
+            }
+
+            if (lobbyLeaveButton != null) lobbyLeaveButton.interactable = false;
+            SetFeedback(lobbyStatus, "방을 정리하고 메인으로 돌아가는 중입니다...", Color.white);
+            bootstrap.ExitSessionToMain();
         }
 
         static void SetLobbyButtonState(Button button, bool interactable)

@@ -61,6 +61,7 @@ namespace M2.Tests.PlayMode
             menu.ShowLobby("", true);
             Assert.AreEqual("Lobby", menu.CurrentScreenName);
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/LobbyReadyButton"));
+            Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/LobbyLeaveButton"));
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/StageBikiniButton"));
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/StageAfricaButton"));
             Assert.IsNotNull(canvasObject.transform.Find("NetworkMenuRoot/Screen_Lobby/LobbyRulesCard/StageNetherButton"));
