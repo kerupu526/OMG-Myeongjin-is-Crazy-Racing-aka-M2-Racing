@@ -1,0 +1,101 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <Style src="M2RaceHud.uss" />
+    <ui:VisualElement name="m2-race-app" class="m2-race-app">
+        <ui:VisualElement name="race-hud-screen" class="race-hud-screen" picking-mode="Ignore">
+            <ui:Image name="race-hud-top-fade" class="race-hud-top-fade" picking-mode="Ignore" />
+            <ui:VisualElement class="race-hud-top">
+                <ui:VisualElement class="race-hud-card race-lap-card">
+                    <ui:Label text="LAP · 바퀴" class="race-card-kicker race-card-kicker--yellow" />
+                    <ui:Label name="race-lap-value" text="– / –" class="race-card-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="race-versus-card">
+                    <ui:VisualElement class="race-player-mini">
+                        <ui:VisualElement name="race-local-avatar" class="race-mini-avatar race-mini-avatar--pink"><ui:Label text="●  ●" class="race-mini-eyes" /></ui:VisualElement>
+                        <ui:Label name="race-local-status" text="나 · 준비 중" class="race-player-mini-label race-player-mini-label--mint" />
+                    </ui:VisualElement>
+                    <ui:Label text="VS" class="race-versus" />
+                    <ui:VisualElement class="race-player-mini">
+                        <ui:VisualElement name="race-opponent-avatar" class="race-mini-avatar race-mini-avatar--cyan"><ui:Label text="●  ●" class="race-mini-eyes" /></ui:VisualElement>
+                        <ui:Label name="race-opponent-status" text="상대 · 대기" class="race-player-mini-label race-player-mini-label--pink" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="race-hud-card race-time-card">
+                    <ui:Label text="TIME · 남은시간" class="race-card-kicker race-card-kicker--pink" />
+                    <ui:Label name="race-time-value" text="--:--" class="race-card-value" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="race-booster-badge" class="race-booster-badge"><ui:Label name="race-booster-label" text="부스터 발동! 🚀" /></ui:VisualElement>
+
+            <ui:VisualElement class="race-item-stack">
+                <ui:VisualElement class="race-item-slot"><ui:Image name="race-slot-one-icon" class="race-item-icon" /><ui:Label text="1" class="race-item-number" /></ui:VisualElement>
+                <ui:VisualElement class="race-item-slot"><ui:Image name="race-slot-two-icon" class="race-item-icon" /><ui:Label text="2" class="race-item-number" /></ui:VisualElement>
+                <ui:Label name="race-item-caption" text="아이템 슬롯" class="race-item-caption" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="race-map-card">
+                <ui:VisualElement class="race-map-title"><ui:Image name="race-stage-icon" class="race-map-stage-icon" /><ui:Label name="race-stage-name" text="비키니 시티" /></ui:VisualElement>
+                <ui:VisualElement class="race-map-track"><ui:VisualElement class="race-map-dot race-map-dot--local" /><ui:VisualElement class="race-map-dot race-map-dot--opponent" /></ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="race-gauge-area">
+                <ui:Label name="race-gauge-alert" text="💨 숨방울 획득! 산소 +30%" class="race-gauge-alert" />
+                <ui:VisualElement class="race-gauge-heading"><ui:Label name="race-gauge-label" text="💧 산소 게이지 — 실시간 감소 중..." /><ui:Label name="race-gauge-value" text="64 / 100" class="race-gauge-value" /></ui:VisualElement>
+                <ui:VisualElement class="race-gauge-track"><ui:Image name="race-gauge-fill" class="race-gauge-fill" /><ui:VisualElement class="race-gauge-tick race-gauge-tick--one" /><ui:VisualElement class="race-gauge-tick race-gauge-tick--two" /></ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement class="race-finish-cue" picking-mode="Ignore"><ui:Label text="완주 → 결과" /></ui:VisualElement>
+            <ui:VisualElement name="race-countdown-card" class="race-countdown-card"><ui:Label name="race-countdown-label" text="레이스 준비" class="race-countdown-label" /></ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="race-result-screen" class="race-result-screen">
+            <ui:Image name="race-result-gradient" class="race-result-gradient" picking-mode="Ignore" />
+            <ui:Label text="🎉" class="result-confetti result-confetti--left" picking-mode="Ignore" />
+            <ui:Label text="🎊" class="result-confetti result-confetti--right" picking-mode="Ignore" />
+            <ui:Label text="✨" class="result-spark" picking-mode="Ignore" />
+            <ui:Image name="result-deco-one" class="result-deco result-deco--one" picking-mode="Ignore" />
+            <ui:Image name="result-deco-two" class="result-deco result-deco--two" picking-mode="Ignore" />
+            <ui:Image name="result-deco-three" class="result-deco result-deco--three" picking-mode="Ignore" />
+            <ui:Label name="race-result-title" text="GAME OVER!" class="race-result-title" picking-mode="Ignore" />
+            <ui:Label name="race-result-summary" text="레이스 결과를 정리하고 있습니다." class="race-result-summary" picking-mode="Ignore" />
+            <ui:VisualElement class="race-result-cards" picking-mode="Ignore">
+                <ui:VisualElement class="result-player-card result-player-card--first">
+                    <ui:VisualElement class="result-rank-badge result-rank-badge--gold"><ui:Image name="result-first-medal" class="result-medal" /><ui:Label text="1위" /></ui:VisualElement>
+                    <ui:VisualElement name="result-first-avatar" class="result-avatar result-avatar--pink">
+                        <ui:Image name="result-first-crown" class="result-crown" />
+                        <ui:VisualElement class="result-avatar-eyes"><ui:VisualElement class="result-avatar-eye"><ui:VisualElement class="result-avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="result-avatar-eye"><ui:VisualElement class="result-avatar-eye-shine" /></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="result-avatar-cheeks"><ui:VisualElement class="result-avatar-cheek" /><ui:VisualElement class="result-avatar-cheek" /></ui:VisualElement>
+                        <ui:VisualElement class="result-avatar-mouth" />
+                    </ui:VisualElement>
+                    <ui:Label name="result-first-name" text="레이서 #001" class="result-player-name" />
+                    <ui:Label name="result-first-message" text="오늘의 챔피언 👑" class="result-player-message result-player-message--pink" />
+                    <ui:VisualElement class="result-time-box"><ui:Label text="완주 시간" class="result-time-label" /><ui:Label name="result-first-time" text="--:--" class="result-time-value" /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="result-player-card result-player-card--second">
+                    <ui:VisualElement class="result-rank-badge result-rank-badge--silver"><ui:Image name="result-second-medal" class="result-medal" /><ui:Label text="2위" /></ui:VisualElement>
+                    <ui:VisualElement name="result-second-avatar" class="result-avatar result-avatar--cyan">
+                        <ui:VisualElement class="result-avatar-ear result-avatar-ear--left" />
+                        <ui:VisualElement class="result-avatar-ear result-avatar-ear--right" />
+                        <ui:VisualElement class="result-avatar-eyes"><ui:VisualElement class="result-avatar-eye"><ui:VisualElement class="result-avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="result-avatar-eye"><ui:VisualElement class="result-avatar-eye-shine" /></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="result-avatar-cheeks"><ui:VisualElement class="result-avatar-cheek" /><ui:VisualElement class="result-avatar-cheek" /></ui:VisualElement>
+                        <ui:VisualElement class="result-avatar-mouth result-avatar-mouth--sad" />
+                    </ui:VisualElement>
+                    <ui:Label name="result-second-name" text="도전자 #077" class="result-player-name result-player-name--second" />
+                    <ui:Label name="result-second-message" text="다음엔 꼭 이깁니다 ㅠㅠ" class="result-player-message result-player-message--purple" />
+                    <ui:VisualElement class="result-time-box result-time-box--blue"><ui:Label text="완주 시간" class="result-time-label result-time-label--blue" /><ui:Label name="result-second-time" text="--:--" class="result-time-value result-time-value--small" /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="result-stars-card">
+                    <ui:VisualElement class="result-stars-heading"><ui:Image name="result-star-icon" class="result-star-icon" /><ui:Label text="오늘의 별점 통계" /></ui:VisualElement>
+                    <ui:Label text="비법 놓친 횟수" class="result-stars-label" /><ui:Label name="result-missed-stars" text="★★★☆☆☆" class="result-stars-value" />
+                    <ui:Label text="완주 시간" class="result-stars-label" /><ui:Label name="result-time-stars" text="★★★☆☆☆" class="result-stars-value" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="result-actions">
+                <ui:Button name="race-rematch-button" class="result-action-button result-action-button--pink"><ui:Image name="race-rematch-icon" class="result-action-icon" /><ui:Label name="button-label" text="다시 하기" /></ui:Button>
+                <ui:Button name="race-lobby-button" class="result-action-button result-action-button--mint"><ui:Image name="race-lobby-icon" class="result-action-icon" /><ui:Label name="button-label" text="로비로" /></ui:Button>
+                <ui:Button name="race-main-button" class="result-action-button result-action-button--yellow result-action-button--last"><ui:Image name="race-main-icon" class="result-action-icon" /><ui:Label name="button-label" text="메인으로" /></ui:Button>
+            </ui:VisualElement>
+            <ui:Label name="race-result-action" text="상대 레이서의 선택을 기다립니다." class="race-result-action" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

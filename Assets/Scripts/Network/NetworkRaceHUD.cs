@@ -32,6 +32,7 @@ namespace M2.Network
         VehicleController localVehicle;
 
         GameObject presentationRoot;
+        bool legacyPresentationSuppressed;
         GameObject countdownCard;
         GameObject resultOverlay;
         Text lapLabel;
@@ -65,7 +66,18 @@ namespace M2.Network
             RaceHUD.ConfigureGameplayCanvasScaling(GetComponent<CanvasScaler>());
             BuildPresentation();
             HideLegacyLabels();
+            if (GetComponent<M2RaceHudToolkit>() == null) gameObject.AddComponent<M2RaceHudToolkit>();
             Canvas.ForceUpdateCanvases();
+        }
+
+        /// <summary>
+        /// Leaves the original uGUI tree alive as a data-safe fallback while the UI Toolkit
+        /// Figma implementation owns visible presentation.
+        /// </summary>
+        public void SetLegacyPresentationSuppressed(bool suppressed)
+        {
+            legacyPresentationSuppressed = suppressed;
+            if (presentationRoot != null) presentationRoot.SetActive(!suppressed);
         }
 
         void Update()
@@ -98,6 +110,7 @@ namespace M2.Network
             BuildItemCards();
             BuildCountdownCard();
             BuildResultOverlay();
+            if (legacyPresentationSuppressed) presentationRoot.SetActive(false);
         }
 
         void BuildTopCards()

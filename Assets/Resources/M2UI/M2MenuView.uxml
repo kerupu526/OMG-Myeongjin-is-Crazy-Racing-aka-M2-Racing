@@ -1,0 +1,224 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="m2-app" class="m2-app">
+        <!-- Main -->
+        <ui:VisualElement name="screen-main" class="m2-screen screen-main">
+            <ui:Image name="main-gradient" class="screen-gradient" picking-mode="Ignore" />
+            <ui:Label name="main-deco-spark" text="✦" class="screen-deco main-deco main-deco--spark" picking-mode="Ignore" />
+            <ui:Label name="main-deco-star" text="⭐" class="screen-deco main-deco main-deco--star" picking-mode="Ignore" />
+            <ui:Label name="main-deco-shine" text="💫" class="screen-deco main-deco main-deco--shine" picking-mode="Ignore" />
+            <ui:Label name="main-deco-swirl" text="🌀" class="screen-deco main-deco main-deco--swirl" picking-mode="Ignore" />
+            <ui:Label name="main-deco-flag" text="🏁" class="screen-deco main-deco main-deco--flag" picking-mode="Ignore" />
+            <ui:Image name="main-photo-mj1" class="main-photo main-photo--mj1" picking-mode="Ignore" />
+            <ui:Image name="main-photo-mj2" class="main-photo main-photo--mj2" picking-mode="Ignore" />
+            <ui:Image name="main-photo-portrait" class="main-photo main-photo--portrait" picking-mode="Ignore" />
+
+            <ui:VisualElement class="main-heading" picking-mode="Ignore">
+                <ui:VisualElement class="m2-wordmark">
+                    <ui:Label text="M2" class="m2-wordmark-shadow" />
+                    <ui:Label text="M2" class="m2-wordmark-front" />
+                </ui:VisualElement>
+                <ui:Label text="MAYHEM CRAZY RACING 2" class="main-subtitle" />
+                <ui:Label text="인평에서 레이싱으로 미쳐 날뛰어보자 🏁" class="main-tagline" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="main-layout">
+                <ui:VisualElement class="main-racer-card-wrap">
+                    <ui:VisualElement class="main-racer-card-shadow" picking-mode="Ignore" />
+                    <ui:VisualElement class="paper-card main-racer-card">
+                        <ui:Label text="✦ 내 아바타" class="avatar-card-kicker" />
+                        <ui:VisualElement name="main-avatar" class="avatar avatar--main">
+                            <ui:VisualElement class="avatar-body-shadow" picking-mode="Ignore" />
+                            <ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" />
+                            <ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" />
+                            <ui:VisualElement name="avatar-body" class="avatar-body" />
+                            <ui:VisualElement name="avatar-eyes" class="avatar-eyes">
+                                <ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement>
+                                <ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement>
+                            <ui:VisualElement name="avatar-mouth" class="avatar-mouth" />
+                            <ui:Label name="avatar-hat" class="avatar-hat" />
+                            <ui:Label name="avatar-plate" class="avatar-plate" />
+                        </ui:VisualElement>
+                        <ui:Label name="main-racer-name" text="레이서 #001" class="main-racer-name" />
+                        <ui:Button name="main-avatar-button" class="pill-button avatar-customize-button"><ui:Label name="button-label" text="▶ 꾸미기" /></ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="main-action-stack">
+                    <ui:VisualElement class="hero-button-wrap"><ui:VisualElement class="hero-button-shadow" picking-mode="Ignore" /><ui:Button name="main-create-button" class="hero-button hero-button--pink"><ui:Label name="button-label" text="방 만들기" /><ui:VisualElement class="hero-button-icon-stack" picking-mode="Ignore"><ui:Image name="main-create-icon-shadow" class="hero-button-icon icon-shadow" picking-mode="Ignore" /><ui:Image name="main-create-icon" class="hero-button-icon icon-front" picking-mode="Ignore" /></ui:VisualElement></ui:Button></ui:VisualElement>
+                    <ui:VisualElement class="hero-button-wrap"><ui:VisualElement class="hero-button-shadow" picking-mode="Ignore" /><ui:Button name="main-join-button" class="hero-button hero-button--cyan"><ui:Label name="button-label" text="방 참가하기" /><ui:VisualElement class="hero-button-icon-stack" picking-mode="Ignore"><ui:Image name="main-join-icon-shadow" class="hero-button-icon icon-shadow" picking-mode="Ignore" /><ui:Image name="main-join-icon" class="hero-button-icon icon-front" picking-mode="Ignore" /></ui:VisualElement></ui:Button></ui:VisualElement>
+                    <ui:VisualElement class="hero-button-wrap"><ui:VisualElement class="hero-button-shadow" picking-mode="Ignore" /><ui:Button name="main-avatar-settings-button" class="hero-button hero-button--mint"><ui:Label name="button-label" text="아바타 설정" /><ui:VisualElement class="hero-button-icon-stack" picking-mode="Ignore"><ui:Image name="main-avatar-icon-shadow" class="hero-button-icon icon-shadow" picking-mode="Ignore" /><ui:Image name="main-avatar-icon" class="hero-button-icon icon-front" picking-mode="Ignore" /></ui:VisualElement></ui:Button></ui:VisualElement>
+                    <ui:VisualElement class="hero-button-wrap"><ui:VisualElement class="hero-button-shadow" picking-mode="Ignore" /><ui:Button name="main-settings-button" class="hero-button hero-button--yellow"><ui:Label name="button-label" text="환경설정" /><ui:VisualElement class="hero-button-icon-stack" picking-mode="Ignore"><ui:Image name="main-settings-icon-shadow" class="hero-button-icon icon-shadow" picking-mode="Ignore" /><ui:Image name="main-settings-icon" class="hero-button-icon icon-front" picking-mode="Ignore" /></ui:VisualElement></ui:Button></ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:Button name="main-race-test-button" class="race-test-button"><ui:Label name="button-label" text="▶ 로컬 레이스 테스트" /></ui:Button>
+
+            <ui:Label text="레이스 온 🔥" class="main-sticker main-sticker--on" picking-mode="Ignore" />
+            <ui:Label text="누가 1등? 😏" class="main-sticker main-sticker--winner" picking-mode="Ignore" />
+            <ui:Label text="© 2026 인평랜드 · 학교축제 에디션" class="main-copyright" picking-mode="Ignore" />
+            <ui:Label name="main-feedback" text="방 만들기 또는 방 참가를 선택하세요." class="main-feedback" />
+        </ui:VisualElement>
+
+        <!-- Network operation overlays -->
+        <ui:VisualElement name="screen-host" class="m2-screen functional-screen">
+            <ui:Image name="host-gradient" class="screen-gradient" picking-mode="Ignore" />
+            <ui:Label text="✦" class="screen-deco functional-deco functional-deco--left" picking-mode="Ignore" />
+            <ui:Label text="🏁" class="screen-deco functional-deco functional-deco--right" picking-mode="Ignore" />
+            <ui:VisualElement class="functional-header"><ui:Button name="host-back-button" class="back-button"><ui:Label name="button-label" text="← 뒤로" /></ui:Button><ui:VisualElement class="functional-title-wrap"><ui:Label text="방 만들기" class="functional-title" /><ui:Label text="친구와 함께 달릴 프라이빗 레이스를 설정하세요." class="functional-subtitle" /></ui:VisualElement></ui:VisualElement>
+            <ui:VisualElement class="card-shadow functional-card-shadow functional-card-shadow--host" picking-mode="Ignore" />
+            <ui:VisualElement class="functional-card functional-card--host">
+                <ui:Label text="⚙️ 게임 설정" class="functional-card-title" />
+                <ui:Label text="게임 모드" class="functional-field-label" />
+                <ui:Button name="host-mode-button" class="chip-button chip-button--yellow"><ui:Label name="button-label" /></ui:Button>
+                <ui:Label text="바퀴 수" class="functional-field-label" />
+                <ui:Button name="host-lap-button" class="chip-button chip-button--mint"><ui:Label name="button-label" /></ui:Button>
+                <ui:Label text="승리 조건" class="functional-field-label" />
+                <ui:Button name="host-victory-button" class="chip-button chip-button--purple"><ui:Label name="button-label" /></ui:Button>
+                <ui:VisualElement class="functional-fill" />
+                <ui:Button name="host-create-button" class="large-primary-button"><ui:Image name="host-flag-icon" class="large-button-icon" /><ui:Label name="button-label" text="방 만들기" /></ui:Button>
+                <ui:Label name="host-feedback" text="모드와 규칙을 정한 뒤 방을 만드세요." class="functional-feedback" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-join" class="m2-screen functional-screen">
+            <ui:Image name="join-gradient" class="screen-gradient" picking-mode="Ignore" />
+            <ui:Label text="✦" class="screen-deco functional-deco functional-deco--left" picking-mode="Ignore" />
+            <ui:Label text="🎮" class="screen-deco functional-deco functional-deco--right" picking-mode="Ignore" />
+            <ui:VisualElement class="functional-header"><ui:Button name="join-back-button" class="back-button"><ui:Label name="button-label" text="← 뒤로" /></ui:Button><ui:VisualElement class="functional-title-wrap"><ui:Label text="방 참가하기" class="functional-title" /><ui:Label text="친구에게 받은 M2 방 코드로 합류하세요." class="functional-subtitle" /></ui:VisualElement></ui:VisualElement>
+            <ui:VisualElement class="card-shadow functional-card-shadow functional-card-shadow--join" picking-mode="Ignore" />
+            <ui:VisualElement class="functional-card functional-card--join">
+                <ui:Image name="join-door-icon" class="join-door-icon" />
+                <ui:Label text="방 코드 입력" class="functional-card-title" />
+                <ui:Label text="예시 · M2-7X4K" class="join-example" />
+                <ui:TextField name="join-room-code-input" class="room-code-input" />
+                <ui:Button name="join-submit-button" class="large-primary-button large-primary-button--pink join-submit-button"><ui:Image name="join-submit-icon-shadow" class="large-button-icon icon-shadow-inline" picking-mode="Ignore" /><ui:Image name="host-crown-icon" class="large-button-icon" picking-mode="Ignore" /><ui:Label name="button-label" text="방 참가" /></ui:Button>
+                <ui:Label name="join-feedback" text="친구에게 받은 방 코드를 입력하세요." class="functional-feedback" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Lobby -->
+        <ui:VisualElement name="screen-lobby" class="m2-screen screen-lobby">
+            <ui:Image name="lobby-gradient" class="screen-gradient" picking-mode="Ignore" />
+            <ui:Label name="lobby-deco-gamepad" text="🎮" class="screen-deco lobby-deco lobby-deco--gamepad" picking-mode="Ignore" />
+            <ui:Label name="lobby-deco-spark" text="✦" class="screen-deco lobby-deco lobby-deco--spark" picking-mode="Ignore" />
+            <ui:VisualElement class="lobby-topbar">
+                <ui:VisualElement class="lobby-topbar-left"><ui:Button name="lobby-leave-button" class="back-button lobby-leave-button"><ui:Label name="button-label" text="← 나가기" /></ui:Button><ui:VisualElement class="arcade-sign"><ui:Label text="🕹️ 인평이네 오락실" /></ui:VisualElement></ui:VisualElement>
+                <ui:VisualElement class="room-code-sign"><ui:Label text="방 코드" class="room-code-caption" /><ui:Label name="lobby-room-code" text="M2-7X4K" class="room-code-value" /></ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="lobby-layout">
+                <ui:VisualElement class="card-shadow lobby-player-shadow lobby-player-shadow--host" picking-mode="Ignore" />
+                <ui:VisualElement class="card-shadow lobby-player-shadow lobby-player-shadow--guest" picking-mode="Ignore" />
+                <ui:VisualElement class="card-shadow lobby-settings-shadow" picking-mode="Ignore" />
+                <ui:VisualElement class="lobby-player-column">
+                    <ui:VisualElement class="paper-card lobby-player-card lobby-player-card--host">
+                        <ui:VisualElement class="host-badge"><ui:Image name="lobby-crown-icon" class="small-icon" /><ui:Label text="방장" /></ui:VisualElement>
+                        <ui:VisualElement name="lobby-host-avatar" class="avatar avatar--lobby">
+                            <ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="lobby-player-copy"><ui:Label name="lobby-host-name" text="레이서 #001" class="lobby-player-name" /><ui:Label name="lobby-host-meta" text="저번 대회 우승자 · Lv.99" class="lobby-player-meta" /><ui:Label name="lobby-host-ready" text="✓ 준비 완료" class="ready-pill ready-pill--ready" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="paper-card lobby-player-card">
+                        <ui:VisualElement name="lobby-guest-avatar" class="avatar avatar--lobby avatar--cyan">
+                            <ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="lobby-player-copy"><ui:Label name="lobby-guest-name" text="상대 접속 대기" class="lobby-player-name" /><ui:Label name="lobby-guest-meta" text="도전장 접수 · Lv.42" class="lobby-player-meta" /><ui:Label name="lobby-guest-ready" text="준비 중..." class="ready-pill ready-pill--waiting" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="lobby-chat"><ui:Label name="lobby-status" text="💬 친구에게 위 방 코드를 알려주세요." /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="paper-card lobby-settings-card">
+                    <ui:VisualElement class="lobby-settings-heading"><ui:Image name="lobby-settings-icon" class="small-icon" picking-mode="Ignore" /><ui:Label text="게임 설정" /></ui:VisualElement>
+                    <ui:Label name="lobby-authority" text="방장이 설정을 변경할 수 있습니다." class="lobby-authority" />
+                    <ui:Label text="게임 모드" class="lobby-field-label" />
+                    <ui:VisualElement class="lobby-chip-row"><ui:Button name="lobby-mode-item-button" class="chip-button chip-button--yellow"><ui:Image name="lobby-mode-icon" class="chip-icon" picking-mode="Ignore" /><ui:Label name="button-label" text="아이템전" /></ui:Button><ui:Button name="lobby-mode-speed-button" class="chip-button chip-button--muted"><ui:Image name="lobby-speed-icon" class="chip-icon" picking-mode="Ignore" /><ui:Label name="button-label" text="스피드전" /></ui:Button></ui:VisualElement>
+                    <ui:Label text="바퀴 수" class="lobby-field-label" />
+                    <ui:VisualElement class="lobby-chip-row"><ui:Button name="lobby-lap-1-button" class="chip-button chip-button--muted"><ui:Label name="button-label" text="1바퀴" /></ui:Button><ui:Button name="lobby-lap-3-button" class="chip-button chip-button--mint"><ui:Label name="button-label" text="3바퀴" /></ui:Button><ui:Button name="lobby-lap-5-button" class="chip-button chip-button--muted"><ui:Label name="button-label" text="5바퀴" /></ui:Button></ui:VisualElement>
+                    <ui:Label text="스테이지" class="lobby-field-label" />
+                    <ui:VisualElement class="lobby-chip-row"><ui:Button name="lobby-stage-bikini-button" class="chip-button chip-button--softpink"><ui:Image name="lobby-stage-bikini-icon" class="chip-icon" /><ui:Label name="button-label" text="비키니 시티" /></ui:Button><ui:Button name="lobby-stage-africa-button" class="chip-button chip-button--muted"><ui:Image name="lobby-stage-africa-icon" class="chip-icon" /><ui:Label name="button-label" text="아프리카TV" /></ui:Button><ui:Button name="lobby-stage-nether-button" class="chip-button chip-button--muted"><ui:Image name="lobby-stage-nether-icon" class="chip-icon" /><ui:Label name="button-label" text="네더 요새" /></ui:Button></ui:VisualElement>
+                    <ui:Label text="승리 조건" class="lobby-field-label" />
+                    <ui:VisualElement class="lobby-chip-row"><ui:Button name="lobby-victory-finish-button" class="chip-button chip-button--muted"><ui:Label name="button-label" text="단순완주" /></ui:Button><ui:Button name="lobby-victory-star-button" class="chip-button chip-button--purple"><ui:Label name="button-label" text="별점내기" /></ui:Button></ui:VisualElement>
+                    <ui:VisualElement class="lobby-rule-note"><ui:Image name="lobby-star-icon" class="small-icon" /><ui:Label name="lobby-rules" text="완주 시 획득한 별점이 더 높은 쪽 승리" /></ui:VisualElement>
+                    <ui:VisualElement class="lobby-settings-spacer" />
+                    <ui:Button name="lobby-ready-button" class="lobby-start-button"><ui:Image name="lobby-ready-icon" class="large-button-icon" /><ui:Label name="button-label" text="게임 시작! 가보자고" /><ui:Image name="lobby-ready-icon-right" class="large-button-icon large-button-icon--trailing" /></ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Avatar -->
+        <ui:VisualElement name="screen-avatar" class="m2-screen screen-avatar">
+            <ui:Image name="avatar-gradient" class="screen-gradient" picking-mode="Ignore" />
+            <ui:Label name="avatar-deco-left" text="✦" class="screen-deco avatar-deco avatar-deco--left" picking-mode="Ignore" />
+            <ui:Label name="avatar-deco-right" text="💫" class="screen-deco avatar-deco avatar-deco--right" picking-mode="Ignore" />
+            <ui:VisualElement class="avatar-topbar"><ui:Button name="avatar-back-button" class="back-button"><ui:Label name="button-label" text="← 뒤로" /></ui:Button><ui:Label text="아바타 설정" class="page-heading" /></ui:VisualElement>
+            <ui:VisualElement class="avatar-layout">
+                <ui:VisualElement class="card-shadow avatar-card-shadow avatar-card-shadow--preview" picking-mode="Ignore" />
+                <ui:VisualElement class="card-shadow avatar-card-shadow avatar-card-shadow--options" picking-mode="Ignore" />
+                <ui:VisualElement class="paper-card avatar-preview-card">
+                    <ui:Label text="✦ 미리보기" class="avatar-preview-kicker" />
+                    <ui:VisualElement class="avatar-preview-area"><ui:VisualElement name="avatar-preview" class="avatar avatar--preview"><ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" /></ui:VisualElement></ui:VisualElement>
+                    <ui:VisualElement class="avatar-presets">
+                        <ui:Label text="프리셋" class="option-label" />
+                        <ui:VisualElement class="avatar-preset-row">
+                            <ui:Button name="avatar-preset-0" class="avatar-preset"><ui:VisualElement class="avatar avatar--preset"><ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" /></ui:VisualElement></ui:Button>
+                            <ui:Button name="avatar-preset-1" class="avatar-preset"><ui:VisualElement class="avatar avatar--preset"><ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" /></ui:VisualElement></ui:Button>
+                            <ui:Button name="avatar-preset-2" class="avatar-preset"><ui:VisualElement class="avatar avatar--preset"><ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" /></ui:VisualElement></ui:Button>
+                            <ui:Button name="avatar-preset-3" class="avatar-preset"><ui:VisualElement class="avatar avatar--preset"><ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" /></ui:VisualElement></ui:Button>
+                            <ui:Button name="avatar-preset-4" class="avatar-preset"><ui:VisualElement class="avatar avatar--preset"><ui:VisualElement name="avatar-ear-left" class="avatar-ear avatar-ear--left" /><ui:VisualElement name="avatar-ear-right" class="avatar-ear avatar-ear--right" /><ui:VisualElement name="avatar-body" class="avatar-body" /><ui:VisualElement name="avatar-eyes" class="avatar-eyes"><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement><ui:VisualElement class="avatar-eye"><ui:VisualElement class="avatar-eye-shine" /></ui:VisualElement></ui:VisualElement><ui:VisualElement name="avatar-cheeks" class="avatar-cheeks"><ui:VisualElement class="avatar-cheek" /><ui:VisualElement class="avatar-cheek" /></ui:VisualElement><ui:VisualElement name="avatar-mouth" class="avatar-mouth" /><ui:Label name="avatar-hat" class="avatar-hat" /><ui:Label name="avatar-plate" class="avatar-plate" /></ui:VisualElement></ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="avatar-nickname"><ui:Label text="닉네임" class="nickname-label" /><ui:TextField name="avatar-name-input" class="avatar-name-input" /><ui:Label name="avatar-preview-name" text="레이서 #001" class="screen-hidden-copy" /><ui:Label name="avatar-summary" text="#001" class="screen-hidden-copy" /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="paper-card avatar-options-card">
+                    <ui:VisualElement class="avatar-options-grid">
+                        <ui:VisualElement class="avatar-option-group avatar-option-group--wide"><ui:Label text="몸 색상" class="option-label" /><ui:VisualElement class="avatar-color-row"><ui:Button name="avatar-color-0" class="color-swatch" /><ui:Button name="avatar-color-1" class="color-swatch" /><ui:Button name="avatar-color-2" class="color-swatch" /><ui:Button name="avatar-color-3" class="color-swatch" /><ui:Button name="avatar-color-4" class="color-swatch" /><ui:Button name="avatar-color-5" class="color-swatch" /></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="avatar-option-group"><ui:Label text="눈" class="option-label" /><ui:VisualElement class="option-row"><ui:Button name="avatar-eyes-round" class="chip-button chip-button--mint"><ui:Label name="button-label" text="👀 방울눈" /></ui:Button><ui:Button name="avatar-eyes-happy" class="chip-button chip-button--mint"><ui:Label name="button-label" text="😊 웃는눈" /></ui:Button><ui:Button name="avatar-eyes-cool" class="chip-button chip-button--mint"><ui:Label name="button-label" text="😎 선글라스" /></ui:Button></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="avatar-option-group"><ui:Label text="입" class="option-label" /><ui:VisualElement class="option-row"><ui:Button name="avatar-mouth-smile" class="chip-button chip-button--yellow"><ui:Label name="button-label" text="방긋" /></ui:Button><ui:Button name="avatar-mouth-open" class="chip-button chip-button--yellow"><ui:Label name="button-label" text="우와" /></ui:Button><ui:Button name="avatar-mouth-flat" class="chip-button chip-button--yellow"><ui:Label name="button-label" text="시크" /></ui:Button></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="avatar-option-group"><ui:Label text="볼터치" class="option-label" /><ui:VisualElement class="option-row"><ui:Button name="avatar-cheeks-on" class="chip-button chip-button--softpink"><ui:Label name="button-label" text="있음" /></ui:Button><ui:Button name="avatar-cheeks-off" class="chip-button chip-button--muted"><ui:Label name="button-label" text="없음" /></ui:Button></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="avatar-option-group"><ui:Label text="귀" class="option-label" /><ui:VisualElement class="option-row"><ui:Button name="avatar-ears-on" class="chip-button chip-button--cyan"><ui:Label name="button-label" text="있음" /></ui:Button><ui:Button name="avatar-ears-off" class="chip-button chip-button--muted"><ui:Label name="button-label" text="없음" /></ui:Button></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="avatar-option-group"><ui:Label text="모자 / 악세서리" class="option-label" /><ui:VisualElement class="option-row"><ui:Button name="avatar-hat-none" class="chip-button chip-button--softpink"><ui:Label name="button-label" text="없음" /></ui:Button><ui:Button name="avatar-hat-cap" class="chip-button chip-button--muted"><ui:Label name="button-label" text="🧢 캡모자" /></ui:Button><ui:Button name="avatar-hat-crown" class="chip-button chip-button--muted"><ui:Label name="button-label" text="👑 왕관" /></ui:Button></ui:VisualElement></ui:VisualElement>
+                        <ui:VisualElement class="avatar-option-group"><ui:Label text="번호판" class="option-label" /><ui:VisualElement class="option-row"><ui:Button name="avatar-plate-0" class="chip-button chip-button--cyan"><ui:Label name="button-label" text="#001" /></ui:Button><ui:Button name="avatar-plate-1" class="chip-button chip-button--muted"><ui:Label name="button-label" text="#077" /></ui:Button><ui:Button name="avatar-plate-2" class="chip-button chip-button--muted"><ui:Label name="button-label" text="#999" /></ui:Button></ui:VisualElement></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Button name="avatar-save-button" class="avatar-save-button"><ui:Image name="avatar-save-icon" class="large-button-icon" /><ui:Label name="button-label" text="저장하기" /></ui:Button>
+                    <ui:Label name="avatar-feedback" text="외형과 이름을 고른 뒤 저장하세요." class="screen-hidden-copy" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Settings -->
+        <ui:VisualElement name="screen-settings" class="m2-screen screen-settings">
+            <ui:Image name="settings-gradient" class="screen-gradient" picking-mode="Ignore" />
+            <ui:Label name="settings-deco-gear" text="⚙️" class="screen-deco settings-deco settings-deco--gear" picking-mode="Ignore" />
+            <ui:Label name="settings-deco-spark" text="✦" class="screen-deco settings-deco settings-deco--spark" picking-mode="Ignore" />
+            <ui:VisualElement class="settings-topbar"><ui:Button name="settings-back-button" class="back-button"><ui:Label name="button-label" text="← 뒤로" /></ui:Button><ui:Label text="환경설정" class="page-heading" /></ui:VisualElement>
+            <ui:VisualElement class="settings-layout">
+                <ui:VisualElement class="card-shadow settings-card-shadow settings-card-shadow--sound" picking-mode="Ignore" />
+                <ui:VisualElement class="card-shadow settings-card-shadow settings-card-shadow--game" picking-mode="Ignore" />
+                <ui:VisualElement class="paper-card settings-panel settings-panel--sound">
+                    <ui:Label text="🔊 사운드" class="settings-panel-title" />
+                    <ui:VisualElement class="setting-slider-group"><ui:VisualElement class="setting-slider-heading"><ui:Label text="마스터 볼륨" /><ui:Label name="settings-master-value" class="setting-slider-value" /></ui:VisualElement><ui:Slider name="settings-master-slider" low-value="0" high-value="1" show-input-field="false" class="m2-slider m2-slider--pink" /></ui:VisualElement>
+                    <ui:VisualElement class="setting-slider-group"><ui:VisualElement class="setting-slider-heading"><ui:Label text="배경음악 (BGM)" /><ui:Label name="settings-bgm-value" class="setting-slider-value" /></ui:VisualElement><ui:Slider name="settings-bgm-slider" low-value="0" high-value="1" show-input-field="false" class="m2-slider m2-slider--cyan" /></ui:VisualElement>
+                    <ui:VisualElement class="setting-slider-group"><ui:VisualElement class="setting-slider-heading"><ui:Label text="효과음 (SFX)" /><ui:Label name="settings-sfx-value" class="setting-slider-value" /></ui:VisualElement><ui:Slider name="settings-sfx-slider" low-value="0" high-value="1" show-input-field="false" class="m2-slider m2-slider--mint" /></ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="paper-card settings-panel">
+                    <ui:Label text="🖥️ 화면 &amp; 게임" class="settings-panel-title" />
+                    <ui:Label text="그래픽 품질" class="option-label settings-option-label" /><ui:VisualElement class="option-row"><ui:Button name="settings-quality-low" class="chip-button chip-button--muted"><ui:Label name="button-label" text="낮음" /></ui:Button><ui:Button name="settings-quality-medium" class="chip-button chip-button--muted"><ui:Label name="button-label" text="보통" /></ui:Button><ui:Button name="settings-quality-high" class="chip-button chip-button--yellow"><ui:Label name="button-label" text="높음" /></ui:Button></ui:VisualElement>
+                    <ui:Label text="화면 모드" class="option-label settings-option-label" /><ui:VisualElement class="option-row"><ui:Button name="settings-fullscreen-button" class="chip-button chip-button--cyan"><ui:Label name="button-label" text="전체화면" /></ui:Button><ui:Button name="settings-windowed-button" class="chip-button chip-button--muted"><ui:Label name="button-label" text="창모드" /></ui:Button></ui:VisualElement>
+                    <ui:Label text="언어" class="option-label settings-option-label" /><ui:VisualElement class="option-row"><ui:Button name="settings-language-korean" class="chip-button chip-button--softpink"><ui:Label name="button-label" text="한국어" /></ui:Button><ui:Button name="settings-language-english" class="chip-button chip-button--muted"><ui:Label name="button-label" text="English" /></ui:Button></ui:VisualElement>
+                    <ui:Label text="조작키" class="option-label settings-option-label" />
+                    <ui:VisualElement class="control-key-row">
+                        <ui:Label text="↑ ↓ / W S  가속·후진" />
+                        <ui:Label text="← → / A D  조향" />
+                        <ui:Label text="Shift  드리프트" />
+                        <ui:Label text="Ctrl  가속 아이템" />
+                        <ui:Label text="E  공격·방어" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="settings-spacer" />
+                    <ui:Button name="settings-save-button" class="settings-save-button"><ui:Image name="settings-save-icon" class="large-button-icon" /><ui:Label name="button-label" text="적용" /></ui:Button>
+                    <ui:Button name="settings-reset-button" class="screen-hidden-control"><ui:Label name="button-label" text="기본값" /></ui:Button>
+                    <ui:Label name="settings-feedback" text="변경한 뒤 저장하면 다음 실행에도 유지됩니다." class="screen-hidden-copy" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

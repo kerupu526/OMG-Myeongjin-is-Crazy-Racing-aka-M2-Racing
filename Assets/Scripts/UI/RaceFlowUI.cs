@@ -35,7 +35,7 @@ namespace M2.UI
         public GameObject briefingPanel;
         public Text briefingText;
         [TextArea(3, 6)]
-        public string briefingMessage = "조작법 안내\n←/→: 조향 | ↑/↓: 가속/감속\nCtrl: 가속 아이템 | E: 공격/방어 아이템\nShift: 브레이크";
+        public string briefingMessage = "조작법 안내\n←/→ 또는 A/D: 조향 | ↑/↓ 또는 W/S: 가속·후진\nShift: 드리프트 | Ctrl: 가속 아이템 | E: 공격·방어 아이템";
         [Tooltip("gameManager.waitForManualStart가 true일 때만 의미 있음 — 누르면 Briefing을 끝내고 카운트다운 시작.")]
         public Button startButton;
 

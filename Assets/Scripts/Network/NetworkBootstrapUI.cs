@@ -14,7 +14,8 @@ namespace M2.Network
     /// <summary>
     /// Creates and joins private two-player sessions through Unity Lobby + Relay. The Multiplayer
     /// Services package configures UnityTransport and starts NGO after the session operation
-    /// succeeds, so the rest of the race remains identical to the direct-IP milestones.
+    /// succeeds, so the rest of the race remains identical to the direct-IP milestones. The
+    /// player-visible M2 room code is used as the session ID rather than exposing the service code.
     /// </summary>
     public class NetworkBootstrapUI : MonoBehaviour
     {
@@ -28,14 +29,16 @@ namespace M2.Network
         public event Action<string, bool> SessionReady;
 
         public bool HasActiveSession => activeSession != null;
-        public string ActiveRoomCode => activeSession != null ? activeSession.Code : string.Empty;
+        public string ActiveRoomCode => activeSession != null ? activeRoomCode : string.Empty;
         public bool IsHostingSession => activeSession != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
         public bool IsSessionOperationInProgress => busy;
 
         bool subscribed;
         bool busy;
         ISession activeSession;
+        string activeRoomCode;
         RoomSettingsUI roomSettingsUi;
+        M2UiToolkitMenu toolkitMenu;
         NetworkMenuUI menuUi;
 
         void Awake()
@@ -47,9 +50,17 @@ namespace M2.Network
                 roomSettingsUi = canvas.GetComponent<RoomSettingsUI>();
                 if (roomSettingsUi == null) roomSettingsUi = canvas.gameObject.AddComponent<RoomSettingsUI>();
 
-                menuUi = canvas.GetComponent<NetworkMenuUI>();
-                if (menuUi == null) menuUi = canvas.gameObject.AddComponent<NetworkMenuUI>();
-                menuUi.Initialize(this, roomSettingsUi);
+                // The UXML/USS menu owns the visible entry flow. The former runtime-built uGUI
+                // shell remains a narrow fallback for old scenes or a missing imported UI asset.
+                toolkitMenu = canvas.GetComponent<M2UiToolkitMenu>();
+                if (toolkitMenu == null) toolkitMenu = canvas.gameObject.AddComponent<M2UiToolkitMenu>();
+                if (!toolkitMenu.Initialize(this, roomSettingsUi))
+                {
+                    toolkitMenu = null;
+                    menuUi = canvas.GetComponent<NetworkMenuUI>();
+                    if (menuUi == null) menuUi = canvas.gameObject.AddComponent<NetworkMenuUI>();
+                    menuUi.Initialize(this, roomSettingsUi);
+                }
             }
             if (hostButton != null) hostButton.onClick.AddListener(StartHost);
             if (joinButton != null) joinButton.onClick.AddListener(StartClient);
@@ -111,7 +122,7 @@ namespace M2.Network
             if (joinCodeInputField == null) return;
 
             joinCodeInputField.text = string.Empty;
-            joinCodeInputField.characterLimit = 12;
+            joinCodeInputField.characterLimit = M2RoomCode.Prefix.Length + M2RoomCode.SuffixLength;
             UiTypography.Apply(joinCodeInputField.textComponent);
             if (joinCodeInputField.placeholder is Text placeholder)
             {
@@ -152,17 +163,10 @@ namespace M2.Network
                 SetStatus("온라인 서비스 연결 중...");
                 await EnsureServicesReadyAsync();
 
-                SetStatus("Relay 방 생성 중...");
-                SessionOptions options = new SessionOptions
-                {
-                    MaxPlayers = 2,
-                    IsPrivate = true,
-                    Name = "M2 Racing 1v1"
-                }.WithRelayNetwork();
-
-                activeSession = await MultiplayerService.Instance.CreateSessionAsync(options);
-                SetStatus($"방 코드: {activeSession.Code}  ·  상대를 기다리는 중...");
-                SessionReady?.Invoke(activeSession.Code, true);
+                SetStatus("M2 방 생성 중...");
+                await CreateHostSessionWithM2CodeAsync();
+                SetStatus($"방 코드: {ActiveRoomCode}  ·  상대를 기다리는 중...");
+                SessionReady?.Invoke(ActiveRoomCode, true);
                 if (hostButton != null) hostButton.gameObject.SetActive(false);
                 if (joinCodeInputField != null) joinCodeInputField.gameObject.SetActive(false);
                 if (joinButton != null) joinButton.gameObject.SetActive(false);
@@ -173,12 +177,10 @@ namespace M2.Network
         async void StartClient()
         {
             if (busy) return;
-            string code = joinCodeInputField != null
-                ? joinCodeInputField.text.Trim().ToUpperInvariant()
-                : string.Empty;
-            if (string.IsNullOrWhiteSpace(code))
+            string input = joinCodeInputField != null ? joinCodeInputField.text : string.Empty;
+            if (!M2RoomCode.TryNormalize(input, out string roomCode))
             {
-                SetStatus("방 코드를 입력하세요.");
+                SetStatus("M2-1L4G 형식의 방 코드를 입력하세요.");
                 return;
             }
 
@@ -186,11 +188,47 @@ namespace M2.Network
             {
                 SetStatus("온라인 서비스 연결 중...");
                 await EnsureServicesReadyAsync();
-                SetStatus($"방 {code} 참가 중...");
-                activeSession = await MultiplayerService.Instance.JoinSessionByCodeAsync(code);
-                SessionReady?.Invoke(activeSession.Code, false);
+                SetStatus($"방 {roomCode} 참가 중...");
+                activeSession = await MultiplayerService.Instance.JoinSessionByIdAsync(roomCode);
+                activeRoomCode = roomCode;
+                SessionReady?.Invoke(ActiveRoomCode, false);
                 roomSettingsUi?.SetVisible(false);
             });
+        }
+
+        async Task CreateHostSessionWithM2CodeAsync()
+        {
+            const int maxAttempts = 6;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                string roomCode = M2RoomCode.Generate();
+                ISession session = await MultiplayerService.Instance.CreateOrJoinSessionAsync(roomCode,
+                    CreateSessionOptions());
+
+                if (session.IsHost)
+                {
+                    activeSession = session;
+                    activeRoomCode = roomCode;
+                    return;
+                }
+
+                // The four-character code already belonged to an active room. It is extremely
+                // unlikely, but immediately leave it and generate a fresh code rather than
+                // accidentally treating another host's lobby as ours.
+                await session.LeaveAsync();
+            }
+
+            throw new InvalidOperationException("새 M2 방 코드를 만들지 못했습니다. 다시 시도해 주세요.");
+        }
+
+        static SessionOptions CreateSessionOptions()
+        {
+            return new SessionOptions
+            {
+                MaxPlayers = 2,
+                IsPrivate = true,
+                Name = "M2 Racing 1v1"
+            }.WithRelayNetwork();
         }
 
         async Task RunSessionOperation(Func<Task> operation)
@@ -244,7 +282,7 @@ namespace M2.Network
         void HandleServerStarted()
         {
             // Keep the host's code visible until the remote player arrives.
-            if (activeSession != null) SetStatus($"방 코드: {activeSession.Code}  ·  상대를 기다리는 중...");
+            if (activeSession != null) SetStatus($"방 코드: {ActiveRoomCode}  ·  상대를 기다리는 중...");
         }
 
         void HandleClientConnected(ulong clientId)
@@ -258,7 +296,8 @@ namespace M2.Network
             {
                 // Stay on the formal lobby until both racers explicitly confirm readiness.
                 // Hiding it here used to skip the host's final rule/stage review entirely.
-                if (menuUi != null) menuUi.ShowLobby(ActiveRoomCode, networkManager.IsHost);
+                if (toolkitMenu != null) toolkitMenu.ShowLobby(ActiveRoomCode, networkManager.IsHost);
+                else if (menuUi != null) menuUi.ShowLobby(ActiveRoomCode, networkManager.IsHost);
                 else HideConnectionUi();
             }
         }
@@ -276,9 +315,10 @@ namespace M2.Network
             if (networkManager.IsHost && clientId != networkManager.LocalClientId)
             {
                 string message = activeSession != null
-                    ? $"방 코드: {activeSession.Code}  ·  상대 연결이 끊어졌습니다."
+                    ? $"방 코드: {ActiveRoomCode}  ·  상대 연결이 끊어졌습니다."
                     : "상대 연결이 끊어졌습니다.";
-                if (menuUi != null) menuUi.ShowLobby(ActiveRoomCode, true);
+                if (toolkitMenu != null) toolkitMenu.ShowLobby(ActiveRoomCode, true);
+                else if (menuUi != null) menuUi.ShowLobby(ActiveRoomCode, true);
                 else if (statusText != null) statusText.gameObject.SetActive(true);
                 SetStatus(message);
             }
@@ -291,6 +331,11 @@ namespace M2.Network
 
         void HideConnectionUi()
         {
+            if (toolkitMenu != null)
+            {
+                toolkitMenu.HideMenu();
+                return;
+            }
             if (menuUi != null)
             {
                 menuUi.HideMenu();
@@ -305,6 +350,12 @@ namespace M2.Network
 
         void ShowConnectionUi()
         {
+            if (toolkitMenu != null)
+            {
+                toolkitMenu.ShowMain();
+                SetButtonsInteractable(true);
+                return;
+            }
             if (menuUi != null)
             {
                 menuUi.ShowMain();
@@ -333,6 +384,7 @@ namespace M2.Network
             SetButtonsInteractable(false);
             ISession session = activeSession;
             activeSession = null;
+            activeRoomCode = string.Empty;
 
             try
             {

@@ -1,0 +1,276 @@
+.m2-race-app {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1280px;
+    height: 720px;
+    overflow: hidden;
+    -unity-font: resource("Fonts/Jua-Regular");
+}
+
+.race-hud-screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1280px;
+    height: 720px;
+}
+
+.race-hud-top-fade {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1280px;
+    height: 150px;
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+.race-hud-top {
+    position: absolute;
+    top: 22px;
+    left: 0;
+    right: 0;
+    height: 116px;
+}
+
+.race-hud-card, .race-versus-card {
+    background-color: #1a1030;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    border-top-width: 4px;
+    border-bottom-width: 4px;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+}
+
+.race-hud-card {
+    padding-top: 14px;
+    padding-bottom: 14px;
+    padding-left: 22px;
+    padding-right: 22px;
+    align-items: center;
+}
+
+.race-lap-card { border-color: #ffd93d; }
+.race-time-card { border-color: #ff2f9e; }
+.race-lap-card { position: absolute; left: 24px; top: 0; width: 137px; height: 88px; }
+.race-time-card { position: absolute; right: 24px; top: 0; width: 174px; height: 88px; }
+.race-card-kicker { -unity-font: resource("Fonts/Fredoka"); -unity-font-style: bold; font-size: 15px; letter-spacing: 2px; }
+.race-card-kicker--yellow { color: #ffd93d; }
+.race-card-kicker--pink { color: #ff9de0; }
+.race-card-value { -unity-font: resource("Fonts/BlackHanSans-Regular"); color: #ffffff; font-size: 40px; -unity-text-align: middle-center; }
+
+.race-versus-card {
+    position: absolute;
+    left: 500px;
+    top: 0;
+    width: 246px;
+    height: 108px;
+    border-color: #ffffff;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+.race-player-mini { width: 88px; height: 90px; align-items: center; }
+.race-mini-avatar {
+    width: 52px;
+    height: 52px;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    border-top-width: 4px;
+    border-bottom-width: 4px;
+    border-color: #ffffff;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    align-items: center;
+    justify-content: center;
+}
+.race-mini-avatar--pink { background-color: #ff2f9e; }
+.race-mini-avatar--cyan { background-color: #5fd8f5; }
+.race-mini-eyes { color: #1a1030; font-size: 14px; letter-spacing: 2px; }
+.race-player-mini-label { margin-top: 4px; font-size: 15px; -unity-text-align: middle-center; white-space: nowrap; }
+.race-player-mini-label--mint { color: #b6f36b; }
+.race-player-mini-label--pink { color: #ff9de0; }
+.race-versus { width: 40px; color: #ffd93d; -unity-font: resource("Fonts/BlackHanSans-Regular"); font-size: 30px; -unity-text-align: middle-center; }
+
+.race-booster-badge {
+    position: absolute;
+    top: 150px;
+    left: 544px;
+    width: 192px;
+    min-height: 56px;
+    background-color: #ffd93d;
+    border-left-width: 5px;
+    border-right-width: 5px;
+    border-top-width: 5px;
+    border-bottom-width: 5px;
+    border-color: #1a1030;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    padding-left: 22px;
+    padding-right: 22px;
+    align-items: center;
+    justify-content: center;
+    rotate: -4deg;
+}
+.race-booster-badge .unity-label { color: #1a1030; font-size: 26px; }
+
+.race-item-stack { position: absolute; left: 28px; top: 405px; width: 110px; flex-direction: column; }
+.race-item-slot {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 14px;
+    background-color: #1a1030;
+    border-left-width: 5px;
+    border-right-width: 5px;
+    border-top-width: 5px;
+    border-bottom-width: 5px;
+    border-color: #ffd93d;
+    border-top-left-radius: 22px;
+    border-top-right-radius: 22px;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    align-items: center;
+    justify-content: center;
+}
+.race-item-icon { width: 76px; height: 76px; -unity-background-scale-mode: scale-to-fit; }
+.race-item-number {
+    position: absolute;
+    top: -13px;
+    left: -13px;
+    width: 32px;
+    height: 32px;
+    background-color: #ffd93d;
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-color: #1a1030;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+    color: #1a1030;
+    -unity-font: resource("Fonts/Fredoka");
+    -unity-font-style: bold;
+    font-size: 16px;
+    -unity-text-align: middle-center;
+}
+.race-item-caption { color: #ffffff; opacity: 0.85; font-size: 14px; margin-left: -4px; }
+
+.race-map-card {
+    position: absolute;
+    right: 28px;
+    bottom: 110px;
+    width: 150px;
+    height: 110px;
+    background-color: #1a1030cc;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    border-top-width: 4px;
+    border-bottom-width: 4px;
+    border-color: #ffffff;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    padding: 10px;
+}
+.race-map-title { height: 20px; flex-direction: row; align-items: center; }
+.race-map-title .unity-label { color: #ffffff; opacity: 0.85; font-size: 13px; }
+.race-map-stage-icon { width: 18px; height: 18px; margin-right: 4px; -unity-background-scale-mode: scale-to-fit; }
+.race-map-track { width: 122px; height: 62px; border-left-width: 3px; border-right-width: 3px; border-top-width: 3px; border-bottom-width: 3px; border-color: #6b5f95; border-top-left-radius: 40px; border-top-right-radius: 40px; border-bottom-left-radius: 40px; border-bottom-right-radius: 40px; }
+.race-map-dot { position: absolute; width: 13px; height: 13px; border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; border-color: #ffffff; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.race-map-dot--local { left: 30px; top: 26px; background-color: #ff2f9e; }
+.race-map-dot--opponent { left: 76px; top: 79px; background-color: #5fd8f5; }
+
+.race-gauge-area { position: absolute; left: 28px; right: 28px; bottom: 20px; height: 64px; }
+.race-gauge-alert { position: absolute; right: 0; top: -40px; background-color: #8be2ff; border-left-width: 3px; border-right-width: 3px; border-top-width: 3px; border-bottom-width: 3px; border-color: #1a1030; border-top-left-radius: 12px; border-top-right-radius: 12px; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; padding: 5px 12px; font-size: 15px; color: #1a1030; rotate: -3deg; }
+.race-gauge-heading { height: 25px; flex-direction: row; justify-content: space-between; align-items: center; }
+.race-gauge-heading .unity-label { color: #ffffff; font-size: 16px; }
+.race-gauge-heading .race-gauge-value { color: #ffd93d; -unity-font: resource("Fonts/Fredoka"); -unity-font-style: bold; }
+.race-gauge-track { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; background-color: #1a1030; border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; border-bottom-width: 4px; border-color: #ffffff; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; overflow: hidden; }
+.race-gauge-fill { height: 18px; width: 64%; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; -unity-background-scale-mode: stretch-to-fill; }
+.race-gauge-tick { position: absolute; top: 0; bottom: 0; width: 3px; background-color: #ffffff88; }
+.race-gauge-tick--one { left: 33%; }
+.race-gauge-tick--two { left: 66%; }
+
+.race-countdown-card { position: absolute; left: 380px; top: 266px; width: 520px; min-height: 180px; background-color: #1a1030dd; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #ffd93d; border-top-left-radius: 24px; border-top-right-radius: 24px; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; align-items: center; justify-content: center; padding: 18px 24px; }
+.race-countdown-label { color: #ffd93d; -unity-font: resource("Fonts/BlackHanSans-Regular"); font-size: 64px; -unity-text-align: middle-center; white-space: normal; }
+.race-finish-cue { position: absolute; right: 28px; top: 150px; min-height: 44px; background-color: #b6f36b; border-left-width: 3px; border-right-width: 3px; border-top-width: 3px; border-bottom-width: 3px; border-color: #1a1030; border-top-left-radius: 14px; border-top-right-radius: 14px; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; padding: 10px 19px; }
+.race-finish-cue .unity-label { color: #1a1030; font-size: 16px; }
+
+.race-result-screen { display: none; position: absolute; left: 0; top: 0; width: 1280px; height: 720px; overflow: hidden; }
+.race-result-gradient { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; -unity-background-scale-mode: stretch-to-fill; }
+.result-confetti { position: absolute; font-size: 58px; }
+.result-confetti--left { top: 58px; left: 102px; font-size: 64px; rotate: 8deg; }
+.result-confetti--right { top: 101px; right: 128px; rotate: -8deg; }
+.result-spark { position: absolute; left: 77px; top: 588px; color: #ffd93d; font-size: 48px; }
+.result-deco { position: absolute; width: 30px; height: 30px; -unity-background-scale-mode: scale-to-fit; }
+.result-deco--one { top: 142px; left: 139px; rotate: 9deg; }
+.result-deco--two { top: 85px; left: 1045px; rotate: -8deg; }
+.result-deco--three { top: 574px; left: 1134px; rotate: 5deg; }
+.race-result-title { position: absolute; top: 34px; left: 0; right: 0; height: 98px; color: #ffffff; -unity-font: resource("Fonts/BlackHanSans-Regular"); font-size: 66px; -unity-text-align: middle-center; -unity-text-outline-color: #1a1030; -unity-text-outline-width: 2px; rotate: -2deg; }
+.race-result-summary { display: none; }
+.race-result-cards { position: absolute; top: 150px; left: 108px; right: 108px; height: 410px; flex-direction: row; justify-content: center; align-items: flex-start; }
+.result-player-card { background-color: #ffffff; border-left-width: 6px; border-right-width: 6px; border-top-width: 6px; border-bottom-width: 6px; border-color: #1a1030; border-top-left-radius: 30px; border-top-right-radius: 30px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; align-items: center; }
+.result-player-card--first { width: 340px; height: 406px; padding: 52px 30px 30px; }
+.result-player-card--second { width: 300px; height: 364px; margin-left: 36px; margin-top: 40px; padding: 50px 28px 28px; opacity: 0.96; }
+.result-rank-badge { position: absolute; top: -27px; min-height: 50px; flex-direction: row; align-items: center; justify-content: center; padding: 5px 22px; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; -unity-font: resource("Fonts/BlackHanSans-Regular"); color: #1a1030; font-size: 28px; }
+.result-rank-badge--gold { background-color: #ffd93d; }
+.result-rank-badge--silver { background-color: #cfc4e8; font-size: 24px; }
+.result-medal { width: 28px; height: 28px; margin-right: 4px; -unity-background-scale-mode: scale-to-fit; }
+.result-avatar { position: relative; width: 130px; height: 130px; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 44px; border-top-right-radius: 44px; border-bottom-left-radius: 44px; border-bottom-right-radius: 44px; align-items: center; justify-content: center; }
+.result-avatar--pink { background-color: #ff2f9e; }
+.result-avatar--cyan { background-color: #5fd8f5; width: 110px; height: 110px; border-top-left-radius: 38px; border-top-right-radius: 38px; border-bottom-left-radius: 38px; border-bottom-right-radius: 38px; }
+.result-avatar-eyes { position: absolute; left: 30px; right: 30px; top: 46px; height: 30px; flex-direction: row; justify-content: space-between; }
+.result-avatar-eye { position: relative; width: 23px; height: 30px; background-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.result-avatar-eye-shine { position: absolute; left: 6px; top: 5px; width: 9px; height: 9px; background-color: #ffffff; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.result-avatar-cheeks { position: absolute; left: 20px; right: 20px; top: 82px; height: 13px; flex-direction: row; justify-content: space-between; }
+.result-avatar-cheek { width: 24px; height: 13px; background-color: #ffd93d; opacity: 0.8; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.result-avatar-mouth { position: absolute; left: 48px; bottom: 24px; width: 34px; height: 18px; background-color: #1a1030; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+.result-avatar-ear { position: absolute; top: -12px; width: 28px; height: 28px; background-color: #5fd8f5; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 14px; border-top-right-radius: 14px; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+.result-avatar-ear--left { left: 16px; }
+.result-avatar-ear--right { right: 16px; }
+.result-avatar--cyan .result-avatar-eyes { left: 25px; right: 25px; top: 40px; height: 24px; }
+.result-avatar--cyan .result-avatar-eye { width: 20px; height: 24px; }
+.result-avatar--cyan .result-avatar-eye-shine { left: 5px; top: 4px; width: 8px; height: 8px; }
+.result-avatar--cyan .result-avatar-cheeks { left: 14px; right: 14px; top: 68px; height: 11px; }
+.result-avatar--cyan .result-avatar-cheek { width: 20px; height: 11px; background-color: #ff8fc4; opacity: 0.75; }
+.result-avatar-mouth--sad { left: 38px; bottom: 17px; width: 34px; height: 17px; background-color: rgba(0,0,0,0); border-top-width: 5px; border-top-color: #1a1030; border-top-left-radius: 34px; border-top-right-radius: 34px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.result-crown { position: absolute; top: -34px; width: 48px; height: 48px; -unity-background-scale-mode: scale-to-fit; }
+.result-player-name { margin-top: 12px; color: #1a1030; font-size: 29px; -unity-text-align: middle-center; white-space: nowrap; }
+.result-player-name--second { font-size: 25px; }
+.result-player-message { margin-top: 2px; font-size: 19px; -unity-text-align: middle-center; white-space: nowrap; }
+.result-player-message--pink { color: #e11d74; }
+.result-player-message--purple { color: #7a5fd0; font-size: 17px; }
+.result-time-box { margin-top: 0; width: 280px; min-height: 90px; background-color: #f4ecff; border-left-width: 3px; border-right-width: 3px; border-top-width: 3px; border-bottom-width: 3px; border-color: #1a1030; border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; align-items: center; justify-content: center; }
+.result-time-box--blue { width: 254px; min-height: 78px; background-color: #eef4ff; }
+.result-time-label { color: #8a3fd0; font-size: 15px; }
+.result-time-label--blue { color: #5a7fd0; font-size: 14px; }
+.result-time-value { color: #1a1030; -unity-font: resource("Fonts/Fredoka"); -unity-font-style: bold; font-size: 32px; -unity-text-align: middle-center; }
+.result-time-value--small { font-size: 27px; }
+.result-stars-card { width: 320px; height: 234px; margin-left: 36px; background-color: #1a1030; border-left-width: 6px; border-right-width: 6px; border-top-width: 6px; border-bottom-width: 6px; border-color: #1a1030; border-top-left-radius: 30px; border-top-right-radius: 30px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; padding: 28px 30px; }
+.result-stars-heading { flex-direction: row; justify-content: center; align-items: center; margin-bottom: 14px; }
+.result-stars-heading .unity-label { color: #ffd93d; font-size: 22px; }
+.result-star-icon { width: 25px; height: 25px; margin-right: 4px; -unity-background-scale-mode: scale-to-fit; }
+.result-stars-label { color: #ffffff; font-size: 17px; margin-bottom: 2px; }
+.result-stars-value { color: #ffd93d; -unity-font: resource("Fonts/Fredoka"); -unity-font-style: bold; font-size: 24px; letter-spacing: 3px; margin-bottom: 12px; }
+.result-actions { position: absolute; left: 0; right: 0; bottom: 24px; height: 76px; flex-direction: row; justify-content: center; }
+.result-action-button { min-height: 76px; margin-right: 18px; padding-left: 35px; padding-right: 35px; flex-direction: row; align-items: center; justify-content: center; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 20px; border-top-right-radius: 20px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
+.result-action-button--last { margin-right: 0; }
+.result-action-button .unity-label { font-size: 26px; }
+.result-action-button--pink { background-color: #ff2f9e; color: #ffffff; }
+.result-action-button--mint { background-color: #b6f36b; color: #1a1030; }
+.result-action-button--yellow { background-color: #ffd93d; color: #1a1030; }
+.result-action-icon { width: 28px; height: 28px; margin-right: 8px; -unity-background-scale-mode: scale-to-fit; }
+.race-result-action { display: none; }
