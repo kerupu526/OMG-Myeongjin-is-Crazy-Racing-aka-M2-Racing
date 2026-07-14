@@ -784,7 +784,7 @@ namespace M2.UI
         void RefreshProfilePresentation()
         {
             M2AvatarAppearance appearance = M2PlayerProfile.Appearance;
-            string name = M2PlayerProfile.DisplayName;
+            string name = M2PlayerProfile.TaggedDisplayName;
             if (mainRacerName != null) mainRacerName.text = name;
             ApplyAvatar(app.Q<VisualElement>("main-avatar"), appearance);
         }
@@ -842,7 +842,9 @@ namespace M2.UI
 
         void RefreshAvatarPreview()
         {
-            string name = M2PlayerProfile.NormalizeDisplayName(avatarNameInput != null ? avatarNameInput.value : M2PlayerProfile.DisplayName);
+            string name = M2PlayerProfile.WithPlateTag(
+                avatarNameInput != null ? avatarNameInput.value : M2PlayerProfile.DisplayName,
+                draftAppearance.PlateIndex);
             ApplyAvatar(app.Q<VisualElement>("avatar-preview"), draftAppearance);
             if (avatarPreviewName != null) avatarPreviewName.text = name;
             if (avatarSummary != null)
@@ -972,8 +974,8 @@ namespace M2.UI
             M2AvatarAppearance guestAppearance = guest.HasProfile
                 ? guest.Appearance
                 : M2PlayerProfile.Appearance.WithBodyColor(2);
-            string hostName = host.HasProfile ? host.DisplayName : localIsHost ? M2PlayerProfile.DisplayName : "방장";
-            string guestName = guest.HasProfile ? guest.DisplayName : localIsHost ? "상대 접속 대기" : M2PlayerProfile.DisplayName;
+            string hostName = host.HasProfile ? host.DisplayName : localIsHost ? M2PlayerProfile.TaggedDisplayName : "방장";
+            string guestName = guest.HasProfile ? guest.DisplayName : localIsHost ? "상대 접속 대기" : M2PlayerProfile.TaggedDisplayName;
             ApplyLobbyPlayer(app.Q<VisualElement>("lobby-host-avatar"), lobbyHostName, lobbyHostMeta, lobbyHostReady,
                 hostAppearance, hostName, "방장", raceManager.HostReady, host.HasProfile || localIsHost);
             ApplyLobbyPlayer(app.Q<VisualElement>("lobby-guest-avatar"), lobbyGuestName, lobbyGuestMeta, lobbyGuestReady,
@@ -1022,9 +1024,9 @@ namespace M2.UI
             int laps = roomSettingsUi != null ? RaceModeRules.NormalizeItemLapCount(roomSettingsUi.selectedItemLapCount) : 3;
             VictoryCondition victory = roomSettingsUi != null ? roomSettingsUi.selectedItemVictoryCondition : VictoryCondition.SimpleFinish;
             ApplyLobbyPlayer(app.Q<VisualElement>("lobby-host-avatar"), lobbyHostName, lobbyHostMeta, lobbyHostReady,
-                M2PlayerProfile.Appearance, localIsHost ? M2PlayerProfile.DisplayName : "방장", "방장", false, localIsHost);
+                M2PlayerProfile.Appearance, localIsHost ? M2PlayerProfile.TaggedDisplayName : "방장", "방장", false, localIsHost);
             ApplyLobbyPlayer(app.Q<VisualElement>("lobby-guest-avatar"), lobbyGuestName, lobbyGuestMeta, lobbyGuestReady,
-                M2PlayerProfile.Appearance.WithBodyColor(2), localIsHost ? "상대 접속 대기" : M2PlayerProfile.DisplayName,
+                M2PlayerProfile.Appearance.WithBodyColor(2), localIsHost ? "상대 접속 대기" : M2PlayerProfile.TaggedDisplayName,
                 "참가자", false, !localIsHost);
             RefreshLobbyOptionButtons(mode, laps, victory, fallbackLobbyStage, localIsHost);
             SetEnabled(lobbyReadyButton, false);
@@ -1290,12 +1292,7 @@ namespace M2.UI
             _ => "없음",
         };
 
-        static string HatMark(M2AvatarHat hat) => hat switch
-        {
-            M2AvatarHat.Cap => "▰",
-            M2AvatarHat.Crown => "♛",
-            _ => string.Empty,
-        };
+        static VectorImage crownVectorImage;
 
         static void ApplyAvatar(VisualElement avatar, M2AvatarAppearance appearance)
         {
@@ -1307,7 +1304,9 @@ namespace M2.UI
             VisualElement eyes = avatar.Q<VisualElement>("avatar-eyes");
             VisualElement cheeks = avatar.Q<VisualElement>("avatar-cheeks");
             VisualElement mouth = avatar.Q<VisualElement>("avatar-mouth");
-            Label hat = avatar.Q<Label>("avatar-hat");
+            VisualElement capTop = avatar.Q<VisualElement>("avatar-hat-cap-top");
+            VisualElement capBrim = avatar.Q<VisualElement>("avatar-hat-cap-brim");
+            Image crown = avatar.Q<Image>("avatar-hat-crown");
             Label plate = avatar.Q<Label>("avatar-plate");
 
             if (body != null) body.style.backgroundColor = color;
@@ -1327,6 +1326,25 @@ namespace M2.UI
                 eyes.RemoveFromClassList("avatar-eyes--cool");
                 if (appearance.Eyes == M2AvatarEyes.Happy) eyes.AddToClassList("avatar-eyes--happy");
                 if (appearance.Eyes == M2AvatarEyes.Cool) eyes.AddToClassList("avatar-eyes--cool");
+
+                // The Figma sunglasses use one cyan and one pink lens; USS cannot address the
+                // second child, so tint the lenses here and clear the override otherwise.
+                bool cool = appearance.Eyes == M2AvatarEyes.Cool;
+                int lensIndex = 0;
+                foreach (VisualElement lens in eyes.Children())
+                {
+                    if (cool)
+                    {
+                        lens.style.backgroundColor = lensIndex == 0
+                            ? new Color(0.545f, 0.886f, 1f)
+                            : new Color(1f, 0.616f, 0.878f);
+                    }
+                    else
+                    {
+                        lens.style.backgroundColor = StyleKeyword.Null;
+                    }
+                    lensIndex++;
+                }
             }
             if (cheeks != null) cheeks.style.display = appearance.HasCheeks ? DisplayStyle.Flex : DisplayStyle.None;
             if (mouth != null)
@@ -1336,7 +1354,20 @@ namespace M2.UI
                 if (appearance.Mouth == M2AvatarMouth.Open) mouth.AddToClassList("avatar-mouth--open");
                 if (appearance.Mouth == M2AvatarMouth.Flat) mouth.AddToClassList("avatar-mouth--flat");
             }
-            if (hat != null) hat.text = HatMark(appearance.Hat);
+            bool capVisible = appearance.Hat == M2AvatarHat.Cap;
+            bool crownVisible = appearance.Hat == M2AvatarHat.Crown;
+            if (capTop != null) capTop.style.display = capVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (capBrim != null) capBrim.style.display = capVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (crown != null)
+            {
+                if (crown.vectorImage == null)
+                {
+                    if (crownVectorImage == null) crownVectorImage = Resources.Load<VectorImage>(ResourceRoot + "Icons/crown");
+                    crown.vectorImage = crownVectorImage;
+                    crown.scaleMode = ScaleMode.ScaleToFit;
+                }
+                crown.style.display = crownVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
             if (plate != null) plate.text = M2PlayerProfile.ResolvePlateLabel(appearance.PlateIndex);
         }
     }

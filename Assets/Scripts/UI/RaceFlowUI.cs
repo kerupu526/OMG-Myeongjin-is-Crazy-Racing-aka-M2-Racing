@@ -262,7 +262,7 @@ namespace M2.UI
             if (racer == null) return "알 수 없는 레이서";
             if (racer == localRacer || (localRacer == null && (gameManager == null || gameManager.racers.Count <= 1)))
             {
-                return M2PlayerProfile.DisplayName;
+                return M2PlayerProfile.TaggedDisplayName;
             }
 
             string generatedName = racer.gameObject.name;

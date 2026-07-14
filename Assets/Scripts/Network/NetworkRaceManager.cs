@@ -586,8 +586,7 @@ namespace M2.Network
 
         void SubmitLocalProfile()
         {
-            FixedString64Bytes displayName = new FixedString64Bytes(
-                M2PlayerProfile.NormalizeDisplayName(M2PlayerProfile.DisplayName));
+            FixedString64Bytes displayName = new FixedString64Bytes(M2PlayerProfile.TaggedDisplayName);
             M2AvatarAppearance appearance = M2PlayerProfile.Appearance;
             if (IsServer)
             {

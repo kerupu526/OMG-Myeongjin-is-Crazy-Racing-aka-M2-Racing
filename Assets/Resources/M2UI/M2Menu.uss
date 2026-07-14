@@ -705,7 +705,7 @@
 
 .lobby-settings-heading { height: 34px; flex-direction: row; align-items: center; margin-bottom: 12px; }
 .lobby-settings-heading > .unity-label { color: #1a1030; font-size: 26px; }
-.lobby-authority { color: #a05fd0 !important; font-size: 15px !important; margin-left: 8px; margin-top: 7px; }
+.lobby-authority { color: #a05fd0; font-size: 15px; margin-left: 8px; margin-top: 7px; }
 .lobby-field-label { color: #1a1030; font-size: 19px; margin-top: 10px; }
 .lobby-chip-row { flex-direction: row; align-items: center; margin-top: 8px; }
 .lobby-chip-row > * { margin-right: 10px; }
@@ -746,15 +746,10 @@
 .avatar-cheeks { position: absolute; flex-direction: row; justify-content: space-between; }
 .avatar-cheek { background-color: #ff5fa8; opacity: 0.9; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
 .avatar-mouth { position: absolute; background-color: #1a1030; }
-.avatar-hat { position: absolute; color: #ffd93d; -unity-text-outline-color: #1a1030; -unity-text-outline-width: 2px; -unity-text-align: middle-center; }
+.avatar-hat { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .avatar-plate { position: absolute; color: #ffffff; font-size: 10px; -unity-text-align: middle-center; }
 
-.avatar-eyes--happy .avatar-eye { background-color: rgba(0,0,0,0); border-top-width: 5px; border-top-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; height: 14px !important; }
-.avatar-eyes--cool { background-color: #1a1030; border-top-left-radius: 14px; border-top-right-radius: 14px; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; padding-left: 10px; padding-right: 10px; }
-.avatar-eyes--cool .avatar-eye { background-color: #8be2ff; height: 10px !important; margin-top: 8px; }
 .avatar-eyes--happy .avatar-eye-shine, .avatar-eyes--cool .avatar-eye-shine { display: none; }
-.avatar-mouth--open { height: 25px !important; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; }
-.avatar-mouth--flat { height: 5px !important; border-top-left-radius: 6px; border-top-right-radius: 6px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
 
 .avatar--main { width: 150px; height: 150px; }
 .avatar--main .avatar-body { border-top-left-radius: 50px; border-top-right-radius: 50px; border-bottom-left-radius: 50px; border-bottom-right-radius: 50px; }
@@ -763,7 +758,7 @@
 .avatar--main .avatar-eyes { left: 33px; right: 33px; top: 50px; }.avatar--main .avatar-eye { width: 27px; height: 35px; }
 .avatar--main .avatar-cheeks { left: 19px; right: 19px; top: 94px; }.avatar--main .avatar-cheek { width: 27px; height: 15px; }
 .avatar--main .avatar-mouth { left: 60px; bottom: 28px; width: 30px; height: 16px; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
-.avatar--main .avatar-hat { left: 35px; top: -43px; width: 80px; font-size: 42px; }.avatar--main .avatar-plate { left: 45px; right: 45px; bottom: 7px; }
+.avatar--main .avatar-plate { left: 45px; right: 45px; bottom: 7px; }
 
 .avatar--lobby { width: 110px; height: 110px; }
 .avatar--lobby .avatar-body { border-top-left-radius: 38px; border-top-right-radius: 38px; border-bottom-left-radius: 38px; border-bottom-right-radius: 38px; }
@@ -772,7 +767,7 @@
 .avatar--lobby .avatar-eyes { left: 24px; right: 24px; top: 36px; }.avatar--lobby .avatar-eye { width: 20px; height: 26px; }
 .avatar--lobby .avatar-cheeks { left: 14px; right: 14px; top: 66px; }.avatar--lobby .avatar-cheek { width: 20px; height: 11px; background-color: #ffd93d; }
 .avatar--lobby .avatar-mouth { left: 43px; bottom: 22px; width: 24px; height: 13px; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; }
-.avatar--lobby .avatar-hat { left: 24px; top: -33px; width: 62px; font-size: 32px; }.avatar--lobby .avatar-plate { left: 30px; right: 30px; bottom: 4px; font-size: 8px; }
+.avatar--lobby .avatar-plate { left: 30px; right: 30px; bottom: 4px; font-size: 8px; }
 
 /* 05 · Avatar */
 
@@ -805,7 +800,7 @@
 .avatar-options-card { flex-grow: 1; padding: 22px 26px; flex-direction: column; }.avatar-options-grid { flex-grow: 1; flex-direction: row; flex-wrap: wrap; align-content: flex-start; }.avatar-option-group { width: 50%; margin-top: 14px; }.avatar-option-group--wide { width: 100%; margin-top: 0; }.option-row { margin-top: 8px; flex-direction: row; flex-wrap: wrap; align-items: center; }.option-row > * { margin-right: 10px; margin-bottom: 5px; }.avatar-color-row { margin-top: 8px; flex-direction: row; }.color-swatch { width: 50px; height: 50px; margin-right: 10px; background-color: #ffd93d; border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; border-bottom-width: 4px; border-color: #1a1030; border-top-left-radius: 15px; border-top-right-radius: 15px; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
 .avatar-save-button { align-self: flex-end; min-height: 62px; margin-top: 14px; background-color: #ff2f9e; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 20px; border-top-right-radius: 20px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; color: #ffffff; font-size: 24px; flex-direction: row; align-items: center; justify-content: center; padding-left: 28px; padding-right: 28px; }.avatar-save-button .unity-label { color: #ffffff; }
 
-.avatar--preview { width: 210px; height: 210px; }.avatar--preview .avatar-body { border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; border-top-left-radius: 70px; border-top-right-radius: 70px; border-bottom-left-radius: 70px; border-bottom-right-radius: 70px; }.avatar--preview .avatar-ear { width: 50px; height: 50px; top: -20px; border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; }.avatar--preview .avatar-ear--left { left: 31px; }.avatar--preview .avatar-ear--right { right: 31px; }.avatar--preview .avatar-eyes { left: 46px; right: 46px; top: 70px; }.avatar--preview .avatar-eye { width: 38px; height: 49px; }.avatar--preview .avatar-cheeks { left: 27px; right: 27px; top: 132px; }.avatar--preview .avatar-cheek { width: 38px; height: 21px; }.avatar--preview .avatar-mouth { left: 84px; bottom: 39px; width: 42px; height: 22px; border-bottom-left-radius: 31px; border-bottom-right-radius: 31px; }.avatar--preview .avatar-hat { left: 46px; top: -57px; width: 118px; font-size: 54px; }.avatar--preview .avatar-plate { left: 68px; right: 68px; bottom: 10px; font-size: 12px; }
+.avatar--preview { width: 210px; height: 210px; }.avatar--preview .avatar-body { border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; border-top-left-radius: 70px; border-top-right-radius: 70px; border-bottom-left-radius: 70px; border-bottom-right-radius: 70px; }.avatar--preview .avatar-ear { width: 50px; height: 50px; top: -20px; border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; }.avatar--preview .avatar-ear--left { left: 31px; }.avatar--preview .avatar-ear--right { right: 31px; }.avatar--preview .avatar-eyes { left: 46px; right: 46px; top: 70px; }.avatar--preview .avatar-eye { width: 38px; height: 49px; }.avatar--preview .avatar-cheeks { left: 27px; right: 27px; top: 132px; }.avatar--preview .avatar-cheek { width: 38px; height: 21px; }.avatar--preview .avatar-mouth { left: 84px; bottom: 39px; width: 42px; height: 22px; border-bottom-left-radius: 31px; border-bottom-right-radius: 31px; }.avatar--preview .avatar-plate { left: 68px; right: 68px; bottom: 10px; font-size: 12px; }
 
 /* 06 · Settings */
 
@@ -968,8 +963,8 @@
     margin-left: 0;
     margin-top: 0;
     margin-bottom: 2px;
-    color: #8a3fd0 !important;
-    font-size: 15px !important;
+    color: #8a3fd0;
+    font-size: 15px;
     -unity-text-align: middle-left;
 }
 
@@ -1019,7 +1014,6 @@
 .avatar--preset .avatar-cheeks { left: 6px; right: 6px; top: 29px; }
 .avatar--preset .avatar-cheek { width: 8px; height: 5px; }
 .avatar--preset .avatar-mouth { left: 18px; bottom: 8px; width: 10px; height: 5px; border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; }
-.avatar--preset .avatar-hat { left: 9px; top: -13px; width: 28px; font-size: 17px; }
 .avatar--preset .avatar-plate { display: none; }
 
 /* Capsule geometry and vertical centering.
@@ -1147,15 +1141,139 @@
     padding-bottom: 0;
     -unity-text-align: middle-center;
 }
-.avatar--preset .avatar-eyes--happy .avatar-eye { border-top-width: 2px; height: 5px !important; }
-.avatar--preset .avatar-eyes--cool { padding-left: 2px; padding-right: 2px; border-top-left-radius: 5px; border-top-right-radius: 5px; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px; }
-.avatar--preset .avatar-eyes--cool .avatar-eye { height: 4px !important; margin-top: 3px; }
-.avatar--preset .avatar-mouth--open { height: 8px !important; }
-.avatar--preset .avatar-mouth--flat { height: 2px !important; }
-
-.avatar-mouth--open { height: 30px !important; }
-.avatar-mouth--flat { height: 6px !important; }
 .avatar-save-button { flex-shrink: 0; border-right-width: 9px; border-bottom-width: 9px; padding-top: 0; padding-bottom: 0; }
+
+/* Avatar face variants — percentage geometry taken from the Figma HTML avatarHTML()
+   (base 210px face), so every context (main/lobby/preview/preset) scales the same way.
+   These sit late in the file so they win the specificity ties against the per-context
+   pixel rules above. Unity USS has no !important, so ordering is the override tool. */
+
+.avatar .avatar-mouth--open {
+    left: 50%;
+    translate: -50% 0;
+    width: 16.2%;
+    height: 14.3%;
+    bottom: 16.2%;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+}
+
+.avatar .avatar-mouth--flat {
+    left: 50%;
+    translate: -50% 0;
+    width: 19%;
+    height: 2.9%;
+    min-height: 2px;
+    bottom: 21%;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+}
+
+.avatar .avatar-eyes--happy { top: 38%; height: 9.5%; }
+.avatar .avatar-eyes--happy .avatar-eye {
+    width: 30%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0);
+    border-top-width: 5px;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    border-color: #1a1030;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+.avatar--preview .avatar-eyes--happy .avatar-eye { border-top-width: 7px; }
+.avatar--lobby .avatar-eyes--happy .avatar-eye { border-top-width: 4px; }
+.avatar--preset .avatar-eyes--happy .avatar-eye { border-top-width: 2px; }
+
+.avatar .avatar-eyes--cool {
+    left: 17%;
+    right: 17%;
+    top: 35%;
+    height: 16.2%;
+    background-color: #1a1030;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    align-items: center;
+    padding-left: 7%;
+    padding-right: 7%;
+}
+.avatar .avatar-eyes--cool .avatar-eye {
+    width: 30%;
+    height: 47%;
+    margin-top: 0;
+    background-color: #8be2ff;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+
+/* Hats — a full-face overlay whose children are placed with percentages, replacing the
+   old text-glyph hat. The cap is the two pink Figma shapes; the crown is crown.svg. */
+
+.avatar-hat-cap-top {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+    top: -16.2%;
+    width: 63%;
+    height: 18.1%;
+    background-color: #ff2f9e;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    border-top-width: 4px;
+    border-bottom-width: 4px;
+    border-color: #1a1030;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.avatar-hat-cap-brim {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+    top: -1.9%;
+    width: 80%;
+    height: 7.6%;
+    min-height: 5px;
+    background-color: #ff2f9e;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    border-top-width: 4px;
+    border-bottom-width: 4px;
+    border-color: #1a1030;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+}
+
+.avatar-hat-crown {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+    top: -23.8%;
+    width: 34.3%;
+    height: 34.3%;
+}
+
+.avatar--preview .avatar-hat-cap-top, .avatar--preview .avatar-hat-cap-brim {
+    border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px;
+}
+.avatar--preset .avatar-hat-cap-top, .avatar--preset .avatar-hat-cap-brim {
+    border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; min-height: 3px;
+}
 
 .settings-layout { position: absolute; }
 .settings-card-shadow--sound { left: 8px; top: 8px; width: 583px; bottom: -8px; }

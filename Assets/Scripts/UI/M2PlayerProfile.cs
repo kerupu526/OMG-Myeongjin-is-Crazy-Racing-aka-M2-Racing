@@ -101,6 +101,23 @@ namespace M2.UI
 
         public static string DisplayName => NormalizeDisplayName(PlayerPrefs.GetString(DisplayNameKey, DefaultDisplayName));
 
+        /// <summary>Saved nickname with the selected plate tag kept as a suffix (e.g. "명진 #077").</summary>
+        public static string TaggedDisplayName => WithPlateTag(DisplayName, Appearance.PlateIndex);
+
+        /// <summary>
+        /// Keeps the plate tag visible after a custom nickname: a stale trailing "#..." token is
+        /// replaced by the current plate so renaming never drops the tag and re-plating updates it.
+        /// </summary>
+        public static string WithPlateTag(string displayName, int plateIndex)
+        {
+            string name = NormalizeDisplayName(displayName);
+            string tag = ResolvePlateLabel(plateIndex);
+            if (name.EndsWith(tag)) return name;
+            name = System.Text.RegularExpressions.Regex.Replace(name, @"\s*#[0-9A-Za-z]+$", string.Empty).TrimEnd();
+            if (name.Length == 0) name = "레이서";
+            return $"{name} {tag}";
+        }
+
         public static M2AvatarAppearance Appearance => new M2AvatarAppearance(
             PlayerPrefs.GetInt(AvatarColorKey, 0),
             (M2AvatarEyes)PlayerPrefs.GetInt(AvatarEyesKey, (int)M2AvatarEyes.Round),

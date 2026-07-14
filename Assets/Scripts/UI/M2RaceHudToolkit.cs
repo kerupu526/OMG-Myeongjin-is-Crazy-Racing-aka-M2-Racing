@@ -203,7 +203,7 @@ namespace M2.UI
             SetDisplay(countdownCard, false);
             SetLabel(lapValue, "– / –");
             SetLabel(timeValue, "--:--");
-            SetLabel(localStatus, $"{M2PlayerProfile.DisplayName} · 준비 중");
+            SetLabel(localStatus, $"{M2PlayerProfile.TaggedDisplayName} · 준비 중");
             SetLabel(opponentStatus, "상대 · 연결 대기");
             SetLabel(itemCaption, "아이템 슬롯 · 연결 대기");
             SetLabel(boosterLabel, "상대와 연결 중... ⏳");
@@ -221,7 +221,7 @@ namespace M2.UI
 
             NetworkRacerResult localRacer = localIsHost ? raceManager.HostRacer : raceManager.ClientRacer;
             NetworkRacerResult opponentRacer = localIsHost ? raceManager.ClientRacer : raceManager.HostRacer;
-            string localName = DisplayNameOr(localRacer, M2PlayerProfile.DisplayName);
+            string localName = DisplayNameOr(localRacer, M2PlayerProfile.TaggedDisplayName);
             string opponentName = DisplayNameOr(opponentRacer, "상대 레이서");
             Color localColor = ProfileColorOr(localRacer, M2PlayerProfile.AvatarColor);
             Color opponentColor = ProfileColorOr(opponentRacer, new Color32(95, 216, 245, 255));
