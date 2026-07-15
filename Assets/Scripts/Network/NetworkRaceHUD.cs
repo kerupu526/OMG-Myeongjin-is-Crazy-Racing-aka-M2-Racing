@@ -294,24 +294,22 @@ namespace M2.Network
 
         void RefreshItemPresentation()
         {
+            EnsureLocalRefs();
+            NetItemId primary = localSlots != null ? localSlots.Primary : NetItemId.None;
+            NetItemId secondary = localSlots != null ? localSlots.Secondary : NetItemId.None;
+            RefreshSlot(primary, primaryIcon, primaryNameLabel, "1");
+            RefreshSlot(secondary, secondaryIcon, secondaryNameLabel, "2");
+            ItemDefinition selected = ItemCatalog.CreateFromId(primary) ?? ItemCatalog.CreateFromId(secondary);
+
             if (raceManager.Mode == RaceMode.Speed)
             {
-                primaryIcon.enabled = false;
-                secondaryIcon.enabled = false;
-                primaryNameLabel.text = "기본 휘발유 · 자동";
-                secondaryNameLabel.text = "랜덤 아이템 없음";
-                itemDetailLabel.text = $"<color=#FFD93D>기본 휘발유 자동 분사</color>\n레이스 시작 시와 이후 {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다 자동으로 가속합니다. 아이템 슬롯을 차지하지 않습니다.";
-                supplyLabel.text = $"스피드전 · 기본 휘발유 {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다 자동 분사";
+                itemDetailLabel.text = selected == null
+                    ? $"<color=#FFD93D>기본 휘발유 자동 지급</color>\n레이스 시작 시와 이후 {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다 아이템 슬롯에 지급됩니다. Ctrl로 직접 사용하세요."
+                    : $"<color=#FFD93D>{selected.itemName}</color>\n{selected.description}";
+                supplyLabel.text = $"스피드전 · 기본 휘발유 {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다 자동 지급 · Ctrl 사용";
                 return;
             }
 
-            EnsureLocalRefs();
-            NetItemId primary = localSlots != null ? localSlots.Primary : default;
-            NetItemId secondary = localSlots != null ? localSlots.Secondary : default;
-            RefreshSlot(primary, primaryIcon, primaryNameLabel, "1");
-            RefreshSlot(secondary, secondaryIcon, secondaryNameLabel, "2");
-
-            ItemDefinition selected = ItemCatalog.CreateFromId(primary) ?? ItemCatalog.CreateFromId(secondary);
             itemDetailLabel.text = selected == null
                 ? "<color=#FFD93D>아이템 대기 중</color>\n트랙의 픽업을 획득하면 실제 스프라이트와 상세 설명이 표시됩니다."
                 : $"<color=#FFD93D>{selected.itemName}</color>\n{selected.description}";
@@ -451,15 +449,25 @@ namespace M2.Network
             int localChoice = localIsHost ? raceManager.HostPostRaceChoice : raceManager.ClientPostRaceChoice;
             int opponentChoice = localIsHost ? raceManager.ClientPostRaceChoice : raceManager.HostPostRaceChoice;
             bool awaiting = localChoice != 0;
+            bool solo = raceManager.IsSoloLocalRace;
 
             rematchButton.interactable = !awaiting;
-            lobbyButton.interactable = !awaiting;
+            lobbyButton.gameObject.SetActive(!solo);
+            lobbyButton.interactable = !awaiting && !solo;
             mainButton.interactable = true;
             SetResultButtonLabel(rematchButton, localChoice == 1 ? "다시 하기 · 대기" : "다시 하기");
             SetResultButtonLabel(lobbyButton, localChoice == 2 ? "로비로 · 대기" : "로비로");
 
             if (resultActionLabel != null)
             {
+                if (solo)
+                {
+                    resultActionLabel.text = localChoice == 0
+                        ? "다시 하기를 누르면 바로 새 레이스를 시작합니다."
+                        : "새 레이스를 준비합니다...";
+                    return;
+                }
+
                 resultActionLabel.text = localChoice == 0
                     ? "다시 하기 또는 로비로는 상대 레이서의 같은 선택을 기다립니다."
                     : opponentChoice == 0

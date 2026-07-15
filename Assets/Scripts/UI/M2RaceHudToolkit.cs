@@ -29,14 +29,18 @@ namespace M2.UI
         VisualElement opponentAvatar;
         VisualElement firstAvatar;
         VisualElement secondAvatar;
+        VisualElement secondResultCard;
         VisualElement gaugeFill;
+        VisualElement mapTrack;
+        VisualElement localMapDot;
+        VisualElement opponentMapDot;
         Label lapValue;
         Label timeValue;
         Label localStatus;
         Label opponentStatus;
         Label itemCaption;
-        Label boosterLabel;
         Label countdownLabel;
+        Label stageName;
         Label gaugeLabel;
         Label gaugeValue;
         Label gaugeAlert;
@@ -59,15 +63,21 @@ namespace M2.UI
         NetworkRaceManager raceManager;
         NetworkItemSlots localSlots;
         VehicleController localVehicle;
+        VehicleController opponentVehicle;
         StageGaugeSystem stageGauge;
         bool waitingShown;
+        StageType displayedStage = (StageType)(-1);
+        Bounds miniMapWorldBounds;
+        bool miniMapWorldBoundsReady;
 
         void Start()
         {
             if (!EnsureDocument()) return;
             CacheElements();
             ConfigureImages();
+            ApplyLocalization();
             RegisterCallbacks();
+            M2GameSettings.LanguageChanged += HandleLanguageChanged;
             GetComponent<NetworkRaceHUD>()?.SetLegacyPresentationSuppressed(true);
             ShowWaitingForOpponent();
         }
@@ -92,8 +102,21 @@ namespace M2.UI
 
         void OnDestroy()
         {
+            M2GameSettings.LanguageChanged -= HandleLanguageChanged;
             if (documentGameObject != null) Destroy(documentGameObject);
             if (fallbackPanelSettings != null) Destroy(fallbackPanelSettings);
+        }
+
+        void HandleLanguageChanged(M2Language _)
+        {
+            ApplyLocalization();
+            if (raceManager != null) RefreshPresentation();
+            else ShowWaitingForOpponent();
+        }
+
+        void ApplyLocalization()
+        {
+            M2Localization.ApplyTo(app);
         }
 
         bool EnsureDocument()
@@ -140,14 +163,18 @@ namespace M2.UI
             opponentAvatar = app.Q<VisualElement>("race-opponent-avatar");
             firstAvatar = app.Q<VisualElement>("result-first-avatar");
             secondAvatar = app.Q<VisualElement>("result-second-avatar");
+            secondResultCard = app.Q<VisualElement>(className: "result-card-wrap--second");
             gaugeFill = app.Q<VisualElement>("race-gauge-fill");
+            mapTrack = app.Q<VisualElement>("race-map-track");
+            localMapDot = app.Q<VisualElement>("race-map-dot-local");
+            opponentMapDot = app.Q<VisualElement>("race-map-dot-opponent");
             lapValue = app.Q<Label>("race-lap-value");
             timeValue = app.Q<Label>("race-time-value");
             localStatus = app.Q<Label>("race-local-status");
             opponentStatus = app.Q<Label>("race-opponent-status");
             itemCaption = app.Q<Label>("race-item-caption");
-            boosterLabel = app.Q<Label>("race-booster-label");
             countdownLabel = app.Q<Label>("race-countdown-label");
+            stageName = app.Q<Label>("race-stage-name");
             gaugeLabel = app.Q<Label>("race-gauge-label");
             gaugeValue = app.Q<Label>("race-gauge-value");
             gaugeAlert = app.Q<Label>("race-gauge-alert");
@@ -170,13 +197,20 @@ namespace M2.UI
 
         void ConfigureImages()
         {
-            SetVectorImage("race-hud-top-fade", ResourceRoot + "Backgrounds/HudTopFade");
+            // Fades, stripes, and the result gradient are drawn procedurally; the SVG
+            // VectorImage import renders CSS-style gradients unreliably (solid fills).
+            SetTexture("race-hud-top-fade", M2UiGradients.Linear("hud-top-fade", 180f,
+                new M2UiGradients.Stop(0f, new Color(0.102f, 0.063f, 0.188f, 0.8f)),
+                new M2UiGradients.Stop(1f, new Color(0.102f, 0.063f, 0.188f, 0f))));
             SetVectorImage("race-stage-icon", ResourceRoot + "Icons/bikini-city");
-            SetVectorImageStretched("race-gauge-fill", ResourceRoot + "Backgrounds/GaugeFill");
-            SetVectorImage("race-result-gradient", ResourceRoot + "Backgrounds/ResultGradient");
+            SetTexture("race-gauge-fill", M2UiGradients.Stripes("gauge-fill",
+                new Color32(255, 47, 158, 255), new Color32(255, 217, 61, 255)));
+            SetTexture("race-result-gradient", M2UiGradients.Linear("result", 160f,
+                new M2UiGradients.Stop(0f, new Color32(255, 207, 61, 255)),
+                new M2UiGradients.Stop(0.55f, new Color32(255, 107, 189, 255)),
+                new M2UiGradients.Stop(1f, new Color32(154, 107, 255, 255))));
             SetVectorImage("result-first-medal", ResourceRoot + "Icons/first-place-medal");
             SetVectorImage("result-second-medal", ResourceRoot + "Icons/second-place-medal");
-            SetVectorImage("result-first-crown", ResourceRoot + "Icons/crown");
             SetVectorImage("result-star-icon", ResourceRoot + "Icons/star");
             SetVectorImage("race-rematch-icon", ResourceRoot + "Icons/restart");
             SetVectorImage("race-lobby-icon", ResourceRoot + "Icons/door");
@@ -206,10 +240,12 @@ namespace M2.UI
             SetLabel(localStatus, $"{M2PlayerProfile.TaggedDisplayName} · 준비 중");
             SetLabel(opponentStatus, "상대 · 연결 대기");
             SetLabel(itemCaption, "아이템 슬롯 · 연결 대기");
-            SetLabel(boosterLabel, "상대와 연결 중... ⏳");
             SetAvatarColor(localAvatar, M2PlayerProfile.AvatarColor);
             SetAvatarColor(opponentAvatar, new Color32(95, 216, 245, 255));
-            SetGaugeFallback();
+            SetDisplay(localMapDot, false);
+            SetDisplay(opponentMapDot, false);
+            RefreshStageIdentity(StageType.BikiniCity);
+            SetGaugeFallback(StageType.BikiniCity, waitingForConnection: true);
         }
 
         void RefreshPresentation()
@@ -228,35 +264,35 @@ namespace M2.UI
 
             SetLabel(lapValue, $"{localLaps} / {targetLaps}");
             SetLabel(timeValue, FormatTime(raceManager.TimeRemaining));
-            SetLabel(localStatus, $"{localName} · {PlacementText(localRacer, localLaps, opponentLaps)}");
-            SetLabel(opponentStatus, $"{opponentName} · {OpponentStatus(localRacer, opponentRacer, localLaps, opponentLaps)}");
+            SetLabel(localStatus, $"{localName}\n{PlacementText(localRacer, localLaps, opponentLaps)}");
+            SetLabel(opponentStatus, $"{opponentName}\n{OpponentStatus(localRacer, opponentRacer, localLaps, opponentLaps)}");
             SetAvatarColor(localAvatar, localColor);
             SetAvatarColor(opponentAvatar, opponentColor);
 
             RefreshItems();
+            RefreshMiniMap(localColor, opponentColor);
             RefreshGauge();
-            RefreshState(localRacer, opponentRacer, localName, opponentName, localColor, opponentColor,
-                localLaps, opponentLaps, targetLaps);
+            RefreshState(localRacer, opponentRacer, localName, opponentName, localLaps, opponentLaps, targetLaps);
         }
 
         void RefreshItems()
         {
+            EnsureLocalRefs();
+            NetItemId primary = localSlots != null ? localSlots.Primary : NetItemId.None;
+            NetItemId secondary = localSlots != null ? localSlots.Secondary : NetItemId.None;
+            bool hasPrimary = SetSlot(primary, primaryIcon);
+            bool hasSecondary = SetSlot(secondary, secondaryIcon);
+
             if (raceManager.Mode == RaceMode.Speed)
             {
-                SetItemIcon(primaryIcon, null);
-                SetItemIcon(secondaryIcon, null);
-                SetLabel(itemCaption, "스피드전 · 기본 휘발유 자동 분사");
-                SetLabel(boosterLabel, "부스터 발동! 🚀");
+                string supply = hasPrimary || hasSecondary
+                    ? "스피드전 · Ctrl로 지급된 휘발유 사용"
+                    : $"스피드전 · {RaceModeRules.SpeedModeGasolineInterval:0.#}초마다 휘발유 자동 지급";
+                SetLabel(itemCaption, supply);
                 return;
             }
 
-            EnsureLocalRefs();
-            NetItemId primary = localSlots != null ? localSlots.Primary : default;
-            NetItemId secondary = localSlots != null ? localSlots.Secondary : default;
-            bool hasPrimary = SetSlot(primary, primaryIcon);
-            bool hasSecondary = SetSlot(secondary, secondaryIcon);
             SetLabel(itemCaption, hasPrimary || hasSecondary ? "아이템 슬롯 · 획득한 아이템을 사용하세요" : "아이템 슬롯 · 트랙의 픽업을 찾으세요");
-            SetLabel(boosterLabel, localVehicle != null && localVehicle.HasSpeedBoost ? "부스터 발동! 🚀" : "아이템을 모아 역전하세요! ✨");
         }
 
         bool SetSlot(NetItemId id, Image icon)
@@ -285,52 +321,153 @@ namespace M2.UI
 
         void RefreshGauge()
         {
-            if (stageGauge == null) stageGauge = FindFirstObjectByType<StageGaugeSystem>();
+            StageType selectedStage = NormalizeStage(raceManager.SelectedStage);
+            RefreshStageIdentity(selectedStage);
+            EnsureLocalRefs();
+
+            // The old global FindFirstObjectByType lookup could bind the Bikini City gauge left
+            // in the scene even after the room selected Africa TV. Only use this player's gauge
+            // when it belongs to the replicated stage choice.
+            StageGaugeSystem localGauge = localVehicle != null ? localVehicle.GetComponent<StageGaugeSystem>() : null;
+            stageGauge = GaugeMatchesStage(localGauge, selectedStage) ? localGauge : null;
             if (stageGauge == null)
             {
-                SetGaugeFallback();
+                SetGaugeFallback(selectedStage, waitingForConnection: false);
                 return;
             }
 
             float fraction = stageGauge.maxValue <= 0f ? 0f : Mathf.Clamp01(stageGauge.CurrentValue / stageGauge.maxValue);
-            string title = stageGauge is BikiniCityOxygenGauge ? "💧 산소 게이지" :
-                stageGauge is AfricaTvMentalGauge ? "💥 멘탈 게이지" : "🔥 체온 게이지";
-            string suffix = stageGauge is BikiniCityOxygenGauge ? "— 실시간 감소 중..." :
-                stageGauge.dangerAtMax ? "— 가득 차면 조작 불가" : "— 위험 구간 주의";
+            string title = GaugeTitle(selectedStage);
+            string suffix = GaugeSuffix(selectedStage);
             SetLabel(gaugeLabel, $"{title} {suffix}");
             SetLabel(gaugeValue, $"{Mathf.CeilToInt(stageGauge.CurrentValue)} / {Mathf.CeilToInt(stageGauge.maxValue)}");
-            SetLabel(gaugeAlert, stageGauge.IsDepleted ? "⚠️ 게이지 위험! 아이템으로 회복하세요" : "💨 게이지 상태를 유지하세요!");
+            SetLabel(gaugeAlert, stageGauge.IsDepleted ? "⚠️ 게이지 위험! 스테이지 효과에 대응하세요" : GaugeAlert(selectedStage));
             if (gaugeFill != null)
             {
                 gaugeFill.style.width = Length.Percent(fraction * 100f);
-                Color gaugeColor = stageGauge.IsDepleted ? new Color32(255, 47, 158, 255) :
-                    stageGauge is BikiniCityOxygenGauge ? new Color32(95, 216, 245, 255) : new Color32(255, 217, 61, 255);
+                Color gaugeColor = stageGauge.IsDepleted ? new Color32(255, 47, 158, 255) : GaugeColor(selectedStage);
                 gaugeFill.style.backgroundColor = gaugeColor;
             }
         }
 
-        void SetGaugeFallback()
+        void SetGaugeFallback(StageType stage, bool waitingForConnection)
         {
-            SetLabel(gaugeLabel, "💧 산소 게이지 — 레이스 시작을 기다리는 중...");
-            SetLabel(gaugeValue, "100 / 100");
-            SetLabel(gaugeAlert, "💨 레이스가 시작되면 게이지가 표시됩니다");
+            bool startsAtMaximum = stage == StageType.BikiniCity;
+            string suffix = waitingForConnection ? "— 상대 연결 대기" : GaugeSuffix(stage);
+            SetLabel(gaugeLabel, $"{GaugeTitle(stage)} {suffix}");
+            SetLabel(gaugeValue, startsAtMaximum ? "100 / 100" : "0 / 100");
+            SetLabel(gaugeAlert, waitingForConnection ? "💨 상대와 연결되면 선택한 스테이지가 시작됩니다" : GaugeAlert(stage));
             if (gaugeFill != null)
             {
-                gaugeFill.style.width = Length.Percent(100f);
-                Color gaugeColor = new Color32(95, 216, 245, 255);
+                gaugeFill.style.width = Length.Percent(startsAtMaximum ? 100f : 0f);
+                Color gaugeColor = GaugeColor(stage);
                 gaugeFill.style.backgroundColor = gaugeColor;
             }
+        }
+
+        void RefreshMiniMap(Color localColor, Color opponentColor)
+        {
+            EnsureLocalRefs();
+            ResolveOpponentVehicle();
+
+            if (localMapDot != null) localMapDot.style.backgroundColor = localColor;
+            if (opponentMapDot != null) opponentMapDot.style.backgroundColor = opponentColor;
+
+            bool hasTrackBounds = TryCacheMiniMapWorldBounds();
+            bool showLocal = hasTrackBounds && localVehicle != null;
+            bool showOpponent = hasTrackBounds && !raceManager.IsSoloLocalRace && opponentVehicle != null;
+            SetDisplay(localMapDot, showLocal);
+            SetDisplay(opponentMapDot, showOpponent);
+
+            if (showLocal) PositionMiniMapDot(localMapDot, localVehicle.transform.position);
+            if (showOpponent) PositionMiniMapDot(opponentMapDot, opponentVehicle.transform.position);
+        }
+
+        void ResolveOpponentVehicle()
+        {
+            opponentVehicle = null;
+            foreach (NetworkObject networkObject in FindObjectsByType<NetworkObject>(FindObjectsInactive.Exclude,
+                         FindObjectsSortMode.None))
+            {
+                if (!networkObject.IsPlayerObject || networkObject.IsOwner) continue;
+                VehicleController vehicle = networkObject.GetComponent<VehicleController>();
+                if (vehicle != null)
+                {
+                    opponentVehicle = vehicle;
+                    return;
+                }
+            }
+        }
+
+        bool TryCacheMiniMapWorldBounds()
+        {
+            if (miniMapWorldBoundsReady) return true;
+
+            Checkpoint[] checkpoints = FindObjectsByType<Checkpoint>(FindObjectsInactive.Exclude,
+                FindObjectsSortMode.None);
+            if (checkpoints.Length < 2) return false;
+
+            float minX = float.PositiveInfinity;
+            float maxX = float.NegativeInfinity;
+            float minZ = float.PositiveInfinity;
+            float maxZ = float.NegativeInfinity;
+            foreach (Checkpoint checkpoint in checkpoints)
+            {
+                Vector3 position = checkpoint.transform.position;
+                minX = Mathf.Min(minX, position.x);
+                maxX = Mathf.Max(maxX, position.x);
+                minZ = Mathf.Min(minZ, position.z);
+                maxZ = Mathf.Max(maxZ, position.z);
+            }
+
+            if (maxX - minX < 0.01f || maxZ - minZ < 0.01f) return false;
+            miniMapWorldBounds = new Bounds(new Vector3((minX + maxX) * 0.5f, 0f, (minZ + maxZ) * 0.5f),
+                new Vector3(maxX - minX, 0f, maxZ - minZ));
+            miniMapWorldBoundsReady = true;
+            return true;
+        }
+
+        void PositionMiniMapDot(VisualElement dot, Vector3 worldPosition)
+        {
+            if (mapTrack == null || dot == null) return;
+
+            float trackWidth = mapTrack.resolvedStyle.width;
+            float trackHeight = mapTrack.resolvedStyle.height;
+            if (trackWidth <= 0f || trackHeight <= 0f) return;
+
+            float markerWidth = dot.resolvedStyle.width > 0f ? dot.resolvedStyle.width : 11f;
+            float markerHeight = dot.resolvedStyle.height > 0f ? dot.resolvedStyle.height : 11f;
+            Vector2 position = ProjectMiniMapPosition(worldPosition, miniMapWorldBounds,
+                new Vector2(trackWidth, trackHeight), new Vector2(markerWidth, markerHeight));
+            dot.style.left = position.x;
+            dot.style.top = position.y;
+        }
+
+        /// <summary>Projects a world-space track position into the mini-map's drawable area.</summary>
+        public static Vector2 ProjectMiniMapPosition(Vector3 worldPosition, Bounds worldBounds,
+            Vector2 trackSize, Vector2 markerSize)
+        {
+            const float inset = 4f;
+            float normalizedX = worldBounds.size.x > 0.01f
+                ? Mathf.InverseLerp(worldBounds.min.x, worldBounds.max.x, worldPosition.x)
+                : 0.5f;
+            float normalizedY = worldBounds.size.z > 0.01f
+                ? 1f - Mathf.InverseLerp(worldBounds.min.z, worldBounds.max.z, worldPosition.z)
+                : 0.5f;
+            float availableWidth = Mathf.Max(0f, trackSize.x - markerSize.x - inset * 2f);
+            float availableHeight = Mathf.Max(0f, trackSize.y - markerSize.y - inset * 2f);
+            return new Vector2(inset + Mathf.Clamp01(normalizedX) * availableWidth,
+                inset + Mathf.Clamp01(normalizedY) * availableHeight);
         }
 
         void RefreshState(NetworkRacerResult localRacer, NetworkRacerResult opponentRacer, string localName,
-            string opponentName, Color localColor, Color opponentColor, int localLaps, int opponentLaps, int targetLaps)
+            string opponentName, int localLaps, int opponentLaps, int targetLaps)
         {
             if (raceManager.Result != 0)
             {
                 SetDisplay(countdownCard, false);
                 SetDisplay(resultScreen, true);
-                RefreshResult(localRacer, opponentRacer, localName, opponentName, localColor, opponentColor,
-                    localLaps, opponentLaps, targetLaps);
+                RefreshResult(localRacer, opponentRacer, localName, opponentName, localLaps, opponentLaps, targetLaps);
                 return;
             }
 
@@ -354,12 +491,30 @@ namespace M2.UI
         }
 
         void RefreshResult(NetworkRacerResult localRacer, NetworkRacerResult opponentRacer, string localName,
-            string opponentName, Color localColor, Color opponentColor, int localLaps, int opponentLaps, int targetLaps)
+            string opponentName, int localLaps, int opponentLaps, int targetLaps)
         {
             bool draw = raceManager.Result == 2;
+            bool solo = raceManager.IsSoloLocalRace;
+            SetDisplay(secondResultCard, !solo);
+            if (solo)
+            {
+                SetLabel(resultTitle, draw ? "TIME UP!" : "RACE CLEAR!");
+                SetLocalizedLabel(resultSummary, draw
+                    ? "시간이 종료되었습니다. 다음 기록에 도전해 보세요."
+                    : "완주했습니다! 나의 기록을 확인해 보세요.");
+                SetLabel(resultFirstName, localName);
+                SetResultTime(resultFirstTime, localRacer, localLaps, targetLaps);
+                SetLocalizedLabel(resultFirstMessage, localRacer.Finished ? "나의 완주 기록 ✨" : "기록 집계 완료");
+                M2AvatarVisual.Apply(firstAvatar, localRacer.Appearance);
+                SetLabel(resultMissedStars, StarString(Mathf.Clamp(localRacer.Stars, 0, 6)));
+                SetLabel(resultTimeStars, "-");
+                RefreshResultActions();
+                return;
+            }
+
             bool localWon = !draw && IsLocalWinner();
             SetLabel(resultTitle, "GAME OVER!");
-            SetLabel(resultSummary, draw ? "무승부 · 두 레이서의 기록이 동점으로 처리되었습니다." :
+            SetLocalizedLabel(resultSummary, draw ? "무승부 · 두 레이서의 기록이 동점으로 처리되었습니다." :
                 localWon ? "승리! 가장 먼저 결승 조건을 달성했습니다." : "패배 · 상대 레이서가 먼저 결승 조건을 달성했습니다.");
 
             bool localFirst = !draw && (localRacer.Rank == 1 || (localRacer.Rank == 0 && localWon));
@@ -367,19 +522,17 @@ namespace M2.UI
             NetworkRacerResult second = localFirst ? opponentRacer : localRacer;
             string firstName = localFirst ? localName : opponentName;
             string secondName = localFirst ? opponentName : localName;
-            Color firstColor = localFirst ? localColor : opponentColor;
-            Color secondColor = localFirst ? opponentColor : localColor;
             int firstLaps = localFirst ? localLaps : opponentLaps;
             int secondLaps = localFirst ? opponentLaps : localLaps;
 
             SetLabel(resultFirstName, firstName);
             SetLabel(resultSecondName, secondName);
-            SetLabel(resultFirstTime, ResultTime(first, firstLaps, targetLaps));
-            SetLabel(resultSecondTime, ResultTime(second, secondLaps, targetLaps));
-            SetLabel(resultFirstMessage, draw ? "치열한 승부였습니다! ✨" : "오늘의 챔피언 👑");
-            SetLabel(resultSecondMessage, draw ? "다음 라운드도 기대해요!" : "다음엔 꼭 이깁니다 ㅠㅠ");
-            SetAvatarColor(firstAvatar, firstColor);
-            SetAvatarColor(secondAvatar, secondColor);
+            SetResultTime(resultFirstTime, first, firstLaps, targetLaps);
+            SetResultTime(resultSecondTime, second, secondLaps, targetLaps);
+            SetLocalizedLabel(resultFirstMessage, draw ? "치열한 승부였습니다! ✨" : "오늘의 챔피언 👑");
+            SetLocalizedLabel(resultSecondMessage, draw ? "다음 라운드도 기대해요!" : "다음엔 꼭 이깁니다 ㅠㅠ");
+            M2AvatarVisual.Apply(firstAvatar, first.Appearance);
+            M2AvatarVisual.Apply(secondAvatar, second.Appearance);
 
             int firstStars = Mathf.Clamp(first.Stars, 0, 6);
             int secondStars = Mathf.Clamp(second.Stars, 0, 6);
@@ -394,11 +547,21 @@ namespace M2.UI
             int localChoice = localIsHost ? raceManager.HostPostRaceChoice : raceManager.ClientPostRaceChoice;
             int opponentChoice = localIsHost ? raceManager.ClientPostRaceChoice : raceManager.HostPostRaceChoice;
             bool awaiting = localChoice != 0;
+            bool solo = raceManager.IsSoloLocalRace;
             if (rematchButton != null) rematchButton.SetEnabled(!awaiting);
-            if (lobbyButton != null) lobbyButton.SetEnabled(!awaiting);
-            SetButtonLabel(rematchButton, localChoice == 1 ? "다시 하기 · 대기" : "다시 하기");
-            SetButtonLabel(lobbyButton, localChoice == 2 ? "로비로 · 대기" : "로비로");
-            SetLabel(resultAction, localChoice == 0
+            SetDisplay(lobbyButton, !solo);
+            if (lobbyButton != null) lobbyButton.SetEnabled(!awaiting && !solo);
+            SetLocalizedButtonLabel(rematchButton, localChoice == 1 ? "다시 하기 · 대기" : "다시 하기");
+            SetLocalizedButtonLabel(lobbyButton, localChoice == 2 ? "로비로 · 대기" : "로비로");
+            if (solo)
+            {
+                SetLocalizedLabel(resultAction, localChoice == 0
+                    ? "다시 하기를 누르면 바로 새 레이스를 시작합니다."
+                    : "새 레이스를 준비합니다...");
+                return;
+            }
+
+            SetLocalizedLabel(resultAction, localChoice == 0
                 ? "다시 하기 또는 로비로는 상대 레이서의 같은 선택을 기다립니다."
                 : opponentChoice == 0
                     ? "내 선택을 보냈습니다. 상대 레이서의 응답을 기다리는 중입니다."
@@ -446,12 +609,12 @@ namespace M2.UI
             image.scaleMode = ScaleMode.ScaleToFit;
         }
 
-        void SetVectorImageStretched(string name, string path)
+        void SetTexture(string name, Texture2D texture)
         {
             Image image = app.Q<Image>(name);
             if (image == null) return;
-            image.image = null;
-            image.vectorImage = Resources.Load<VectorImage>(path);
+            image.vectorImage = null;
+            image.image = texture;
             image.scaleMode = ScaleMode.StretchToFill;
         }
 
@@ -488,11 +651,21 @@ namespace M2.UI
             if (label != null) label.text = value;
         }
 
+        static void SetLocalizedLabel(Label label, string value)
+        {
+            SetLabel(label, M2Localization.Translate(value));
+        }
+
         static void SetButtonLabel(Button button, string value)
         {
             if (button == null) return;
             Label label = button.Q<Label>("button-label");
             if (label != null) label.text = value;
+        }
+
+        static void SetLocalizedButtonLabel(Button button, string value)
+        {
+            SetButtonLabel(button, M2Localization.Translate(value));
         }
 
         static string DisplayNameOr(NetworkRacerResult racer, string fallback) => racer.HasProfile ? racer.DisplayName : fallback;
@@ -501,7 +674,76 @@ namespace M2.UI
             racer.HasProfile ? M2PlayerProfile.ResolveAvatarColor(racer.AvatarColorIndex) : fallback;
 
         static string ResultTime(NetworkRacerResult racer, int laps, int targetLaps) =>
-            racer.Finished ? FormatTime(racer.FinishTime) : $"미완주 {laps}/{targetLaps}";
+            racer.Finished ? FormatTime(racer.FinishTime) : $"{M2Localization.Translate("미완주")} {laps}/{targetLaps}";
+
+        static void SetResultTime(Label label, NetworkRacerResult racer, int laps, int targetLaps)
+        {
+            if (label == null) return;
+            label.text = ResultTime(racer, laps, targetLaps);
+            label.EnableInClassList("result-time-value--unfinished", !racer.Finished);
+        }
+
+        void RefreshStageIdentity(StageType stage)
+        {
+            if (displayedStage == stage) return;
+            displayedStage = stage;
+            SetLabel(stageName, StageName(stage));
+            SetVectorImage("race-stage-icon", stage switch
+            {
+                StageType.AfricaTv => ResourceRoot + "Icons/afreecatv",
+                StageType.NetherFortress => ResourceRoot + "Icons/nether-fortress",
+                _ => ResourceRoot + "Icons/bikini-city",
+            });
+        }
+
+        static bool GaugeMatchesStage(StageGaugeSystem gauge, StageType stage) => stage switch
+        {
+            StageType.AfricaTv => gauge is AfricaTvMentalGauge,
+            StageType.NetherFortress => gauge is NetherFortressTemperatureGauge,
+            _ => gauge is BikiniCityOxygenGauge,
+        };
+
+        static StageType NormalizeStage(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => StageType.AfricaTv,
+            StageType.NetherFortress => StageType.NetherFortress,
+            _ => StageType.BikiniCity,
+        };
+
+        static string StageName(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => "아프리카TV",
+            StageType.NetherFortress => "네더요새",
+            _ => "비키니시티",
+        };
+
+        static string GaugeTitle(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => "💥 멘탈 게이지",
+            StageType.NetherFortress => "🔥 체온 게이지",
+            _ => "💧 산소 게이지",
+        };
+
+        static string GaugeSuffix(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => "— 가득 차면 조작 불가",
+            StageType.NetherFortress => "— 가득 차면 화상 위험",
+            _ => "— 실시간 감소 중...",
+        };
+
+        static string GaugeAlert(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => "📺 방송사고와 공격을 조심하세요",
+            StageType.NetherFortress => "🔥 용암 지대에서는 체온이 빠르게 올라갑니다",
+            _ => "💨 숨방울을 찾아 산소를 유지하세요",
+        };
+
+        static Color GaugeColor(StageType stage) => stage switch
+        {
+            StageType.AfricaTv => new Color32(255, 217, 61, 255),
+            StageType.NetherFortress => new Color32(255, 107, 61, 255),
+            _ => new Color32(95, 216, 245, 255),
+        };
 
         static string PlacementText(NetworkRacerResult racer, int localLaps, int opponentLaps)
         {

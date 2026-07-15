@@ -26,6 +26,18 @@ namespace M2.Core
 
         void Start()
         {
+            RefreshCheckpointLayout();
+        }
+
+        /// <summary>
+        /// Rebuilds the checkpoint lookup after a pre-race online stage swap.  NetworkRace
+        /// reconstructs the physical track locally from the synchronized StageType, so keeping
+        /// the positions captured from the previous stage would make wrong-way checks and lap
+        /// progress use Bikini City's old gates on Africa TV or Nether Fortress.
+        /// </summary>
+        public void RefreshCheckpointLayout()
+        {
+            checkpointPositions.Clear();
             lastCheckpointIndex = 0;
             var checkpoints = FindObjectsByType<Checkpoint>(FindObjectsSortMode.None);
             foreach (var checkpoint in checkpoints)
@@ -40,6 +52,7 @@ namespace M2.Core
             // Vehicles spawn at the start/finish line (checkpoint 0), so that crossing
             // is already "used up" — the next one expected is checkpoint 1, not 0 again.
             nextExpectedIndex = lastCheckpointIndex > 0 ? 1 : 0;
+            LapCount = 0;
         }
 
         public void NotifyCheckpointPassed(int index)

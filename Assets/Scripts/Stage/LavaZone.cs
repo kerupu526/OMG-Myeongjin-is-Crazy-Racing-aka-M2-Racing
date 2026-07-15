@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using M2.Player;
 using UnityEngine;
 
 namespace M2.Stage
@@ -8,7 +10,14 @@ namespace M2.Stage
     [RequireComponent(typeof(Collider))]
     public class LavaZone : MonoBehaviour
     {
-        public bool IsPlayerInside { get; private set; }
+        readonly HashSet<VehicleController> vehiclesInside = new HashSet<VehicleController>();
+
+        // Kept for existing local UI/tests. Networked consumers must ask for their own vehicle
+        // so a remote car entering the same local trigger cannot heat the host's gauge.
+        public bool IsPlayerInside => vehiclesInside.Count > 0;
+
+        public bool IsVehicleInside(VehicleController vehicle) =>
+            vehicle != null && vehiclesInside.Contains(vehicle);
 
         void Awake()
         {
@@ -17,12 +26,18 @@ namespace M2.Stage
 
         void OnTriggerEnter(Collider other)
         {
-            if (other.CompareTag("Player")) IsPlayerInside = true;
+            if (!other.CompareTag("Player")) return;
+            VehicleController vehicle = other.GetComponentInParent<VehicleController>();
+            if (vehicle != null) vehiclesInside.Add(vehicle);
         }
 
         void OnTriggerExit(Collider other)
         {
-            if (other.CompareTag("Player")) IsPlayerInside = false;
+            if (!other.CompareTag("Player")) return;
+            VehicleController vehicle = other.GetComponentInParent<VehicleController>();
+            if (vehicle != null) vehiclesInside.Remove(vehicle);
         }
+
+        void OnDisable() => vehiclesInside.Clear();
     }
 }

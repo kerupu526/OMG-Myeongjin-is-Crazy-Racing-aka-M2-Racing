@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace M2.UI
@@ -36,6 +37,9 @@ namespace M2.UI
         public const M2Language DefaultLanguage = M2Language.Korean;
         public static readonly Vector2Int FixedWindowResolution = new Vector2Int(1280, 720);
 
+        /// <summary>Raised after a saved language choice is applied to the running UI.</summary>
+        public static event Action<M2Language> LanguageChanged;
+
         public static float MasterVolume => NormalizeVolume(PlayerPrefs.GetFloat(MasterVolumeKey, DefaultMasterVolume));
 
         public static float BgmVolume => NormalizeVolume(PlayerPrefs.GetFloat(BgmVolumeKey, DefaultBgmVolume));
@@ -67,6 +71,7 @@ namespace M2.UI
             PlayerPrefs.SetInt(LanguageKey, (int)NormalizeLanguage(language));
             PlayerPrefs.Save();
             ApplyRuntime();
+            LanguageChanged?.Invoke(Language);
         }
 
         public static float NormalizeVolume(float value) => Mathf.Clamp01(value);
@@ -83,9 +88,19 @@ namespace M2.UI
             return quality switch
             {
                 M2GraphicsQuality.Low => 0,
-                M2GraphicsQuality.Medium => Mathf.Clamp((availableLevels - 1) / 2, 0, availableLevels - 1),
+                // This project currently ships two Unity quality assets. Medium and High use
+                // the desktop asset, then ApplyGraphicsQuality differentiates their runtime
+                // shadow/LOD/anti-aliasing profile. Mapping Medium to the mobile asset made it
+                // visually identical to Low in a two-level build.
+                M2GraphicsQuality.Medium => Mathf.Min(1, availableLevels - 1),
                 _ => availableLevels - 1,
             };
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void ApplySavedRuntimeSettingsOnStartup()
+        {
+            ApplyRuntime();
         }
 
         public static void ApplyRuntime()
@@ -97,8 +112,9 @@ namespace M2.UI
             {
                 QualitySettings.SetQualityLevel(qualityLevel, applyExpensiveChanges: true);
             }
+            ApplyGraphicsQuality(GraphicsQuality);
 
-            foreach (M2AudioChannel channel in Object.FindObjectsByType<M2AudioChannel>(FindObjectsSortMode.None))
+            foreach (M2AudioChannel channel in UnityEngine.Object.FindObjectsByType<M2AudioChannel>(FindObjectsSortMode.None))
             {
                 channel.ApplySettings();
             }
@@ -117,6 +133,31 @@ namespace M2.UI
                     Screen.SetResolution(FixedWindowResolution.x, FixedWindowResolution.y,
                         FullScreenMode.Windowed);
                 }
+            }
+        }
+
+        static void ApplyGraphicsQuality(M2GraphicsQuality quality)
+        {
+            // The values intentionally remain modest for this stylized game, while still making
+            // every option materially different in the standalone build (the old saved enum had
+            // no distinct Medium profile on a two-quality-level project).
+            switch (quality)
+            {
+                case M2GraphicsQuality.Low:
+                    QualitySettings.shadowDistance = 0f;
+                    QualitySettings.lodBias = 0.7f;
+                    QualitySettings.antiAliasing = 0;
+                    break;
+                case M2GraphicsQuality.Medium:
+                    QualitySettings.shadowDistance = 24f;
+                    QualitySettings.lodBias = 1.25f;
+                    QualitySettings.antiAliasing = 0;
+                    break;
+                default:
+                    QualitySettings.shadowDistance = 60f;
+                    QualitySettings.lodBias = 2f;
+                    QualitySettings.antiAliasing = 2;
+                    break;
             }
         }
 

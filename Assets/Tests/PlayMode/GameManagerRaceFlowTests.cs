@@ -12,6 +12,9 @@ namespace M2.Tests.PlayMode
         GameObject vehicleObject;
         VehicleController vehicle;
         LapTracker lapTracker;
+        GameObject secondVehicleObject;
+        VehicleController secondVehicle;
+        LapTracker secondLapTracker;
         GameObject timerObject;
         RaceTimer raceTimer;
         GameObject gmObject;
@@ -54,6 +57,7 @@ namespace M2.Tests.PlayMode
                 Object.DestroyImmediate(cp.gameObject);
             }
             if (vehicleObject != null) Object.DestroyImmediate(vehicleObject);
+            if (secondVehicleObject != null) Object.DestroyImmediate(secondVehicleObject);
             if (timerObject != null) Object.DestroyImmediate(timerObject);
             if (gmObject != null) Object.DestroyImmediate(gmObject);
         }
@@ -108,6 +112,51 @@ namespace M2.Tests.PlayMode
             Assert.IsTrue(drawFired, "Time limit expiring with nobody finishing should raise OnRaceDraw.");
             Assert.AreEqual("제한시간 초과", reason, "A timeout draw should report the timeout reason.");
             Assert.AreEqual(RaceState.Finished, gm.CurrentState);
+        }
+
+        [UnityTest]
+        public IEnumerator SimpleFinish_Keeps_Race_Open_For_A_Second_Finisher_Within_GraceWindow()
+        {
+            AddSecondRacer();
+            gm.simpleFinishGraceSeconds = 0.25f;
+            LapTracker winner = null;
+            gm.OnRaceWon += racer => winner = racer;
+
+            yield return WaitForState(RaceState.Racing);
+
+            CompleteLap(lapTracker);
+            yield return null;
+            Assert.AreEqual(RaceState.Racing, gm.CurrentState,
+                "The first finisher should open the completion window instead of ending a multiplayer race immediately.");
+            Assert.IsTrue(gm.IsAwaitingSimpleFinishGrace);
+
+            yield return new WaitForSeconds(0.04f);
+            CompleteLap(secondLapTracker);
+            yield return null;
+
+            Assert.AreEqual(RaceState.Finished, gm.CurrentState);
+            Assert.AreSame(lapTracker, winner, "The first racer to finish remains the winner.");
+            Assert.AreEqual(2, gm.LastRaceResults.Count);
+            Assert.IsTrue(gm.LastRaceResults[0].finished);
+            Assert.IsTrue(gm.LastRaceResults[1].finished,
+                "A racer finishing inside the grace window must be recorded as completed, not 미완주.");
+        }
+
+        [UnityTest]
+        public IEnumerator SimpleFinish_Records_Late_Racer_As_Unfinished_After_GraceWindow()
+        {
+            AddSecondRacer();
+            gm.simpleFinishGraceSeconds = 0.05f;
+
+            yield return WaitForState(RaceState.Racing);
+            CompleteLap(lapTracker);
+            yield return new WaitForSeconds(0.12f);
+
+            Assert.AreEqual(RaceState.Finished, gm.CurrentState);
+            Assert.AreEqual(2, gm.LastRaceResults.Count);
+            Assert.IsTrue(gm.LastRaceResults[0].finished);
+            Assert.IsFalse(gm.LastRaceResults[1].finished,
+                "Only racers that clear the finish inside the agreed window should pass.");
         }
 
         [UnityTest]
@@ -207,6 +256,22 @@ namespace M2.Tests.PlayMode
             {
                 yield return null;
             }
+        }
+
+        void AddSecondRacer()
+        {
+            secondVehicleObject = new GameObject("SecondTestVehicle");
+            secondVehicleObject.AddComponent<Rigidbody>();
+            secondVehicle = secondVehicleObject.AddComponent<VehicleController>();
+            secondLapTracker = secondVehicleObject.AddComponent<LapTracker>();
+            gm.racers.Add(secondLapTracker);
+            gm.vehicles.Add(secondVehicle);
+        }
+
+        static void CompleteLap(LapTracker tracker)
+        {
+            tracker.NotifyCheckpointPassed(1);
+            tracker.NotifyCheckpointPassed(0);
         }
     }
 }

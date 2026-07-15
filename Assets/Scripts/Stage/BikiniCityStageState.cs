@@ -1,4 +1,5 @@
 using M2.Core;
+using M2.Network;
 using M2.Player;
 using UnityEngine;
 
@@ -26,6 +27,7 @@ namespace M2.Stage
         public int MissedRecipeCount { get; private set; }
 
         GameManager gameManager;
+        NetworkRaceManager networkRaceManager;
 
         void Awake()
         {
@@ -33,7 +35,15 @@ namespace M2.Stage
             {
                 vehicleController = GetComponentInParent<VehicleController>();
             }
+            // StageAssembler and the local-network race path add the gauge immediately before
+            // this component. Resolve it here as well as accepting an inspector reference: an
+            // AddComponent call invokes OnEnable before the caller can assign public fields.
+            if (oxygenGauge == null)
+            {
+                oxygenGauge = GetComponentInParent<BikiniCityOxygenGauge>();
+            }
             gameManager = FindFirstObjectByType<GameManager>();
+            networkRaceManager = FindFirstObjectByType<NetworkRaceManager>();
         }
 
         void OnEnable()
@@ -74,6 +84,24 @@ namespace M2.Stage
         // for now, same as the Nether Fortress case.
         void HandleOxygenGameOver()
         {
+            if (networkRaceManager == null)
+            {
+                networkRaceManager = FindFirstObjectByType<NetworkRaceManager>();
+            }
+
+            // In a network race only the host's GameManager is authoritative. A remote
+            // racer's oxygen gauge therefore reports through NetworkRaceManager, which verifies
+            // the sender and ends the host-side flow for that specific racer.
+            if (networkRaceManager != null && networkRaceManager.IsSpawned)
+            {
+                networkRaceManager.ReportLocalStageLoss(StageType.BikiniCity, "산소 부족");
+                return;
+            }
+
+            if (gameManager == null)
+            {
+                gameManager = FindFirstObjectByType<GameManager>();
+            }
             if (gameManager != null)
                 gameManager.EndRaceWithLoss(vehicleController != null ? vehicleController.GetComponent<LapTracker>() : null,
                     "산소 부족");

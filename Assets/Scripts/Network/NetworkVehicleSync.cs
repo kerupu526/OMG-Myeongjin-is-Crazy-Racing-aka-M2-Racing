@@ -83,5 +83,29 @@ namespace M2.Network
         {
             rb.isKinematic = true;
         }
+
+        /// <summary>
+        /// Places this owner's car on the currently selected network-stage grid.  A room can
+        /// switch stage only while the lobby is open, after player objects already exist; the
+        /// old scene-baked grid would otherwise leave both owners at Bikini City's start point
+        /// even though the physical Africa/Nether circuit has been rebuilt.
+        /// </summary>
+        public void RepositionForCurrentStartGrid()
+        {
+            if (!IsSpawned || !IsOwner) return;
+
+            RaceStartGrid startGrid = FindFirstObjectByType<RaceStartGrid>();
+            if (startGrid == null) return;
+
+            bool isServerOwned = OwnerClientId == NetworkManager.ServerClientId;
+            startGrid.GetSlot(isServerOwned, out Vector3 position, out Quaternion rotation);
+
+            transform.SetPositionAndRotation(position, rotation);
+            if (rb == null) return;
+            rb.position = position;
+            rb.rotation = rotation;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
     }
 }

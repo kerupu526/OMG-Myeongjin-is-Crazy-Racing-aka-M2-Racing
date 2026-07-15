@@ -43,10 +43,10 @@
 - `218c99f Add persistent game settings UI`: 마스터 볼륨과 전체 화면 선택값을 저장한다. 볼륨은 `AudioListener`에 즉시 적용되며, 전체 화면은 독립 실행 빌드에서 적용된다.
 - `14416c7 Show saved racer name in results`: 결과 화면에서 `Vehicle_Placeholder` 대신 저장된 로컬 레이서 이름을 표시한다.
 - `5fc6618 Stabilize PlayMode input test isolation`: Unity 6의 UI 입력 상태와 충돌하던 전역 Input System 재설정을 없애고, 테스트별 가상 키보드 생성·정리로 바꿨다.
-- `6c3c7bd Implement formal network race HUD presentation`: 온라인 씬의 임시 정보/배너 텍스트를 90% 스케일의 카드형 HUD로 교체했다. 바퀴·시간·대전 상태·실제 아이템 스프라이트/상세·스피드전 자동 휘발유 안내·카운트다운·결과 카드가 네트워크 상태를 읽어 표시된다.
+- `6c3c7bd Implement formal network race HUD presentation`: 온라인 씬의 임시 정보/배너 텍스트를 90% 스케일의 카드형 HUD로 교체했다. 바퀴·시간·대전 상태·실제 아이템 스프라이트/상세·스피드전 휘발유 자동 지급 및 `Ctrl` 사용 안내·카운트다운·결과 카드가 네트워크 상태를 읽어 표시된다.
 - `ea71a97 Synchronize online race result profiles`: 각 레이서의 저장된 이름·아바타 색과 호스트가 확정한 순위·완주 여부·완주 시간·별점·승리 조건을 양쪽 HUD/결과 카드에 복제한다.
 
-기존 `RaceHUD`와 `NetworkRaceHUD`는 모두 바퀴·시간·대전 상태·아이템 상세를 1280×720 기준으로 제공하며, 스피드전에서는 랜덤 아이템 슬롯 대신 5초 자동 휘발유 안내를 표시한다. 온라인 HUD는 상대 이름·아바타 색과 상세 결과 행까지 표시하며, 실제 Relay 2인 연결 검증만 남아 있다.
+기존 `RaceHUD`와 `NetworkRaceHUD`는 모두 바퀴·시간·대전 상태·아이템 상세를 1280×720 기준으로 제공하며, 스피드전에서는 5초마다 휘발유를 슬롯에 자동 지급하고 플레이어가 `Ctrl`로 사용하도록 안내한다. 온라인 HUD는 상대 이름·아바타 색과 상세 결과 행까지 표시하며, 실제 Relay 2인 연결 검증만 남아 있다.
 
 ## 다음 우선순위 — UI 실제 구현 후속
 

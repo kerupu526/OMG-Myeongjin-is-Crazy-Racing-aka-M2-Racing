@@ -737,37 +737,38 @@
 
 /* Avatar construction shared by the main, lobby and editor screens. */
 
+/* Avatar geometry mirrors avatarHTML() in figma/05-avatar.html (base face 210px).
+   Every part uses percentages of the face so the four contexts (main/lobby/preview/
+   preset) stay identical; only border widths and corner radii scale per context. */
 .avatar { position: relative; flex-shrink: 0; }
 .avatar-body { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #ffd93d; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; }
-.avatar-ear { position: absolute; background-color: #ffd93d; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-.avatar-eyes { position: absolute; flex-direction: row; justify-content: space-between; }
-.avatar-eye { position: relative; background-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-.avatar-eye-shine { position: absolute; left: 22%; top: 14%; width: 37%; height: 29%; background-color: #ffffff; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-.avatar-cheeks { position: absolute; flex-direction: row; justify-content: space-between; }
-.avatar-cheek { background-color: #ff5fa8; opacity: 0.9; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-.avatar-mouth { position: absolute; background-color: #1a1030; }
+.avatar-ear { position: absolute; width: 23.8%; height: 23.8%; top: -9.5%; background-color: #ffd93d; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.avatar-ear--left { left: 14.8%; }
+.avatar-ear--right { right: 14.8%; }
+.avatar-eyes { position: absolute; left: 21.9%; right: 21.9%; top: 33.3%; height: 23.3%; flex-direction: row; justify-content: space-between; }
+.avatar-eye { position: relative; width: 32.2%; height: 100%; background-color: #1a1030; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.avatar-eye-shine { position: absolute; left: 21%; top: 14.3%; width: 36.8%; height: 28.6%; background-color: #ffffff; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+.avatar-cheeks { position: absolute; left: 12.9%; right: 12.9%; top: 62.9%; height: 10%; flex-direction: row; justify-content: space-between; }
+.avatar-cheek { width: 24.4%; height: 100%; background-color: #ff5fa8; opacity: 0.9; border-top-left-radius: 999px; border-top-right-radius: 999px; border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+/* Default mouth is the filled "방긋" smile from avatarHTML(): 42×22 at bottom 39 of 210. */
+.avatar-mouth { position: absolute; left: 50%; translate: -50% 0; bottom: 18.6%; width: 20%; height: 10.5%; background-color: #1a1030; border-top-left-radius: 0; border-top-right-radius: 0; }
 .avatar-hat { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .avatar-plate { position: absolute; color: #ffffff; font-size: 10px; -unity-text-align: middle-center; }
+.avatar-question-icon { position: absolute; left: 27%; top: 25%; width: 46%; height: 50%; -unity-background-scale-mode: scale-to-fit; }
 
 .avatar-eyes--happy .avatar-eye-shine, .avatar-eyes--cool .avatar-eye-shine { display: none; }
 
 .avatar--main { width: 150px; height: 150px; }
 .avatar--main .avatar-body { border-top-left-radius: 50px; border-top-right-radius: 50px; border-bottom-left-radius: 50px; border-bottom-right-radius: 50px; }
-.avatar--main .avatar-ear { width: 36px; height: 36px; top: -14px; }
-.avatar--main .avatar-ear--left { left: 22px; }.avatar--main .avatar-ear--right { right: 22px; }
-.avatar--main .avatar-eyes { left: 33px; right: 33px; top: 50px; }.avatar--main .avatar-eye { width: 27px; height: 35px; }
-.avatar--main .avatar-cheeks { left: 19px; right: 19px; top: 94px; }.avatar--main .avatar-cheek { width: 27px; height: 15px; }
-.avatar--main .avatar-mouth { left: 60px; bottom: 28px; width: 30px; height: 16px; border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
+.avatar--main .avatar-mouth { border-bottom-left-radius: 22px; border-bottom-right-radius: 22px; }
 .avatar--main .avatar-plate { left: 45px; right: 45px; bottom: 7px; }
 
 .avatar--lobby { width: 110px; height: 110px; }
-.avatar--lobby .avatar-body { border-top-left-radius: 38px; border-top-right-radius: 38px; border-bottom-left-radius: 38px; border-bottom-right-radius: 38px; }
-.avatar--lobby .avatar-ear { width: 28px; height: 28px; top: -12px; }
-.avatar--lobby .avatar-ear--left { left: 16px; }.avatar--lobby .avatar-ear--right { right: 16px; }
-.avatar--lobby .avatar-eyes { left: 24px; right: 24px; top: 36px; }.avatar--lobby .avatar-eye { width: 20px; height: 26px; }
-.avatar--lobby .avatar-cheeks { left: 14px; right: 14px; top: 66px; }.avatar--lobby .avatar-cheek { width: 20px; height: 11px; background-color: #ffd93d; }
-.avatar--lobby .avatar-mouth { left: 43px; bottom: 22px; width: 24px; height: 13px; border-bottom-left-radius: 18px; border-bottom-right-radius: 18px; }
+.avatar--lobby .avatar-body { border-top-left-radius: 37px; border-top-right-radius: 37px; border-bottom-left-radius: 37px; border-bottom-right-radius: 37px; border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; border-bottom-width: 4px; }
+.avatar--lobby .avatar-ear { border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; border-bottom-width: 4px; }
+.avatar--lobby .avatar-mouth { border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
 .avatar--lobby .avatar-plate { left: 30px; right: 30px; bottom: 4px; font-size: 8px; }
+.avatar--lobby .avatar-question-icon { left: 28%; top: 26%; width: 44%; height: 48%; }
 
 /* 05 · Avatar */
 
@@ -800,7 +801,11 @@
 .avatar-options-card { flex-grow: 1; padding: 22px 26px; flex-direction: column; }.avatar-options-grid { flex-grow: 1; flex-direction: row; flex-wrap: wrap; align-content: flex-start; }.avatar-option-group { width: 50%; margin-top: 14px; }.avatar-option-group--wide { width: 100%; margin-top: 0; }.option-row { margin-top: 8px; flex-direction: row; flex-wrap: wrap; align-items: center; }.option-row > * { margin-right: 10px; margin-bottom: 5px; }.avatar-color-row { margin-top: 8px; flex-direction: row; }.color-swatch { width: 50px; height: 50px; margin-right: 10px; background-color: #ffd93d; border-left-width: 4px; border-right-width: 4px; border-top-width: 4px; border-bottom-width: 4px; border-color: #1a1030; border-top-left-radius: 15px; border-top-right-radius: 15px; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
 .avatar-save-button { align-self: flex-end; min-height: 62px; margin-top: 14px; background-color: #ff2f9e; border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px; border-color: #1a1030; border-top-left-radius: 20px; border-top-right-radius: 20px; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; color: #ffffff; font-size: 24px; flex-direction: row; align-items: center; justify-content: center; padding-left: 28px; padding-right: 28px; }.avatar-save-button .unity-label { color: #ffffff; }
 
-.avatar--preview { width: 210px; height: 210px; }.avatar--preview .avatar-body { border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; border-top-left-radius: 70px; border-top-right-radius: 70px; border-bottom-left-radius: 70px; border-bottom-right-radius: 70px; }.avatar--preview .avatar-ear { width: 50px; height: 50px; top: -20px; border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; }.avatar--preview .avatar-ear--left { left: 31px; }.avatar--preview .avatar-ear--right { right: 31px; }.avatar--preview .avatar-eyes { left: 46px; right: 46px; top: 70px; }.avatar--preview .avatar-eye { width: 38px; height: 49px; }.avatar--preview .avatar-cheeks { left: 27px; right: 27px; top: 132px; }.avatar--preview .avatar-cheek { width: 38px; height: 21px; }.avatar--preview .avatar-mouth { left: 84px; bottom: 39px; width: 42px; height: 22px; border-bottom-left-radius: 31px; border-bottom-right-radius: 31px; }.avatar--preview .avatar-plate { left: 68px; right: 68px; bottom: 10px; font-size: 12px; }
+.avatar--preview { width: 210px; height: 210px; }
+.avatar--preview .avatar-body { border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; border-top-left-radius: 70px; border-top-right-radius: 70px; border-bottom-left-radius: 70px; border-bottom-right-radius: 70px; }
+.avatar--preview .avatar-ear { border-left-width: 7px; border-right-width: 7px; border-top-width: 7px; border-bottom-width: 7px; }
+.avatar--preview .avatar-mouth { border-bottom-left-radius: 31px; border-bottom-right-radius: 31px; }
+.avatar--preview .avatar-plate { left: 68px; right: 68px; bottom: 10px; font-size: 12px; }
 
 /* 06 · Settings */
 
@@ -948,7 +953,26 @@
 }
 
 .join-submit-button > .unity-label { font-size: 26px; }
-.icon-shadow-inline { position: absolute; left: 114px; top: 20px; width: 27px; height: 27px; }
+
+/* The crown and its ink shadow live in one small relative stack so the pair always
+   travels with the button label instead of being pinned to frame coordinates. */
+.join-submit-icon-stack {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.join-submit-icon {
+    position: absolute;
+    width: 27px;
+    height: 27px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.icon-shadow-inline { left: 3px; top: 3px; }
+.icon-front-inline { left: 0; top: 0; }
 
 .lobby-layout { position: absolute; }
 .lobby-player-column { position: relative; }
@@ -973,12 +997,12 @@
 .lobby-chip-row .chip-button { min-height: 44px; }
 .lobby-start-button { flex-shrink: 0; padding-top: 0; padding-bottom: 0; border-right-width: 9px; border-bottom-width: 9px; }
 
+/* Selection/hover feedback must never change border widths: USS borders take layout
+   space, so width changes shift every sibling in the row. Translate/scale only. */
 .chip-button.is-selected,
 .color-swatch.is-selected,
 .avatar-preset.is-selected {
     translate: -1px -1px;
-    border-right-width: 6px;
-    border-bottom-width: 6px;
 }
 
 .avatar-layout { position: absolute; }
@@ -1005,15 +1029,8 @@
 
 .avatar--preset { width: 46px; height: 46px; }
 .avatar--preset .avatar-body { border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; border-top-left-radius: 15px; border-top-right-radius: 15px; border-bottom-left-radius: 15px; border-bottom-right-radius: 15px; }
-.avatar--preset .avatar-ear { width: 11px; height: 11px; top: -4px; border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; }
-.avatar--preset .avatar-ear--left { left: 7px; }
-.avatar--preset .avatar-ear--right { right: 7px; }
-.avatar--preset .avatar-eyes { left: 10px; right: 10px; top: 15px; }
-.avatar--preset .avatar-eye { width: 8px; height: 11px; }
-.avatar--preset .avatar-eye-shine { left: 2px; top: 2px; width: 3px; height: 3px; }
-.avatar--preset .avatar-cheeks { left: 6px; right: 6px; top: 29px; }
-.avatar--preset .avatar-cheek { width: 8px; height: 5px; }
-.avatar--preset .avatar-mouth { left: 18px; bottom: 8px; width: 10px; height: 5px; border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; }
+.avatar--preset .avatar-ear { border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; }
+.avatar--preset .avatar-mouth { border-bottom-left-radius: 7px; border-bottom-right-radius: 7px; }
 .avatar--preset .avatar-plate { display: none; }
 
 /* Capsule geometry and vertical centering.
@@ -1149,20 +1166,12 @@
    pixel rules above. Unity USS has no !important, so ordering is the override tool. */
 
 .avatar .avatar-mouth--open {
-    left: 50%;
-    translate: -50% 0;
     width: 16.2%;
     height: 14.3%;
     bottom: 16.2%;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-bottom-left-radius: 999px;
-    border-bottom-right-radius: 999px;
 }
 
 .avatar .avatar-mouth--flat {
-    left: 50%;
-    translate: -50% 0;
     width: 19%;
     height: 2.9%;
     min-height: 2px;
@@ -1173,9 +1182,9 @@
     border-bottom-right-radius: 999px;
 }
 
-.avatar .avatar-eyes--happy { top: 38%; height: 9.5%; }
+.avatar .avatar-eyes--happy { left: 21%; right: 21%; top: 38.1%; height: 9.5%; }
 .avatar .avatar-eyes--happy .avatar-eye {
-    width: 30%;
+    width: 27.9%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0);
     border-top-width: 5px;
@@ -1193,28 +1202,29 @@
 .avatar--preset .avatar-eyes--happy .avatar-eye { border-top-width: 2px; }
 
 .avatar .avatar-eyes--cool {
-    left: 17%;
-    right: 17%;
-    top: 35%;
+    left: 17.1%;
+    right: 17.1%;
+    top: 35.2%;
     height: 16.2%;
     background-color: #1a1030;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    align-items: center;
+    padding-left: 7.2%;
+    padding-right: 7.2%;
+}
+.avatar .avatar-eyes--cool .avatar-eye {
+    width: 24.6%;
+    height: 47%;
+    margin-top: 0;
+    opacity: 0.85;
+    background-color: #8be2ff;
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
-    align-items: center;
-    padding-left: 7%;
-    padding-right: 7%;
-}
-.avatar .avatar-eyes--cool .avatar-eye {
-    width: 30%;
-    height: 47%;
-    margin-top: 0;
-    background-color: #8be2ff;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
 }
 
 /* Hats — a full-face overlay whose children are placed with percentages, replacing the
@@ -1233,8 +1243,8 @@
     border-top-width: 4px;
     border-bottom-width: 4px;
     border-color: #1a1030;
-    border-top-left-radius: 999px;
-    border-top-right-radius: 999px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
@@ -1253,10 +1263,10 @@
     border-top-width: 4px;
     border-bottom-width: 4px;
     border-color: #1a1030;
-    border-top-left-radius: 999px;
-    border-top-right-radius: 999px;
-    border-bottom-left-radius: 999px;
-    border-bottom-right-radius: 999px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 
 .avatar-hat-crown {
@@ -1271,9 +1281,13 @@
 .avatar--preview .avatar-hat-cap-top, .avatar--preview .avatar-hat-cap-brim {
     border-left-width: 5px; border-right-width: 5px; border-top-width: 5px; border-bottom-width: 5px;
 }
+.avatar--preview .avatar-hat-cap-top { border-top-left-radius: 22px; border-top-right-radius: 22px; }
+.avatar--preview .avatar-hat-cap-brim { border-top-left-radius: 10px; border-top-right-radius: 10px; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
 .avatar--preset .avatar-hat-cap-top, .avatar--preset .avatar-hat-cap-brim {
     border-left-width: 2px; border-right-width: 2px; border-top-width: 2px; border-bottom-width: 2px; min-height: 3px;
 }
+.avatar--preset .avatar-hat-cap-top { border-top-left-radius: 5px; border-top-right-radius: 5px; }
+.avatar--preset .avatar-hat-cap-brim { border-top-left-radius: 3px; border-top-right-radius: 3px; border-bottom-left-radius: 3px; border-bottom-right-radius: 3px; }
 
 .settings-layout { position: absolute; }
 .settings-card-shadow--sound { left: 8px; top: 8px; width: 583px; bottom: -8px; }
@@ -1282,48 +1296,7 @@
 .settings-panel-title { flex-shrink: 0; }
 .setting-slider-group { flex-shrink: 0; }
 
-.m2-slider {
-    width: 100%;
-    height: 36px;
-    min-height: 36px;
-    margin-top: 8px;
-    flex-shrink: 0;
-}
-
-.m2-slider .unity-base-slider__input { height: 32px; flex-grow: 1; }
-.m2-slider .unity-base-slider__tracker,
-.m2-slider .unity-slider__tracker {
-    height: 16px;
-    background-color: #eee7fa;
-    border-left-width: 3px;
-    border-right-width: 3px;
-    border-top-width: 3px;
-    border-bottom-width: 3px;
-    border-color: #1a1030;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-}
-
-.m2-slider .unity-base-slider__dragger,
-.m2-slider .unity-slider__dragger {
-    width: 25px;
-    height: 25px;
-    background-color: #ff2f9e;
-    border-left-width: 3px;
-    border-right-width: 3px;
-    border-top-width: 3px;
-    border-bottom-width: 3px;
-    border-color: #1a1030;
-    border-top-left-radius: 13px;
-    border-top-right-radius: 13px;
-    border-bottom-left-radius: 13px;
-    border-bottom-right-radius: 13px;
-}
-
-.m2-slider .unity-base-slider__dragger-border,
-.m2-slider .unity-slider__dragger-border { display: none; }
+/* Slider styling lives in the single block near the end of this file. */
 .m2-slider--cyan .unity-base-slider__dragger, .m2-slider--cyan .unity-slider__dragger { background-color: #5fd8f5; }
 .m2-slider--mint .unity-base-slider__dragger, .m2-slider--mint .unity-slider__dragger { background-color: #b6f36b; }
 
@@ -1332,7 +1305,7 @@
 
 /* 39 · Final interaction, readability, and test-entry polish. */
 .m2-app .unity-button {
-    transition-property: translate, scale, background-color, border-right-width, border-bottom-width;
+    transition-property: translate, scale, background-color;
     transition-duration: 0.12s;
     transition-timing-function: ease-out;
     scale: 1 1;
@@ -1341,31 +1314,23 @@
 .m2-app .unity-button:hover {
     translate: -2px -2px;
     scale: 1.015 1.015;
-    border-right-width: 8px;
-    border-bottom-width: 8px;
 }
 
 .m2-app .unity-button:active {
     translate: 2px 2px;
     scale: 0.97 0.97;
-    border-right-width: 3px;
-    border-bottom-width: 3px;
 }
 
 .m2-app .unity-button:disabled {
     translate: 0 0;
     scale: 1 1;
     opacity: 0.38;
-    border-right-width: 3px;
-    border-bottom-width: 3px;
 }
 
 .chip-button.is-selected,
 .avatar-preset.is-selected {
     opacity: 1;
     translate: -2px -2px;
-    border-right-width: 8px;
-    border-bottom-width: 8px;
 }
 
 .chip-button.is-selected > .unity-label {
@@ -1507,49 +1472,100 @@
     white-space: nowrap;
 }
 
+/* Slider — the Figma range input: a 16px pill track with a 22px round knob riding on it.
+   Everything is positioned with plain pixels from the top of a fixed 22px input row;
+   no percentages, negative margins, or transforms (the runtime moves the dragger itself,
+   and a USS translate/left override pins the handle in place — the "dead slider" bug). */
 .m2-slider {
-    height: 32px;
-    min-height: 32px;
+    width: 100%;
+    height: 22px;
+    min-height: 22px;
+    margin-top: 10px;
+    flex-shrink: 0;
 }
 
 .m2-slider .unity-base-slider__input {
-    height: 32px;
-    min-height: 32px;
-    align-items: center;
+    height: 22px;
+    min-height: 22px;
+}
+
+.m2-slider .unity-base-slider__drag-container {
+    height: 22px;
 }
 
 .m2-slider .unity-base-slider__tracker,
 .m2-slider .unity-slider__tracker {
-    top: 5px;
+    top: 3px;
+    bottom: 3px;
+    margin-top: 0;
+    height: 16px;
+    background-color: #eee7fa;
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-color: #1a1030;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.m2-slider .unity-base-slider__dragger,
+.m2-slider .unity-slider__dragger {
+    top: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    width: 22px;
     height: 22px;
+    background-color: #ff2f9e;
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-color: #1a1030;
     border-top-left-radius: 11px;
     border-top-right-radius: 11px;
     border-bottom-left-radius: 11px;
     border-bottom-right-radius: 11px;
 }
 
-.m2-slider .unity-base-slider__dragger,
-.m2-slider .unity-slider__dragger {
-    top: 8px;
-    width: 16px;
-    height: 16px;
-    margin-top: 0;
-    margin-bottom: 0;
-    translate: 0 0;
-    border-left-width: 2px;
-    border-right-width: 2px;
-    border-top-width: 2px;
-    border-bottom-width: 2px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    transition-property: scale;
-    transition-duration: 0.12s;
-    transition-timing-function: ease-out;
+.m2-slider .unity-base-slider__dragger-border,
+.m2-slider .unity-slider__dragger-border { display: none; }
+
+.m2-slider--cyan .unity-base-slider__dragger { background-color: #5fd8f5; }
+.m2-slider--mint .unity-base-slider__dragger { background-color: #b6f36b; }
+
+/* Font assignments. ".m2-app .unity-label" (the Jua default) outranks any single-class
+   font rule, so display/accent fonts must be re-stated at the same two-class specificity
+   after it. Without this the M2 wordmark and English capsules silently render in Jua. */
+.m2-app .m2-wordmark-shadow,
+.m2-app .m2-wordmark-front,
+.m2-app .functional-title,
+.m2-app .page-heading {
+    -unity-font: resource("Fonts/BlackHanSans-Regular");
 }
 
-.m2-slider:hover .unity-base-slider__dragger,
-.m2-slider:hover .unity-slider__dragger {
-    scale: 1.12 1.12;
+.m2-app .main-subtitle,
+.m2-app .room-code-caption,
+.m2-app .room-code-value,
+.m2-app .setting-slider-value {
+    -unity-font: resource("Fonts/Fredoka");
+    -unity-font-style: bold;
+}
+
+/* Half-height radius keeps the subtitle a capsule; 999px renders as an ellipse. */
+.main-subtitle {
+    height: 38px;
+    min-height: 38px;
+    margin-top: 6px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-left-radius: 19px;
+    border-top-right-radius: 19px;
+    border-bottom-left-radius: 19px;
+    border-bottom-right-radius: 19px;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    rotate: -1.5deg;
 }

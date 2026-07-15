@@ -24,6 +24,40 @@ public static class BuildCheck
         EditorApplication.Exit(0);
     }
 
+    /// <summary>
+    /// Force-reimports the M2 UI Toolkit assets and verifies every menu VectorImage actually
+    /// loads through Resources. Fixes stale Library imports where an SVG's VectorImage
+    /// sub-asset is missing (symptom: menu gradients render as flat colors in one project
+    /// while a freshly imported clone shows them).
+    /// </summary>
+    public static void ReimportM2UiAssets()
+    {
+        Debug.Log("=== M2_UI_REIMPORT_START ===");
+        AssetDatabase.ImportAsset("Assets/Resources/M2UI",
+            ImportAssetOptions.ForceUpdate | ImportAssetOptions.ImportRecursive);
+        AssetDatabase.Refresh();
+
+        string[] vectorPaths =
+        {
+            "M2UI/Backgrounds/MainGradient", "M2UI/Backgrounds/LobbyGradient",
+            "M2UI/Backgrounds/AvatarGradient", "M2UI/Backgrounds/SettingsGradient",
+            "M2UI/Backgrounds/ResultGradient", "M2UI/Backgrounds/GaugeFill",
+            "M2UI/Backgrounds/HudTopFade", "M2UI/Icons/crown",
+        };
+        bool ok = true;
+        foreach (string path in vectorPaths)
+        {
+            if (Resources.Load<UnityEngine.UIElements.VectorImage>(path) == null)
+            {
+                ok = false;
+                Debug.LogError($"M2_UI_REIMPORT_MISSING {path}");
+            }
+        }
+
+        Debug.Log(ok ? "=== M2_UI_REIMPORT_OK ===" : "=== M2_UI_REIMPORT_FAIL ===");
+        EditorApplication.Exit(ok ? 0 : 1);
+    }
+
     public static void BuildItemSpriteLibrary()
     {
         Debug.Log("=== M2_ITEM_ART_BUILD_START ===");

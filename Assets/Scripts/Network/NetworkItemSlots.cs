@@ -118,16 +118,12 @@ namespace M2.Network
             if (secondaryChanged) secondaryHeldTime = 0f;
         }
 
-        // Speed mode's baseline gasoline is not a collectible and therefore must not occupy an
-        // inventory slot. The server sends the same owner-authoritative boost RPC used when a
-        // normal acceleration item is consumed.
-        public void ServerApplySpeedModeGasoline()
+        // Speed mode supplies gasoline on a fixed cadence, but it is still a normal inventory
+        // item: the owner chooses when to consume it with the acceleration-item input.
+        public void ServerGrantSpeedModeGasoline()
         {
             if (!IsServer || !IsSpawned) return;
-
-            ItemDefinition gasoline = ItemCatalog.CreateFromId(NetItemId.Gasoline);
-            if (gasoline == null) return;
-            ApplySpeedBoostOwnerRpc(gasoline.speedBonus, gasoline.duration);
+            ServerCollect(NetItemId.Gasoline);
         }
 
         /// <summary>Server-only inventory cleanup used when the same Relay session starts a new round.</summary>

@@ -1,4 +1,5 @@
 using M2.Core;
+using M2.Network;
 using M2.Player;
 using UnityEngine;
 
@@ -38,6 +39,7 @@ namespace M2.Stage
         public int BurnWarningCount { get; private set; }
 
         GameManager gameManager;
+        NetworkRaceManager networkRaceManager;
 
         void Awake()
         {
@@ -45,17 +47,37 @@ namespace M2.Stage
             {
                 vehicleController = GetComponentInParent<VehicleController>();
             }
+            // See BikiniCityStageState: runtime assembly adds the gauge just before this
+            // component, while OnEnable runs before public fields can be assigned by the caller.
+            if (temperatureGauge == null)
+            {
+                temperatureGauge = GetComponentInParent<NetherFortressTemperatureGauge>();
+            }
             // StageGaugeSystem gates its own passive tick to RaceState.Racing (13차 작업 — 안
             // 그러면 Briefing/Countdown 중에도 게이지가 참). ModifyValue 자체는 그 게이트를
             // 안 거치므로, 여기서 직접 호출하는 이 패시브 가열도 같은 게이트를 걸어줘야 같은
             // 버그가 재현되지 않음.
             gameManager = FindFirstObjectByType<GameManager>();
+            networkRaceManager = FindFirstObjectByType<NetworkRaceManager>();
         }
 
         void Update()
         {
-            if (temperatureGauge == null || lavaZone == null || !lavaZone.IsPlayerInside) return;
-            if (gameManager != null && gameManager.CurrentState != RaceState.Racing) return;
+            if (temperatureGauge == null || lavaZone == null || !lavaZone.IsVehicleInside(vehicleController)) return;
+
+            // A pure client owns an idle local GameManager in NetworkRace; its authoritative
+            // state remains PreRace for the entire session.  Use the replicated race state when
+            // available so lava's extra heat starts and stops on the same boundary for both
+            // host and guest instead of silently never applying on the guest.
+            if (networkRaceManager == null) networkRaceManager = FindFirstObjectByType<NetworkRaceManager>();
+            if (networkRaceManager != null && networkRaceManager.IsSpawned)
+            {
+                if (networkRaceManager.State != RaceState.Racing) return;
+            }
+            else if (gameManager != null && gameManager.CurrentState != RaceState.Racing)
+            {
+                return;
+            }
 
             temperatureGauge.ModifyValue(lavaZonePassiveHeatPerSecond * Time.deltaTime);
         }
@@ -96,6 +118,21 @@ namespace M2.Stage
         // doesn't exist yet (CLAUDE.md 우선순위 5), so this is a draw for now.
         void HandleBurnGameOver()
         {
+            if (networkRaceManager == null)
+            {
+                networkRaceManager = FindFirstObjectByType<NetworkRaceManager>();
+            }
+
+            if (networkRaceManager != null && networkRaceManager.IsSpawned)
+            {
+                networkRaceManager.ReportLocalStageLoss(StageType.NetherFortress, "화상");
+                return;
+            }
+
+            if (gameManager == null)
+            {
+                gameManager = FindFirstObjectByType<GameManager>();
+            }
             if (gameManager != null)
                 gameManager.EndRaceWithLoss(vehicleController != null ? vehicleController.GetComponent<LapTracker>() : null,
                     "화상");
@@ -105,7 +142,7 @@ namespace M2.Stage
         {
             if (temperatureGauge == null) return;
 
-            bool nearLava = lavaZone != null && lavaZone.IsPlayerInside;
+            bool nearLava = lavaZone != null && lavaZone.IsVehicleInside(vehicleController);
             temperatureGauge.ModifyValue(nearLava ? lavaHitTempBonus : normalHitTempBonus);
         }
 

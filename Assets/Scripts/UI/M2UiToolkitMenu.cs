@@ -1,11 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using M2.Core;
 using M2.Network;
 using M2.Stage;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace M2.UI
@@ -53,11 +53,13 @@ namespace M2.UI
         }
 
         const string ResourceRoot = "M2UI/";
-        const string RaceTestSceneName = "Stage_BikiniCity";
 
         static readonly Color Ink = new Color32(26, 16, 48, 255);
         static readonly Color Pink = new Color32(255, 47, 158, 255);
         static readonly Color Purple = new Color32(90, 49, 158, 255);
+        // Selected-chip fill. The dark Purple constant hides the ink-colored chip label,
+        // so selectable option chips use the Figma light lavender instead.
+        static readonly Color Lavender = new Color32(201, 166, 255, 255);
         static readonly Color Cyan = new Color32(95, 216, 245, 255);
         static readonly Color Yellow = new Color32(255, 217, 61, 255);
         static readonly Color Mint = new Color32(182, 243, 107, 255);
@@ -87,8 +89,10 @@ namespace M2.UI
         GameObject documentGameObject;
         PanelSettings fallbackPanelSettings;
         VisualElement app;
+        Coroutine documentInitializationRoutine;
         bool initialized;
         bool subscribed;
+        bool settingsSubscribed;
         Screen currentScreen;
 
         Label mainRacerName;
@@ -155,34 +159,49 @@ namespace M2.UI
         {
             bootstrap = source;
             roomSettingsUi = settings;
+            // NetworkMenuUI already applied saved settings in Awake, but the UI Toolkit menu is
+            // now the primary presentation path. Apply before building so graphics/fullscreen
+            // choices persist across launch regardless of which shell is active.
+            M2GameSettings.ApplyRuntime();
 
             if (!EnsureDocument()) return false;
-            if (!initialized)
+
+            // UIDocument populates rootVisualElement during its first panel attachment. When
+            // this component is added from NetworkBootstrapUI.Awake, that attachment may occur
+            // one frame later. Treat the assets as available and finish binding on the next
+            // frame instead of falling back to the unstyled legacy controls.
+            if (app == null)
             {
-                CacheElements();
-                RegisterCallbacks();
-                ConfigureImages();
-                ConfigureDecorativeMotion();
-                initialized = true;
+                QueueDocumentInitialization();
+                return true;
             }
 
-            Subscribe();
-            HideLegacyControls();
-
-            if (bootstrap != null && bootstrap.HasActiveSession)
-            {
-                ShowLobby(bootstrap.ActiveRoomCode, bootstrap.IsHostingSession);
-            }
-            else
-            {
-                ShowMain();
-            }
+            FinishInitialization();
             return true;
         }
 
         void Update()
         {
+            // The lobby must follow the replicated LobbyOpen flag on both peers: hide when the
+            // race launches, and reopen for a synchronized "다시 하기/로비로" result choice.
+            // Without this the UI Toolkit lobby kept covering the race after both readied up.
+            if (currentScreen == Screen.Hidden)
+            {
+                if (raceManager == null) raceManager = FindFirstObjectByType<NetworkRaceManager>();
+                if (raceManager != null && raceManager.LobbyOpen &&
+                    bootstrap != null && bootstrap.HasActiveSession)
+                {
+                    ShowLobby(bootstrap.ActiveRoomCode, bootstrap.IsHostingSession);
+                }
+                return;
+            }
+
             if (currentScreen != Screen.Lobby) return;
+            if (raceManager != null && !raceManager.LobbyOpen)
+            {
+                HideMenu();
+                return;
+            }
             if (raceManager == null)
             {
                 raceManager = FindFirstObjectByType<NetworkRaceManager>();
@@ -203,6 +222,7 @@ namespace M2.UI
         void OnDestroy()
         {
             Unsubscribe();
+            if (documentInitializationRoutine != null) StopCoroutine(documentInitializationRoutine);
             decorationMotion?.Pause();
             if (documentGameObject != null) Destroy(documentGameObject);
             if (fallbackPanelSettings != null) Destroy(fallbackPanelSettings);
@@ -216,7 +236,7 @@ namespace M2.UI
             StyleSheet style = Resources.Load<StyleSheet>(ResourceRoot + "M2Menu");
             if (tree == null || style == null) return false;
 
-            document = GetComponent<UIDocument>();
+            if (document == null) document = GetComponent<UIDocument>();
             if (document == null)
             {
                 // A standalone document is intentionally not parented to the legacy uGUI canvas.
@@ -246,13 +266,78 @@ namespace M2.UI
             // Keep the UXML on the document itself. Cloning directly into rootVisualElement
             // looks correct during Awake, but UIDocument rebuilds that root on its first panel
             // attachment and would discard the manually cloned menu before the first frame.
-            document.visualTreeAsset = tree;
+            if (document.visualTreeAsset != tree) document.visualTreeAsset = tree;
             if (documentGameObject != null && !documentGameObject.activeSelf) documentGameObject.SetActive(true);
             VisualElement root = document.rootVisualElement;
             app = root.Q<VisualElement>("m2-app");
-            if (app == null) return false;
+            // A newly-created UIDocument can legitimately have an empty root until the next
+            // player-loop frame. Initialize() retries through QueueDocumentInitialization.
+            if (app == null) return true;
             app.styleSheets.Add(style);
             return true;
+        }
+
+        void QueueDocumentInitialization()
+        {
+            if (documentInitializationRoutine != null || !isActiveAndEnabled) return;
+            documentInitializationRoutine = StartCoroutine(WaitForDocumentInitialization());
+        }
+
+        IEnumerator WaitForDocumentInitialization()
+        {
+            const int retryFrames = 12;
+            for (int frame = 0; frame < retryFrames && !initialized; frame++)
+            {
+                yield return null;
+                if (!EnsureDocument()) break;
+                if (app == null) continue;
+
+                documentInitializationRoutine = null;
+                FinishInitialization();
+                yield break;
+            }
+
+            documentInitializationRoutine = null;
+            if (!initialized)
+            {
+                Debug.LogWarning("[M2UiToolkitMenu] UI Toolkit document did not attach within 12 frames; using no legacy fallback so the failure remains visible in the console.");
+            }
+        }
+
+        void FinishInitialization()
+        {
+            if (app == null)
+            {
+                QueueDocumentInitialization();
+                return;
+            }
+
+            if (!initialized)
+            {
+                CacheElements();
+                RegisterCallbacks();
+                ConfigureImages();
+                ConfigureDecorativeMotion();
+                initialized = true;
+            }
+
+            SubscribeToSettings();
+            Subscribe();
+            HideLegacyControls();
+
+            if (bootstrap != null && bootstrap.IsLocalRaceActive)
+            {
+                HideMenu();
+            }
+            else if (bootstrap != null && bootstrap.HasActiveSession)
+            {
+                ShowLobby(bootstrap.ActiveRoomCode, bootstrap.IsHostingSession);
+            }
+            else
+            {
+                ShowMain();
+            }
+            ApplyLocalization();
         }
 
         void CacheElements()
@@ -441,12 +526,27 @@ namespace M2.UI
 
         void ConfigureImages()
         {
-            SetVectorImage("main-gradient", ResourceRoot + "Backgrounds/MainGradient");
-            SetVectorImage("host-gradient", ResourceRoot + "Backgrounds/LobbyGradient");
-            SetVectorImage("join-gradient", ResourceRoot + "Backgrounds/LobbyGradient");
-            SetVectorImage("lobby-gradient", ResourceRoot + "Backgrounds/LobbyGradient");
-            SetVectorImage("avatar-gradient", ResourceRoot + "Backgrounds/AvatarGradient");
-            SetVectorImage("settings-gradient", ResourceRoot + "Backgrounds/SettingsGradient");
+            // Figma frame gradients, drawn procedurally: the SVG VectorImage path rendered
+            // these as near-solid fills on some Library imports.
+            Texture2D lobbyGradient = M2UiGradients.Linear("lobby", 135f,
+                new M2UiGradients.Stop(0f, new Color32(122, 91, 255, 255)),
+                new M2UiGradients.Stop(0.55f, new Color32(198, 91, 255, 255)),
+                new M2UiGradients.Stop(1f, new Color32(255, 107, 189, 255)));
+            SetGradientImage("main-gradient", M2UiGradients.Linear("main", 135f,
+                new M2UiGradients.Stop(0f, new Color32(255, 107, 189, 255)),
+                new M2UiGradients.Stop(0.46f, new Color32(154, 107, 255, 255)),
+                new M2UiGradients.Stop(1f, new Color32(58, 210, 238, 255))));
+            SetGradientImage("host-gradient", lobbyGradient);
+            SetGradientImage("join-gradient", lobbyGradient);
+            SetGradientImage("lobby-gradient", lobbyGradient);
+            SetGradientImage("avatar-gradient", M2UiGradients.Linear("avatar", 135f,
+                new M2UiGradients.Stop(0f, new Color32(58, 210, 238, 255)),
+                new M2UiGradients.Stop(0.52f, new Color32(154, 107, 255, 255)),
+                new M2UiGradients.Stop(1f, new Color32(255, 107, 189, 255))));
+            SetGradientImage("settings-gradient", M2UiGradients.Linear("settings", 160f,
+                new M2UiGradients.Stop(0f, new Color32(95, 216, 245, 255)),
+                new M2UiGradients.Stop(0.6f, new Color32(122, 91, 255, 255)),
+                new M2UiGradients.Stop(1f, new Color32(198, 91, 255, 255))));
             SetTextureImage("main-photo-mj1", ResourceRoot + "Icons/mj1");
             SetTextureImage("main-photo-mj2", ResourceRoot + "Icons/mj2");
             SetTextureImage("main-photo-portrait", ResourceRoot + "Icons/1496688619451318292");
@@ -492,7 +592,6 @@ namespace M2.UI
                 new DecorativeMotion(app.Q<VisualElement>("lobby-deco-spark"), new Vector2(6f, 7f), 11f, 1.2f, spin: true),
                 new DecorativeMotion(app.Q<VisualElement>("avatar-deco-left"), new Vector2(6f, 7f), 10f, 0.9f, spin: true),
                 new DecorativeMotion(app.Q<VisualElement>("avatar-deco-right"), new Vector2(10f, 12f), 5f, 0.1f, rotationAmplitude: 6f),
-                new DecorativeMotion(app.Q<VisualElement>("avatar-preview"), new Vector2(4f, 10f), 3.5f, 0.6f, rotationAmplitude: 1.5f),
                 new DecorativeMotion(app.Q<VisualElement>("settings-deco-gear"), new Vector2(5f, 5f), 12f, 0.3f, spin: true),
                 new DecorativeMotion(app.Q<VisualElement>("settings-deco-spark"), new Vector2(9f, 12f), 5f, 1.8f, rotationAmplitude: 7f),
             };
@@ -537,11 +636,27 @@ namespace M2.UI
             Image image = app.Q<Image>(name);
             if (image == null) return;
             image.image = null;
-            image.vectorImage = Resources.Load<VectorImage>(resourcePath);
+            VectorImage vector = Resources.Load<VectorImage>(resourcePath);
+            if (vector == null)
+            {
+                // A stale Library import can silently drop the VectorImage sub-asset (seen as
+                // "gradients missing in one project but not its clone"). Make it loud.
+                Debug.LogWarning($"[M2UiToolkitMenu] VectorImage not found: Resources/{resourcePath} (element '{name}')");
+            }
+            image.vectorImage = vector;
             image.scaleMode = ScaleMode.ScaleToFit;
             image.tintColor = image.ClassListContains("icon-shadow") || image.ClassListContains("icon-shadow-inline")
                 ? Ink
                 : Color.white;
+        }
+
+        void SetGradientImage(string name, Texture2D texture)
+        {
+            Image image = app.Q<Image>(name);
+            if (image == null) return;
+            image.vectorImage = null;
+            image.image = texture;
+            image.scaleMode = ScaleMode.StretchToFill;
         }
 
         void SetTextureImage(string name, string resourcePath)
@@ -563,10 +678,34 @@ namespace M2.UI
 
         void Unsubscribe()
         {
-            if (bootstrap == null || !subscribed) return;
-            bootstrap.StatusChanged -= HandleStatusChanged;
-            bootstrap.SessionReady -= HandleSessionReady;
-            subscribed = false;
+            if (bootstrap != null && subscribed)
+            {
+                bootstrap.StatusChanged -= HandleStatusChanged;
+                bootstrap.SessionReady -= HandleSessionReady;
+                subscribed = false;
+            }
+            if (settingsSubscribed)
+            {
+                M2GameSettings.LanguageChanged -= HandleLanguageChanged;
+                settingsSubscribed = false;
+            }
+        }
+
+        void SubscribeToSettings()
+        {
+            if (settingsSubscribed) return;
+            M2GameSettings.LanguageChanged += HandleLanguageChanged;
+            settingsSubscribed = true;
+        }
+
+        void HandleLanguageChanged(M2Language _)
+        {
+            ApplyLocalization();
+        }
+
+        void ApplyLocalization()
+        {
+            M2Localization.ApplyTo(app);
         }
 
         void HideLegacyControls()
@@ -651,20 +790,20 @@ namespace M2.UI
 
         void OpenLocalRaceTest()
         {
-            if (bootstrap != null && bootstrap.HasActiveSession)
+            if (bootstrap == null)
             {
-                SetFeedback(mainFeedback, "온라인 방을 나간 뒤 로컬 레이스 테스트를 실행하세요.", SoftPink);
+                SetFeedback(mainFeedback, "로컬 레이스 연결 정보를 찾을 수 없습니다.", SoftPink);
                 return;
             }
 
-            if (!Application.CanStreamedLevelBeLoaded(RaceTestSceneName))
+            if (bootstrap.HasActiveSession || bootstrap.IsLocalRaceActive)
             {
-                SetFeedback(mainFeedback, "로컬 레이스 테스트 씬을 불러올 수 없습니다.", SoftPink);
+                SetFeedback(mainFeedback, "현재 레이스를 나간 뒤 로컬 레이스를 시작하세요.", SoftPink);
                 return;
             }
 
-            SetFeedback(mainFeedback, "로컬 레이스 테스트를 시작합니다.", Color.white);
-            SceneManager.LoadScene(RaceTestSceneName, LoadSceneMode.Single);
+            SetFeedback(mainFeedback, "온라인 레이스와 같은 흐름으로 로컬 레이스를 시작합니다.", Color.white);
+            bootstrap.StartLocalRace();
         }
 
         public void HideMenu()
@@ -992,11 +1131,17 @@ namespace M2.UI
             if (lobbyAuthority != null) lobbyAuthority.text = hostCanEdit ? "방장이 설정을 변경할 수 있습니다." : "방장만 변경할 수 있습니다.";
 
             string modeDetail = mode == RaceMode.Speed
-                ? "스피드전 · 5초 자동 휘발유 · 최고 100km/h"
+                ? "스피드전 · 5초 휘발유 자동 지급 · Ctrl 사용 · 최고 100km/h"
                 : $"아이템전 · {laps}바퀴 · {(victory == VictoryCondition.StarBet ? "별점 내기" : "단순 완주")}";
             if (lobbyRules != null) lobbyRules.text = $"{StageLabel(stage)} · {modeDetail}";
 
-            bool hasOpponent = NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClientsIds.Count >= 2;
+            // ConnectedClientsIds is only populated on the server. A joined guest must infer
+            // the opponent from its own connection (being connected implies the host exists);
+            // reading the list there kept the ready button permanently disabled for guests.
+            bool hasOpponent = NetworkManager.Singleton != null &&
+                (NetworkManager.Singleton.IsServer
+                    ? NetworkManager.Singleton.ConnectedClientsIds.Count >= 2
+                    : NetworkManager.Singleton.IsConnectedClient);
             bool localReady = localIsHost ? raceManager.HostReady : raceManager.ClientReady;
             bool opponentReady = localIsHost ? raceManager.ClientReady : raceManager.HostReady;
             SetButtonLabel(lobbyReadyButton, localReady ? "✓ 준비 취소" : "✓ 준비 완료");
@@ -1016,6 +1161,7 @@ namespace M2.UI
                                 : "방장이 설정을 확정하면 두 레이서가 준비할 수 있습니다.";
                 lobbyStatus.style.color = Color.white;
             }
+            ApplyLocalization();
         }
 
         void ApplyLobbyFallback(bool localIsHost)
@@ -1038,6 +1184,7 @@ namespace M2.UI
             }
             if (lobbyRules != null) lobbyRules.text = $"{StageLabel(fallbackLobbyStage)} · {(mode == RaceMode.Speed ? "스피드전 · 5바퀴" : $"아이템전 · {laps}바퀴 · {(victory == VictoryCondition.StarBet ? "별점 내기" : "단순 완주")}")}";
             if (lobbyStatus != null && localIsHost) lobbyStatus.text = "친구에게 위 방 코드를 알려주세요. 연결 중에도 방 설정을 바꿀 수 있습니다.";
+            ApplyLocalization();
         }
 
         void RefreshLobbyOptionButtons(RaceMode mode, int laps, VictoryCondition victory, StageType stage, bool canEdit)
@@ -1058,11 +1205,11 @@ namespace M2.UI
             }
 
             VictoryCondition selectedVictory = itemMode ? victory : VictoryCondition.SimpleFinish;
-            SetOption(lobbyVictoryButtons[0], selectedVictory == VictoryCondition.SimpleFinish, Purple);
-            SetOption(lobbyVictoryButtons[1], selectedVictory == VictoryCondition.StarBet, Purple);
+            SetOption(lobbyVictoryButtons[0], selectedVictory == VictoryCondition.SimpleFinish, Lavender);
+            SetOption(lobbyVictoryButtons[1], selectedVictory == VictoryCondition.StarBet, Lavender);
             foreach (Button button in lobbyVictoryButtons) SetEnabled(button, canEdit && itemMode);
 
-            Color[] stageColors = { SoftPink, Cyan, Purple };
+            Color[] stageColors = { SoftPink, Cyan, Lavender };
             for (int i = 0; i < lobbyStageButtons.Length; i++)
             {
                 SetOption(lobbyStageButtons[i], i == (int)stage, stageColors[i]);
@@ -1131,7 +1278,8 @@ namespace M2.UI
         void ApplyLobbyPlayer(VisualElement avatar, Label nameLabel, Label metaLabel, Label readyLabel,
             M2AvatarAppearance appearance, string displayName, string role, bool ready, bool connected)
         {
-            ApplyAvatar(avatar, appearance);
+            if (connected) ApplyAvatar(avatar, appearance);
+            else M2AvatarVisual.ApplyWaitingOpponent(avatar);
             if (nameLabel != null) nameLabel.text = displayName;
             if (metaLabel != null) metaLabel.text = $"{role} · {(ready ? "준비 완료" : "준비 중")}";
             if (readyLabel != null)
@@ -1220,7 +1368,7 @@ namespace M2.UI
         static void SetFeedback(Label label, string message, Color color)
         {
             if (label == null) return;
-            label.text = message;
+            label.text = M2Localization.Translate(message);
             label.style.color = color;
         }
 
@@ -1228,7 +1376,7 @@ namespace M2.UI
         {
             if (button == null) return;
             Label label = button.Q<Label>("button-label");
-            if (label != null) label.text = value;
+            if (label != null) label.text = M2Localization.Translate(value);
         }
 
         static void SetEnabled(Button button, bool enabled)
@@ -1265,110 +1413,36 @@ namespace M2.UI
 
         static string StageLabel(StageType stage) => stage switch
         {
-            StageType.BikiniCity => "비키니시티",
-            StageType.AfricaTv => "아프리카TV",
-            StageType.NetherFortress => "네더요새",
-            _ => "비키니시티",
+            StageType.BikiniCity => M2Localization.Translate("비키니시티"),
+            StageType.AfricaTv => M2Localization.Translate("아프리카TV"),
+            StageType.NetherFortress => M2Localization.Translate("네더요새"),
+            _ => M2Localization.Translate("비키니시티"),
         };
 
         static string EyesLabel(M2AvatarEyes eyes) => eyes switch
         {
-            M2AvatarEyes.Happy => "웃는눈",
-            M2AvatarEyes.Cool => "선글라스",
-            _ => "방울눈",
+            M2AvatarEyes.Happy => M2Localization.Translate("웃는눈"),
+            M2AvatarEyes.Cool => M2Localization.Translate("선글라스"),
+            _ => M2Localization.Translate("방울눈"),
         };
 
         static string MouthLabel(M2AvatarMouth mouth) => mouth switch
         {
-            M2AvatarMouth.Open => "우와 입",
-            M2AvatarMouth.Flat => "시크 입",
-            _ => "방긋 입",
+            M2AvatarMouth.Open => M2Localization.Translate("우와 입"),
+            M2AvatarMouth.Flat => M2Localization.Translate("시크 입"),
+            _ => M2Localization.Translate("방긋 입"),
         };
 
         static string HatLabel(M2AvatarHat hat) => hat switch
         {
-            M2AvatarHat.Cap => "캡",
-            M2AvatarHat.Crown => "왕관",
-            _ => "없음",
+            M2AvatarHat.Cap => M2Localization.Translate("캡"),
+            M2AvatarHat.Crown => M2Localization.Translate("왕관"),
+            _ => M2Localization.Translate("없음"),
         };
-
-        static VectorImage crownVectorImage;
 
         static void ApplyAvatar(VisualElement avatar, M2AvatarAppearance appearance)
         {
-            if (avatar == null) return;
-            Color color = M2PlayerProfile.ResolveAvatarColor(appearance.BodyColorIndex);
-            VisualElement body = avatar.Q<VisualElement>("avatar-body");
-            VisualElement leftEar = avatar.Q<VisualElement>("avatar-ear-left");
-            VisualElement rightEar = avatar.Q<VisualElement>("avatar-ear-right");
-            VisualElement eyes = avatar.Q<VisualElement>("avatar-eyes");
-            VisualElement cheeks = avatar.Q<VisualElement>("avatar-cheeks");
-            VisualElement mouth = avatar.Q<VisualElement>("avatar-mouth");
-            VisualElement capTop = avatar.Q<VisualElement>("avatar-hat-cap-top");
-            VisualElement capBrim = avatar.Q<VisualElement>("avatar-hat-cap-brim");
-            Image crown = avatar.Q<Image>("avatar-hat-crown");
-            Label plate = avatar.Q<Label>("avatar-plate");
-
-            if (body != null) body.style.backgroundColor = color;
-            if (leftEar != null)
-            {
-                leftEar.style.backgroundColor = color;
-                leftEar.style.display = appearance.HasEars ? DisplayStyle.Flex : DisplayStyle.None;
-            }
-            if (rightEar != null)
-            {
-                rightEar.style.backgroundColor = color;
-                rightEar.style.display = appearance.HasEars ? DisplayStyle.Flex : DisplayStyle.None;
-            }
-            if (eyes != null)
-            {
-                eyes.RemoveFromClassList("avatar-eyes--happy");
-                eyes.RemoveFromClassList("avatar-eyes--cool");
-                if (appearance.Eyes == M2AvatarEyes.Happy) eyes.AddToClassList("avatar-eyes--happy");
-                if (appearance.Eyes == M2AvatarEyes.Cool) eyes.AddToClassList("avatar-eyes--cool");
-
-                // The Figma sunglasses use one cyan and one pink lens; USS cannot address the
-                // second child, so tint the lenses here and clear the override otherwise.
-                bool cool = appearance.Eyes == M2AvatarEyes.Cool;
-                int lensIndex = 0;
-                foreach (VisualElement lens in eyes.Children())
-                {
-                    if (cool)
-                    {
-                        lens.style.backgroundColor = lensIndex == 0
-                            ? new Color(0.545f, 0.886f, 1f)
-                            : new Color(1f, 0.616f, 0.878f);
-                    }
-                    else
-                    {
-                        lens.style.backgroundColor = StyleKeyword.Null;
-                    }
-                    lensIndex++;
-                }
-            }
-            if (cheeks != null) cheeks.style.display = appearance.HasCheeks ? DisplayStyle.Flex : DisplayStyle.None;
-            if (mouth != null)
-            {
-                mouth.RemoveFromClassList("avatar-mouth--open");
-                mouth.RemoveFromClassList("avatar-mouth--flat");
-                if (appearance.Mouth == M2AvatarMouth.Open) mouth.AddToClassList("avatar-mouth--open");
-                if (appearance.Mouth == M2AvatarMouth.Flat) mouth.AddToClassList("avatar-mouth--flat");
-            }
-            bool capVisible = appearance.Hat == M2AvatarHat.Cap;
-            bool crownVisible = appearance.Hat == M2AvatarHat.Crown;
-            if (capTop != null) capTop.style.display = capVisible ? DisplayStyle.Flex : DisplayStyle.None;
-            if (capBrim != null) capBrim.style.display = capVisible ? DisplayStyle.Flex : DisplayStyle.None;
-            if (crown != null)
-            {
-                if (crown.vectorImage == null)
-                {
-                    if (crownVectorImage == null) crownVectorImage = Resources.Load<VectorImage>(ResourceRoot + "Icons/crown");
-                    crown.vectorImage = crownVectorImage;
-                    crown.scaleMode = ScaleMode.ScaleToFit;
-                }
-                crown.style.display = crownVisible ? DisplayStyle.Flex : DisplayStyle.None;
-            }
-            if (plate != null) plate.text = M2PlayerProfile.ResolvePlateLabel(appearance.PlateIndex);
+            M2AvatarVisual.Apply(avatar, appearance);
         }
     }
 }

@@ -57,7 +57,7 @@ namespace M2.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Speed_Mode_Automatically_Applies_Basic_Gasoline_Without_Using_An_Item_Slot()
+        public IEnumerator Speed_Mode_Automatically_Supplies_Basic_Gasoline_But_Does_Not_Use_It()
         {
             VehicleController vehicle = CreateVehicleWithSlots(out ItemSlots slots);
             GameManager gameManager = CreateGameManager();
@@ -71,9 +71,12 @@ namespace M2.Tests.PlayMode
             Assert.AreEqual(RaceState.Racing, gameManager.CurrentState);
 
             yield return new WaitForSeconds(0.12f);
-            Assert.IsNull(slots.PrimarySlot);
-            Assert.IsNull(slots.SecondarySlot);
-            Assert.IsTrue(vehicle.HasSpeedBoost);
+            Assert.IsNotNull(slots.PrimarySlot);
+            Assert.AreEqual(NetItemId.Gasoline, slots.PrimarySlot.id);
+            Assert.IsNotNull(slots.SecondarySlot,
+                "Repeated automated supply should use the ordinary secondary slot when the first gasoline has not been used.");
+            Assert.IsFalse(vehicle.HasSpeedBoost,
+                "Automatic supply must not activate the boost; the racer uses the supplied gasoline with Ctrl.");
         }
 
         [Test]

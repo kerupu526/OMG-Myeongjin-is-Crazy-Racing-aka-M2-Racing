@@ -5,7 +5,10 @@ using UnityEngine;
 
 namespace M2.Items
 {
-    /// <summary>Automatically applies speed mode's basic gasoline boost to every active racer.</summary>
+    /// <summary>
+    /// Supplies speed mode's basic gasoline to every active racer. Supply is automatic;
+    /// activation remains an explicit player item-use action.
+    /// </summary>
     [DisallowMultipleComponent]
     public class SpeedModeGasolineDistributor : MonoBehaviour
     {
@@ -29,8 +32,8 @@ namespace M2.Items
                 return;
             }
 
-            // The baseline boost begins with the race. Subsequent boosts use the configured
-            // cadence and bypass the item inventory entirely.
+            // The baseline supply begins with the race. Subsequent supplies use the configured
+            // cadence and follow the normal primary → secondary → primary-replace inventory rule.
             if (!raceWasActive)
             {
                 raceWasActive = true;
@@ -61,11 +64,12 @@ namespace M2.Items
                 NetworkItemSlots networkSlots = vehicle.GetComponent<NetworkItemSlots>();
                 if (networkSlots != null)
                 {
-                    if (networkSlots.IsServer) networkSlots.ServerApplySpeedModeGasoline();
+                    if (networkSlots.IsServer) networkSlots.ServerGrantSpeedModeGasoline();
                     continue;
                 }
 
-                vehicle.ApplySpeedBoost(gasoline.speedBonus, gasoline.duration);
+                ItemSlots slots = vehicle.GetComponent<ItemSlots>();
+                if (slots != null) slots.CollectItem(gasoline);
             }
         }
     }

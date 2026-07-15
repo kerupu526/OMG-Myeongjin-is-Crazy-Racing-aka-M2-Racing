@@ -4,6 +4,10 @@ namespace M2.Core
 {
     public static class RendererColorUtil
     {
+        const string RuntimeLitTemplatePath = "Runtime/NetworkStageLit";
+
+        static Material runtimeLitTemplate;
+
         // renderer.material (used here until this fix) auto-instantiates a per-renderer copy,
         // but doing that in an EDITOR SCRIPT (not Play mode) triggers Unity's own "Instantiating
         // material due to calling renderer.material during edit mode. This will leak materials
@@ -20,11 +24,35 @@ namespace M2.Core
         // a prefab.
         static Material GetInstancedMaterial(Renderer renderer)
         {
-            Material instance = renderer.sharedMaterial != null
-                ? new Material(renderer.sharedMaterial)
+            Material source = renderer.sharedMaterial;
+
+            // Primitives created at runtime carry Unity's legacy Standard material.  That
+            // material is not compatible with this URP project and becomes bright magenta in
+            // a player build.  Use a serialized URP material as the fallback instead of only
+            // Shader.Find: the resource also makes the shader a build dependency, so shader
+            // stripping cannot leave the multiplayer-only stage geometry without a shader.
+            if (RequiresUrpFallback(source)) source = GetRuntimeLitTemplate();
+
+            Material instance = source != null
+                ? new Material(source)
                 : new Material(Shader.Find("Universal Render Pipeline/Lit"));
             renderer.sharedMaterial = instance;
             return instance;
+        }
+
+        static bool RequiresUrpFallback(Material material)
+        {
+            if (material == null || material.shader == null || !material.shader.isSupported) return true;
+
+            string shaderName = material.shader.name;
+            return shaderName == "Standard" || shaderName.StartsWith("Legacy Shaders/");
+        }
+
+        static Material GetRuntimeLitTemplate()
+        {
+            if (runtimeLitTemplate == null)
+                runtimeLitTemplate = Resources.Load<Material>(RuntimeLitTemplatePath);
+            return runtimeLitTemplate;
         }
 
         // Sets a color that works whether the active shader uses the legacy "_Color"

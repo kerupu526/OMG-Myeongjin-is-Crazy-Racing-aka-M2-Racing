@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/NetworkRace.unity
+    guid: 5450ec5d2ccd24440a34863221297a44
+  - enabled: 1
+    path: Assets/Scenes/NetworkBootstrap.unity
+    guid: 9eb57b7b0cabffd449553fb698cb69f5
+  - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1

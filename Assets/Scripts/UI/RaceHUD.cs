@@ -209,21 +209,23 @@ namespace M2.UI
 
         void RefreshSpeedModeSupply()
         {
-            if (primaryIcon != null) primaryIcon.enabled = false;
-            if (secondaryIcon != null) secondaryIcon.enabled = false;
-            if (primaryNameLabel != null) primaryNameLabel.text = "기본 휘발유 · 자동";
-            if (secondaryNameLabel != null) secondaryNameLabel.text = "랜덤 아이템 없음";
+            ItemDefinition primary = itemSlots != null ? itemSlots.PrimarySlot : null;
+            ItemDefinition secondary = itemSlots != null ? itemSlots.SecondarySlot : null;
+            RefreshSlot(primary, primaryIcon, primaryNameLabel, "1");
+            RefreshSlot(secondary, secondaryIcon, secondaryNameLabel, "2");
 
             float interval = gameManager != null
                 ? Mathf.Max(0.05f, gameManager.speedModeGasolineInterval)
                 : RaceModeRules.SpeedModeGasolineInterval;
             if (itemDetailLabel != null)
             {
-                itemDetailLabel.text = $"<color=#FFD93D>기본 휘발유 자동 분사</color>\n" +
-                    $"레이스 시작 시와 이후 {interval:0.#}초마다 자동으로 가속합니다. 아이템 슬롯을 차지하지 않습니다.";
+                ItemDefinition supplied = primary ?? secondary;
+                itemDetailLabel.text = supplied == null
+                    ? $"<color=#FFD93D>기본 휘발유 자동 지급</color>\n레이스 시작 시와 이후 {interval:0.#}초마다 아이템 슬롯에 지급됩니다. Ctrl로 직접 사용하세요."
+                    : $"<color=#FFD93D>{supplied.itemName}</color>\n{supplied.description}";
             }
             if (itemHintLabel != null)
-                itemHintLabel.text = $"스피드전 · 기본 휘발유 {interval:0.#}초마다 자동 분사";
+                itemHintLabel.text = $"스피드전 · 기본 휘발유 {interval:0.#}초마다 자동 지급 · Ctrl 사용";
         }
 
         string BuildVersusText(int localLap)

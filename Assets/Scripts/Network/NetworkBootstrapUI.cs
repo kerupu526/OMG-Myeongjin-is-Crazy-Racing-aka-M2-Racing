@@ -29,12 +29,14 @@ namespace M2.Network
         public event Action<string, bool> SessionReady;
 
         public bool HasActiveSession => activeSession != null;
+        public bool IsLocalRaceActive => localRaceActive;
         public string ActiveRoomCode => activeSession != null ? activeRoomCode : string.Empty;
         public bool IsHostingSession => activeSession != null && NetworkManager.Singleton != null && NetworkManager.Singleton.IsHost;
         public bool IsSessionOperationInProgress => busy;
 
         bool subscribed;
         bool busy;
+        bool localRaceActive;
         ISession activeSession;
         string activeRoomCode;
         RoomSettingsUI roomSettingsUi;
@@ -44,26 +46,32 @@ namespace M2.Network
         void Awake()
         {
             ConfigureVisibleUi();
-            Canvas canvas = ResolveCanvas();
-            if (canvas != null)
-            {
-                roomSettingsUi = canvas.GetComponent<RoomSettingsUI>();
-                if (roomSettingsUi == null) roomSettingsUi = canvas.gameObject.AddComponent<RoomSettingsUI>();
-
-                // The UXML/USS menu owns the visible entry flow. The former runtime-built uGUI
-                // shell remains a narrow fallback for old scenes or a missing imported UI asset.
-                toolkitMenu = canvas.GetComponent<M2UiToolkitMenu>();
-                if (toolkitMenu == null) toolkitMenu = canvas.gameObject.AddComponent<M2UiToolkitMenu>();
-                if (!toolkitMenu.Initialize(this, roomSettingsUi))
-                {
-                    toolkitMenu = null;
-                    menuUi = canvas.GetComponent<NetworkMenuUI>();
-                    if (menuUi == null) menuUi = canvas.gameObject.AddComponent<NetworkMenuUI>();
-                    menuUi.Initialize(this, roomSettingsUi);
-                }
-            }
+            InitializePresentationShell();
             if (hostButton != null) hostButton.onClick.AddListener(StartHost);
             if (joinButton != null) joinButton.onClick.AddListener(StartClient);
+        }
+
+        // The scene-generated canvas can be enabled after NetworkManager's Awake depending on
+        // Unity's object activation order. Start retries this setup so the player never falls
+        // through to the bare legacy Host/Join controls when the Canvas was not resolvable one
+        // callback earlier.
+        void InitializePresentationShell()
+        {
+            Canvas canvas = ResolveCanvas();
+            if (canvas == null) return;
+
+            roomSettingsUi = canvas.GetComponent<RoomSettingsUI>();
+            if (roomSettingsUi == null) roomSettingsUi = canvas.gameObject.AddComponent<RoomSettingsUI>();
+
+            // The UXML/USS menu owns the visible entry flow. The former runtime-built uGUI
+            // shell remains a narrow fallback for old scenes or a missing imported UI asset.
+            if (toolkitMenu == null) toolkitMenu = canvas.GetComponent<M2UiToolkitMenu>();
+            if (toolkitMenu == null) toolkitMenu = canvas.gameObject.AddComponent<M2UiToolkitMenu>();
+            if (toolkitMenu.Initialize(this, roomSettingsUi)) return;
+
+            if (menuUi == null) menuUi = canvas.GetComponent<NetworkMenuUI>();
+            if (menuUi == null) menuUi = canvas.gameObject.AddComponent<NetworkMenuUI>();
+            menuUi.Initialize(this, roomSettingsUi);
         }
 
         Canvas ResolveCanvas()
@@ -88,6 +96,7 @@ namespace M2.Network
 
         void Start()
         {
+            InitializePresentationShell();
             NetworkManager networkManager = NetworkManager.Singleton;
             if (networkManager == null || subscribed) return;
 
@@ -194,6 +203,67 @@ namespace M2.Network
                 SessionReady?.Invoke(ActiveRoomCode, false);
                 roomSettingsUi?.SetVisible(false);
             });
+        }
+
+        /// <summary>
+        /// Starts the exact networked race scene as a one-player local host. This deliberately
+        /// bypasses Lobby/Relay only; the spawned race manager, race rules, HUD, countdown, and
+        /// result screen are the same components used by an online room.
+        /// </summary>
+        public bool StartLocalRace()
+        {
+            if (busy)
+            {
+                SetStatus("현재 연결 작업이 끝난 뒤 로컬 레이스를 시작할 수 있습니다.");
+                return false;
+            }
+            if (activeSession != null || localRaceActive)
+            {
+                SetStatus("현재 레이스를 나간 뒤 로컬 레이스를 시작하세요.");
+                return false;
+            }
+
+            NetworkManager networkManager = NetworkManager.Singleton;
+            if (networkManager == null)
+            {
+                SetStatus("로컬 레이스용 네트워크 매니저를 찾을 수 없습니다.");
+                return false;
+            }
+            if (networkManager.IsListening)
+            {
+                SetStatus("이미 실행 중인 레이스 연결이 있습니다. 먼저 메인으로 돌아가세요.");
+                return false;
+            }
+
+            NetworkRaceBootstrap raceBootstrap = FindFirstObjectByType<NetworkRaceBootstrap>();
+            if (raceBootstrap == null)
+            {
+                SetStatus("로컬 레이스를 준비합니다...");
+                if (NetworkRaceBootstrap.LoadSoloLocalRaceScene()) return true;
+
+                SetStatus("로컬 레이스 씬을 불러올 수 없습니다. 다시 시도해 주세요.");
+                return false;
+            }
+
+            roomSettingsUi?.ApplyTo(FindFirstObjectByType<M2.Core.GameManager>());
+            SetStatus("로컬 레이스를 준비합니다...");
+            raceBootstrap.PrepareSoloLocalRace();
+            BeginSoloLocalRacePresentation();
+
+            if (networkManager.StartHost()) return true;
+
+            localRaceActive = false;
+            raceBootstrap.ResetForNextSession();
+            ShowConnectionUi();
+            SetStatus("로컬 레이스를 시작하지 못했습니다. 다시 시도해 주세요.");
+            return false;
+        }
+
+        /// <summary>Called by the shared race scene once its local-host launch is armed.</summary>
+        public void BeginSoloLocalRacePresentation()
+        {
+            localRaceActive = true;
+            HideConnectionUi();
         }
 
         async Task CreateHostSessionWithM2CodeAsync()
@@ -324,6 +394,11 @@ namespace M2.Network
             }
             else if (clientId == networkManager.LocalClientId)
             {
+                if (localRaceActive)
+                {
+                    localRaceActive = false;
+                    FindFirstObjectByType<NetworkRaceBootstrap>()?.ResetForNextSession();
+                }
                 ShowConnectionUi();
                 SetStatus("연결이 끊어졌습니다. 다시 시도할 수 있습니다.");
             }
@@ -383,8 +458,10 @@ namespace M2.Network
             busy = true;
             SetButtonsInteractable(false);
             ISession session = activeSession;
+            bool wasLocalRace = localRaceActive;
             activeSession = null;
             activeRoomCode = string.Empty;
+            localRaceActive = false;
 
             try
             {
@@ -402,6 +479,7 @@ namespace M2.Network
                 else
                 {
                     ShutdownUnmanagedNetwork();
+                    if (wasLocalRace) FindFirstObjectByType<NetworkRaceBootstrap>()?.ResetForNextSession();
                 }
 
                 if (this == null) return;
@@ -413,6 +491,7 @@ namespace M2.Network
                 // A direct transport can exist in legacy or failed session paths. Keep this
                 // fallback narrow so normal Relay sessions always use their owned shutdown path.
                 ShutdownUnmanagedNetwork();
+                if (wasLocalRace) FindFirstObjectByType<NetworkRaceBootstrap>()?.ResetForNextSession();
                 if (this == null) return;
                 ShowConnectionUi();
                 SetStatus($"방 종료 중 문제가 발생했습니다: {exception.Message}");

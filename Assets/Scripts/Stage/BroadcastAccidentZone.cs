@@ -16,7 +16,10 @@ namespace M2.Stage
         // see AfricaTvMentalGauge) only ever moved from being hit by another player's attack
         // item, so it never visibly rose at all in solo play (playtester feedback: "멘탈
         // 게이지도 오르질 않아").
-        public static event Action OnAccidentEntered;
+        // Include the entering vehicle. A static parameterless event made an observer's
+        // accident apply to every local stage state on a peer, which is especially wrong in a
+        // two-player owner-authoritative race where both vehicle colliders exist locally.
+        public static event Action<VehicleController> OnAccidentEntered;
 
         void Awake()
         {
@@ -31,7 +34,7 @@ namespace M2.Stage
             if (vehicle == null) return;
 
             vehicle.SetSteeringInvertedFor(reversalDuration);
-            OnAccidentEntered?.Invoke();
+            OnAccidentEntered?.Invoke(vehicle);
         }
     }
 }

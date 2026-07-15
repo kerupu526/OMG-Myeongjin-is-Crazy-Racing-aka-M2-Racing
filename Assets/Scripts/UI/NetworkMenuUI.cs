@@ -112,6 +112,7 @@ namespace M2.UI
         {
             ConfigureCanvasScaler();
             M2GameSettings.ApplyRuntime();
+            M2GameSettings.LanguageChanged += HandleLanguageChanged;
         }
 
         void Start()
@@ -143,7 +144,17 @@ namespace M2.UI
 
         void OnDestroy()
         {
+            M2GameSettings.LanguageChanged -= HandleLanguageChanged;
             Unsubscribe();
+        }
+
+        void HandleLanguageChanged(M2Language _)
+        {
+            if (root == null) return;
+            foreach (Text text in root.GetComponentsInChildren<Text>(true))
+            {
+                text.text = M2Localization.Translate(text.text);
+            }
         }
 
         /// <summary>
@@ -1233,7 +1244,7 @@ namespace M2.UI
             if (lobbyRules != null)
             {
                 string modeDetail = mode == RaceMode.Speed
-                    ? "스피드전 · 5초 자동 휘발유 · 최고 100km/h"
+                    ? "스피드전 · 5초 휘발유 자동 지급 · Ctrl 사용 · 최고 100km/h"
                     : $"아이템전 · {laps}바퀴 · {(condition == VictoryCondition.StarBet ? "별점 내기" : "단순 완주")}";
                 lobbyRules.text = $"{StageLabel(stage)} · {modeDetail}";
             }
@@ -1258,7 +1269,7 @@ namespace M2.UI
             RaceMode mode = roomSettingsUi != null ? roomSettingsUi.selectedMode : RaceMode.Item;
             if (mode == RaceMode.Speed)
             {
-                lobbyRules.text = "비키니시티 · 스피드전 · 5바퀴 · 5초 자동 휘발유";
+                lobbyRules.text = "비키니시티 · 스피드전 · 5바퀴 · 5초 휘발유 자동 지급 · Ctrl 사용";
                 return;
             }
 
@@ -1404,7 +1415,7 @@ namespace M2.UI
             textObject.transform.SetParent(parent, false);
             Text text = textObject.GetComponent<Text>();
             UiTypography.Apply(text, role);
-            text.text = value;
+            text.text = M2Localization.Translate(value);
             text.fontSize = fontSize;
             text.color = color;
             text.alignment = alignment;
@@ -1452,7 +1463,7 @@ namespace M2.UI
             Text text = button.GetComponentInChildren<Text>(true);
             if (text == null) return;
             UiTypography.Apply(text);
-            text.text = label;
+            text.text = M2Localization.Translate(label);
             text.fontSize = 30;
             text.color = labelColor;
             text.alignment = TextAnchor.MiddleCenter;
@@ -1484,7 +1495,7 @@ namespace M2.UI
             if (input.placeholder is Text placeholder)
             {
                 UiTypography.Apply(placeholder);
-                placeholder.text = "방 코드";
+                placeholder.text = M2Localization.Translate("방 코드");
                 placeholder.fontSize = 28;
                 placeholder.color = new Color(Ink.r, Ink.g, Ink.b, 0.48f);
                 placeholder.alignment = TextAnchor.MiddleCenter;
@@ -1508,13 +1519,13 @@ namespace M2.UI
         {
             if (button == null) return;
             Text label = button.GetComponentInChildren<Text>(true);
-            if (label != null) label.text = value;
+            if (label != null) label.text = M2Localization.Translate(value);
         }
 
         static void SetFeedback(Text target, string message, Color color)
         {
             if (target == null) return;
-            target.text = message ?? string.Empty;
+            target.text = M2Localization.Translate(message ?? string.Empty);
             target.color = color;
         }
 

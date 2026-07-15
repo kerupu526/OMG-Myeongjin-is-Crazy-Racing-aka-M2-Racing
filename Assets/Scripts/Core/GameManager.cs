@@ -37,8 +37,12 @@ namespace M2.Core
         public RaceMode raceMode = RaceMode.Item;
         [Tooltip("스피드전의 절대 최고 속도(km/h). 아이템·드리프트 가속도 이 값을 넘을 수 없음.")]
         public float speedModeMaximumKph = RaceModeRules.SpeedModeMaximumKph;
-        [Tooltip("스피드전에서 각 레이서에게 기본 휘발유를 자동 분사하는 간격(초). 슬롯을 차지하지 않는다.")]
+        [Tooltip("스피드전에서 각 레이서에게 기본 휘발유를 자동 지급하는 간격(초). 지급된 휘발유는 일반 아이템 슬롯에서 플레이어가 사용한다.")]
         public float speedModeGasolineInterval = RaceModeRules.SpeedModeGasolineInterval;
+
+        [Tooltip("단순 완주에서 첫 완주자가 나온 뒤 다른 레이서도 완주로 인정받을 수 있는 시간(초).")]
+        [Min(0f)]
+        public float simpleFinishGraceSeconds = 10f;
 
         [Header("References (auto-collected if empty)")]
         public List<LapTracker> racers = new List<LapTracker>();
@@ -49,6 +53,8 @@ namespace M2.Core
         public RaceState CurrentState { get; private set; } = RaceState.PreRace;
         public float TimeRemaining { get; private set; }
         public float RaceElapsedTime { get; private set; }
+        public bool IsAwaitingSimpleFinishGrace => simpleFinishWinner != null && !raceEnded;
+        public float SimpleFinishGraceRemaining { get; private set; }
 
         // --- Events ---
         public event Action<RaceState> OnStateChanged;
@@ -63,6 +69,7 @@ namespace M2.Core
         readonly Dictionary<LapTracker, Action<int>> lapHandlers = new Dictionary<LapTracker, Action<int>>();
         readonly Dictionary<LapTracker, RaceFinishResult> finishResults = new Dictionary<LapTracker, RaceFinishResult>();
         readonly List<RaceFinishResult> lastRaceResults = new List<RaceFinishResult>();
+        LapTracker simpleFinishWinner;
 
         public bool IsSpeedMode => raceMode == RaceMode.Speed;
         public IReadOnlyList<RaceFinishResult> LastRaceResults => lastRaceResults;
@@ -134,6 +141,8 @@ namespace M2.Core
             startRequested = false;
             TimeRemaining = 0f;
             RaceElapsedTime = 0f;
+            SimpleFinishGraceRemaining = 0f;
+            simpleFinishWinner = null;
             finishResults.Clear();
             lastRaceResults.Clear();
             foreach (var pair in lapHandlers)
@@ -184,8 +193,9 @@ namespace M2.Core
 
             for (int i = 0; i < vehicles.Count; i++) ApplyModeToVehicle(vehicles[i]);
 
-            // 스피드전은 랜덤 픽업을 쓰지 않는다. 기본 휘발유는 슬롯으로 들어가지 않고
-            // SpeedModeGasolineDistributor가 자동 분사하므로, 이미 떠 있던 픽업도 즉시 없앤다.
+            // 스피드전은 랜덤 픽업을 쓰지 않는다. 기본 휘발유는
+            // SpeedModeGasolineDistributor가 일정 간격으로 슬롯에 자동 지급하므로,
+            // 이미 떠 있던 랜덤 픽업도 즉시 없앤다.
             bool allowTrackItems = !IsSpeedMode;
             foreach (ItemSpawner spawner in FindObjectsByType<ItemSpawner>(FindObjectsSortMode.None))
                 spawner.SetSpawnEnabled(allowTrackItems);
@@ -214,8 +224,23 @@ namespace M2.Core
         {
             if (CurrentState != RaceState.Racing) return;
 
-            TimeRemaining -= Time.deltaTime;
             RaceElapsedTime += Time.deltaTime;
+
+            // A first finisher must not immediately end a multiplayer simple-finish race.
+            // Keep the race clock running for accurate finish times, but freeze the regular
+            // deadline while the explicitly granted completion window is open.
+            if (simpleFinishWinner != null)
+            {
+                SimpleFinishGraceRemaining -= Time.deltaTime;
+                if (SimpleFinishGraceRemaining <= 0f)
+                {
+                    SimpleFinishGraceRemaining = 0f;
+                    EndRace(simpleFinishWinner);
+                }
+                return;
+            }
+
+            TimeRemaining -= Time.deltaTime;
             if (TimeRemaining <= 0f)
             {
                 TimeRemaining = 0f;
@@ -258,6 +283,8 @@ namespace M2.Core
             SetState(RaceState.Racing);
             TimeRemaining = lap1TimeLimit;
             RaceElapsedTime = 0f;
+            SimpleFinishGraceRemaining = 0f;
+            simpleFinishWinner = null;
             finishResults.Clear();
             lastRaceResults.Clear();
 
@@ -296,22 +323,65 @@ namespace M2.Core
             {
                 if (victoryCondition == VictoryCondition.SimpleFinish)
                 {
-                    EndRace(racer);
+                    HandleSimpleFinish(racer);
                 }
                 else if (!finishResults.ContainsKey(racer))
                 {
-                    finishResults[racer] = new RaceFinishResult
-                    {
-                        racer = racer,
-                        finished = true,
-                        finishTime = RaceElapsedTime,
-                        stars = ComputeStars(racer, RaceElapsedTime)
-                    };
-                    VehicleController vehicle = racer.GetComponent<VehicleController>();
-                    if (vehicle != null) vehicle.SetInputLocked(true);
-                    if (finishResults.Count >= racers.Count) ResolveStarBetRace();
+                    RecordRacerFinish(racer);
+                    if (finishResults.Count >= ActiveRacerCount()) ResolveStarBetRace();
                 }
             }
+        }
+
+        void HandleSimpleFinish(LapTracker racer)
+        {
+            if (!finishResults.ContainsKey(racer)) RecordRacerFinish(racer);
+
+            // The first finisher establishes the winner, but the result is held briefly so
+            // everyone who clears the finish within the agreed ten-second window is recorded as
+            // completed instead of being marked "미완주" immediately.
+            if (simpleFinishWinner == null)
+            {
+                simpleFinishWinner = racer;
+                if (ActiveRacerCount() <= 1 || simpleFinishGraceSeconds <= 0f)
+                {
+                    EndRace(simpleFinishWinner);
+                    return;
+                }
+
+                SimpleFinishGraceRemaining = simpleFinishGraceSeconds;
+                return;
+            }
+
+            if (finishResults.Count >= ActiveRacerCount())
+            {
+                SimpleFinishGraceRemaining = 0f;
+                EndRace(simpleFinishWinner);
+            }
+        }
+
+        void RecordRacerFinish(LapTracker racer)
+        {
+            finishResults[racer] = new RaceFinishResult
+            {
+                racer = racer,
+                finished = true,
+                finishTime = RaceElapsedTime,
+                stars = ComputeStars(racer, RaceElapsedTime)
+            };
+
+            VehicleController vehicle = racer.GetComponent<VehicleController>();
+            if (vehicle != null) vehicle.SetInputLocked(true);
+        }
+
+        int ActiveRacerCount()
+        {
+            int count = 0;
+            for (int i = 0; i < racers.Count; i++)
+            {
+                if (racers[i] != null) count++;
+            }
+            return count;
         }
 
         int ComputeStars(LapTracker racer, float finishTime)
@@ -340,6 +410,7 @@ namespace M2.Core
         {
             if (raceEnded) return;
             raceEnded = true;
+            SimpleFinishGraceRemaining = 0f;
 
             if (raceTimer != null) raceTimer.StopRace();
             SetAllInputLocked(true);

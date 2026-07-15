@@ -36,6 +36,13 @@ namespace M2.Stage
             {
                 vehicleController = GetComponentInParent<VehicleController>();
             }
+            // Runtime stage assembly assigns this after AddComponent returns, whereas OnEnable
+            // already ran. Resolve the sibling gauge here so hit/accident effects are active
+            // from the first frame in both scene and local-network races.
+            if (mentalGauge == null)
+            {
+                mentalGauge = GetComponentInParent<AfricaTvMentalGauge>();
+            }
         }
 
         void OnEnable()
@@ -66,8 +73,9 @@ namespace M2.Stage
             }
         }
 
-        void HandleAccidentEntered()
+        void HandleAccidentEntered(VehicleController enteredVehicle)
         {
+            if (enteredVehicle == null || enteredVehicle != vehicleController) return;
             if (mentalGauge != null)
             {
                 mentalGauge.ModifyValue(mentalBonusOnAccidentZone);

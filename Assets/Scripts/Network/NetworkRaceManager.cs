@@ -75,7 +75,7 @@ namespace M2.Network
     // vehicle already uses.
     public class NetworkRaceManager : NetworkBehaviour
     {
-        [Tooltip("이 인원수만큼 플레이어가 스폰되면 호스트가 레이스를 시작함. 축제용 1v1 기준 2.")]
+        [Tooltip("이 인원수만큼 플레이어가 스폰되면 호스트가 레이스를 시작함. 온라인 1v1 기준 2.")]
         public int requiredPlayers = 2;
 
         // Server-written, everyone-read. Clients never write these (default write permission is
@@ -155,6 +155,18 @@ namespace M2.Network
         public NetworkRacerResult ClientRacer => new NetworkRacerResult(netClientDisplayName.Value.ToString(),
             ReadAppearance(false), netClientRank.Value, netClientFinished.Value,
             netClientFinishTime.Value, netClientStars.Value);
+        public bool IsSoloLocalRace => soloLocalRace;
+
+        /// <summary>
+        /// Called by <see cref="NetworkRaceBootstrap"/> before this NetworkObject is spawned for
+        /// the menu's local-race path. It keeps the online race implementation intact while
+        /// allowing the host's own vehicle to form a complete one-player grid.
+        /// </summary>
+        public void ConfigureSoloLocalRace()
+        {
+            soloLocalRace = true;
+            requiredPlayers = 1;
+        }
 
         // --- Server-only authoritative references ---
         GameManager gameManager;
@@ -162,9 +174,11 @@ namespace M2.Network
         LapTracker clientTracker;
         ulong otherClientId;
         bool flowBegun;
+        bool soloLocalRace;
         bool eventsHooked;
         NetworkItemSpawnManager itemSpawnManager;
         NetworkStageTheme stageTheme;
+        NetworkStageTrack stageTrack;
 
         void Awake()
         {
@@ -196,6 +210,7 @@ namespace M2.Network
             ApplyLocalRaceRules();
             ApplyItemSpawnRules();
             ApplySelectedStageTheme();
+            EnsureLocalStageGauge();
         }
 
         public override void OnNetworkDespawn()
@@ -231,9 +246,19 @@ namespace M2.Network
 
         void Update()
         {
+            // The selected stage's meter lives on each locally owned vehicle.  The vehicle can
+            // spawn a frame after this manager, so keep retrying until it is available.
+            EnsureLocalStageGauge();
+
+            // A client can receive this spawned manager before NGO has created its local player
+            // object.  The initial OnNetworkSpawn lock then has nothing to act on, which used to
+            // leave that just-spawned vehicle briefly driveable beneath the lobby/countdown.
+            // Reapplying the replicated state here makes the lock independent of spawn order.
+            ApplyLocalInputLock(State);
+            ApplyLocalRaceRules();
+
             if (!IsServer)
             {
-                ApplyLocalRaceRules();
                 return;
             }
 
@@ -262,10 +287,9 @@ namespace M2.Network
             ApplyItemSpawnRules();
         }
 
-        // Waits until both players' vehicles exist, then registers them with the host GameManager
-        // and starts the race. Polling connected clients' PlayerObjects (rather than having each
-        // vehicle register itself) sidesteps any spawn-vs-racemanager ordering fragility — this
-        // just picks up whatever is present each frame until it has the full grid.
+        // Waits until the required vehicles exist, then registers them with the host GameManager
+        // and starts the race. The local-race host deliberately has a one-player grid; online
+        // rooms preserve the formal two-player lobby and readiness gate.
         void TryBeginRace()
         {
             if (gameManager == null)
@@ -302,13 +326,15 @@ namespace M2.Network
                 }
             }
 
-            if (found >= requiredPlayers && hostTracker != null && clientTracker != null)
+            bool gridReady = found >= requiredPlayers && hostTracker != null &&
+                (soloLocalRace || clientTracker != null);
+            if (gridReady)
             {
                 if (netLobbyOpen.Value)
                 {
                     // A room is not allowed to launch just because the second transport
                     // connection appeared. Both players visibly confirm the current host rules.
-                    if (!BothPlayersReady) return;
+                    if (!soloLocalRace && !BothPlayersReady) return;
                     netLobbyOpen.Value = false;
                 }
                 flowBegun = true;
@@ -356,6 +382,32 @@ namespace M2.Network
             if (IsClient) SubmitLocalProfile();
         }
 
+        /// <summary>
+        /// Reports that this client's selected-stage danger condition has reached its terminal
+        /// state. Gauges are deliberately local-owner presentation/effect components, so the
+        /// authoritative host receives the report and resolves the loss against the sender's
+        /// player object instead of trusting a client-side GameManager.
+        /// </summary>
+        public void ReportLocalStageLoss(StageType stage, string reason)
+        {
+            if (!IsClient || State != RaceState.Racing ||
+                NormalizeStage(stage) != NormalizeStage(SelectedStage))
+            {
+                return;
+            }
+
+            FixedString64Bytes fixedReason = new FixedString64Bytes(
+                string.IsNullOrWhiteSpace(reason) ? "스테이지 위험" : reason);
+            if (IsServer)
+            {
+                EndRaceForStageLoss(NetworkManager.LocalClientId, fixedReason);
+            }
+            else
+            {
+                RequestStageLossRpc((int)NormalizeStage(stage), fixedReason);
+            }
+        }
+
         [Rpc(SendTo.Server)]
         void RequestLobbyReadyRpc(bool ready, RpcParams rpcParams = default)
         {
@@ -368,6 +420,35 @@ namespace M2.Network
         {
             ApplyLobbySettings(rpcParams.Receive.SenderClientId, (RaceMode)mode, itemLapCount,
                 (VictoryCondition)victoryCondition, (StageType)stage);
+        }
+
+        [Rpc(SendTo.Server)]
+        void RequestStageLossRpc(int stage, FixedString64Bytes reason, RpcParams rpcParams = default)
+        {
+            StageType reportedStage = NormalizeStage((StageType)stage);
+            if (reportedStage != NormalizeStage(SelectedStage)) return;
+            EndRaceForStageLoss(rpcParams.Receive.SenderClientId, reason);
+        }
+
+        void EndRaceForStageLoss(ulong clientId, FixedString64Bytes reason)
+        {
+            if (!IsServer || NetworkManager == null) return;
+
+            gameManager ??= FindFirstObjectByType<GameManager>();
+            if (gameManager == null || gameManager.CurrentState != RaceState.Racing) return;
+
+            NetworkObject playerObject = null;
+            foreach (NetworkClient client in NetworkManager.ConnectedClientsList)
+            {
+                if (client.ClientId != clientId) continue;
+                playerObject = client.PlayerObject;
+                break;
+            }
+            if (playerObject == null) return;
+
+            LapTracker tracker = playerObject.GetComponent<LapTracker>();
+            if (tracker == null) return;
+            gameManager.EndRaceWithLoss(tracker, reason.ToString());
         }
 
         void SetRacerReady(ulong clientId, bool ready)
@@ -477,6 +558,12 @@ namespace M2.Network
         {
             if (!IsServer || Result == 0) return;
             int hostChoice = netHostPostRaceChoice.Value;
+            if (soloLocalRace)
+            {
+                if (hostChoice != 0) ResetRound(false);
+                return;
+            }
+
             int clientChoice = netClientPostRaceChoice.Value;
             if (hostChoice == 0 || clientChoice == 0 || hostChoice != clientChoice) return;
 
@@ -538,6 +625,8 @@ namespace M2.Network
             if (tracker != null) tracker.ResetRaceProgress();
             VehicleController vehicle = playerObject.GetComponent<VehicleController>();
             if (vehicle != null) vehicle.ResetRaceState();
+            StageGaugeSystem gauge = playerObject.GetComponent<StageGaugeSystem>();
+            if (gauge != null) gauge.ResetGauge();
 
             // Vehicle movement is owner-authoritative, so only its local owner moves back to
             // the grid; OwnerAuthoritativeNetworkTransform then replicates the reset to peers.
@@ -712,18 +801,129 @@ namespace M2.Network
 
         void HandleSpeedLimitChanged(float _, float __) => ApplyLocalRaceRules();
 
-        void HandleStageChanged(int _, int __) => ApplySelectedStageTheme();
+        void HandleStageChanged(int _, int __)
+        {
+            ApplySelectedStageTheme();
+            EnsureLocalStageGauge();
+        }
 
         void ApplySelectedStageTheme()
         {
+            StageType selectedStage = NormalizeStage(SelectedStage);
+
+            // NetworkRace used to keep a Bikini City track baked into the scene and only swap
+            // a decorative theme. Rebuild the actual deterministic circuit first so a room
+            // selected as Africa TV/Nether Fortress cannot show a mismatched physical map.
+            GameObject raceRoot = GameObject.Find("NetworkRace") ?? new GameObject("NetworkRace");
+            if (stageTrack == null || stageTrack.gameObject != raceRoot)
+            {
+                stageTrack = raceRoot.GetComponent<NetworkStageTrack>();
+                if (stageTrack == null) stageTrack = raceRoot.AddComponent<NetworkStageTrack>();
+            }
+            stageTrack.Apply(selectedStage);
+
             if (stageTheme == null)
             {
                 GameObject root = GameObject.Find("NetworkStageTheme") ?? new GameObject("NetworkStageTheme");
                 stageTheme = root.GetComponent<NetworkStageTheme>();
                 if (stageTheme == null) stageTheme = root.AddComponent<NetworkStageTheme>();
             }
-            stageTheme.Apply(NormalizeStage(SelectedStage));
+            stageTheme.Apply(selectedStage);
         }
+
+        void EnsureLocalStageGauge()
+        {
+            if (!IsClient) return;
+
+            VehicleController vehicle = LocalOwnedVehicle();
+            if (vehicle == null) return;
+
+            StageType selectedStage = NormalizeStage(SelectedStage);
+            StageGaugeSystem matchingGauge = null;
+            foreach (StageGaugeSystem gauge in vehicle.GetComponents<StageGaugeSystem>())
+            {
+                if (matchingGauge == null && GaugeMatchesStage(gauge, selectedStage))
+                {
+                    matchingGauge = gauge;
+                }
+                else
+                {
+                    Destroy(gauge);
+                }
+            }
+
+            if (matchingGauge == null)
+            {
+                switch (selectedStage)
+                {
+                    case StageType.AfricaTv:
+                        matchingGauge = vehicle.gameObject.AddComponent<AfricaTvMentalGauge>();
+                        break;
+                    case StageType.NetherFortress:
+                        matchingGauge = vehicle.gameObject.AddComponent<NetherFortressTemperatureGauge>();
+                        break;
+                    default:
+                        matchingGauge = vehicle.gameObject.AddComponent<BikiniCityOxygenGauge>();
+                        break;
+                }
+            }
+
+            EnsureLocalStageState(vehicle, selectedStage, matchingGauge);
+        }
+
+        static void EnsureLocalStageState(VehicleController vehicle, StageType stage, StageGaugeSystem gauge)
+        {
+            if (vehicle == null || gauge == null) return;
+
+            foreach (BikiniCityStageState state in vehicle.GetComponents<BikiniCityStageState>())
+            {
+                if (stage != StageType.BikiniCity) Destroy(state);
+            }
+            foreach (AfricaTvStageState state in vehicle.GetComponents<AfricaTvStageState>())
+            {
+                if (stage != StageType.AfricaTv) Destroy(state);
+            }
+            foreach (NetherFortressStageState state in vehicle.GetComponents<NetherFortressStageState>())
+            {
+                if (stage != StageType.NetherFortress) Destroy(state);
+            }
+
+            switch (stage)
+            {
+                case StageType.AfricaTv:
+                {
+                    AfricaTvStageState state = vehicle.GetComponent<AfricaTvStageState>();
+                    if (state == null) state = vehicle.gameObject.AddComponent<AfricaTvStageState>();
+                    state.vehicleController = vehicle;
+                    state.mentalGauge = gauge as AfricaTvMentalGauge;
+                    break;
+                }
+                case StageType.NetherFortress:
+                {
+                    NetherFortressStageState state = vehicle.GetComponent<NetherFortressStageState>();
+                    if (state == null) state = vehicle.gameObject.AddComponent<NetherFortressStageState>();
+                    state.vehicleController = vehicle;
+                    state.temperatureGauge = gauge as NetherFortressTemperatureGauge;
+                    state.lavaZone = FindFirstObjectByType<LavaZone>();
+                    break;
+                }
+                default:
+                {
+                    BikiniCityStageState state = vehicle.GetComponent<BikiniCityStageState>();
+                    if (state == null) state = vehicle.gameObject.AddComponent<BikiniCityStageState>();
+                    state.vehicleController = vehicle;
+                    state.oxygenGauge = gauge as BikiniCityOxygenGauge;
+                    break;
+                }
+            }
+        }
+
+        static bool GaugeMatchesStage(StageGaugeSystem gauge, StageType stage) => stage switch
+        {
+            StageType.AfricaTv => gauge is AfricaTvMentalGauge,
+            StageType.NetherFortress => gauge is NetherFortressTemperatureGauge,
+            _ => gauge is BikiniCityOxygenGauge,
+        };
 
         void ApplyLocalInputLock(RaceState state)
         {

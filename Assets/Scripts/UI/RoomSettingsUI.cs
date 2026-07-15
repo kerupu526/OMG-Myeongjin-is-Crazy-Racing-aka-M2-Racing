@@ -223,7 +223,7 @@ namespace M2.UI
             if (title != null)
             {
                 title.text = selectedMode == RaceMode.Speed
-                    ? "방 설정 · 스피드전\n5바퀴 · 최고 100km/h · 5초 자동 분사"
+                    ? "방 설정 · 스피드전\n5바퀴 · 최고 100km/h · 5초 휘발유 자동 지급 · Ctrl 사용"
                     : "방 설정 · 아이템전";
             }
 

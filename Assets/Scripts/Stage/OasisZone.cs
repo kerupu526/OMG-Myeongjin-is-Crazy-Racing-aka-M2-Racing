@@ -13,28 +13,19 @@ namespace M2.Stage
         [Tooltip("안에 머무는 동안 초당 체온 게이지 감소량.")]
         public float coolingRatePerSecond = 10f;
 
-        NetherFortressTemperatureGauge trackedGauge;
-
         void Awake()
         {
             GetComponent<Collider>().isTrigger = true;
         }
 
-        void OnTriggerEnter(Collider other)
-        {
-            if (!other.CompareTag("Player")) return;
-            trackedGauge = other.GetComponentInParent<NetherFortressTemperatureGauge>();
-        }
-
         void OnTriggerStay(Collider other)
         {
-            if (!other.CompareTag("Player") || trackedGauge == null) return;
-            trackedGauge.ModifyValue(-coolingRatePerSecond * Time.deltaTime);
-        }
-
-        void OnTriggerExit(Collider other)
-        {
-            if (other.CompareTag("Player")) trackedGauge = null;
+            // The collider can observe both the local owner and the remote kinematic racer in
+            // a networked scene. Resolve the gauge from this exact vehicle instead of keeping
+            // one shared reference that another racer can overwrite.
+            if (!other.CompareTag("Player")) return;
+            NetherFortressTemperatureGauge gauge = other.GetComponentInParent<NetherFortressTemperatureGauge>();
+            if (gauge != null) gauge.ModifyValue(-coolingRatePerSecond * Time.deltaTime);
         }
     }
 }

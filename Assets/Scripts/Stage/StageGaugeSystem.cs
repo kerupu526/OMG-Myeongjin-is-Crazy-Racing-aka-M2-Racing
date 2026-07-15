@@ -1,5 +1,6 @@
 using System;
 using M2.Core;
+using M2.Network;
 using UnityEngine;
 
 namespace M2.Stage
@@ -25,6 +26,7 @@ namespace M2.Stage
         public event Action OnRecovered;
 
         GameManager gameManager;
+        NetworkRaceManager networkRaceManager;
 
         protected virtual void Awake()
         {
@@ -40,8 +42,43 @@ namespace M2.Stage
 
         protected virtual void Update()
         {
-            if (gameManager != null && gameManager.CurrentState != RaceState.Racing) return;
+            // NetworkRace deliberately leaves each client's local GameManager idle; use the
+            // replicated manager state there so a locally owned gauge starts and stops on the
+            // same countdown/race boundaries as the host.
+            if (networkRaceManager == null)
+            {
+                networkRaceManager = FindFirstObjectByType<NetworkRaceManager>();
+            }
+
+            if (networkRaceManager != null && networkRaceManager.IsSpawned)
+            {
+                if (networkRaceManager.State != RaceState.Racing) return;
+            }
+            else if (gameManager != null && gameManager.CurrentState != RaceState.Racing)
+            {
+                return;
+            }
+
             ModifyValue(passiveRatePerSecond * Time.deltaTime);
+        }
+
+        /// <summary>
+        /// Restores this gauge to its safe starting value for a new round. Network races retain
+        /// their player objects between rematches, so simply resetting the vehicle is not enough.
+        /// </summary>
+        public void ResetGauge()
+        {
+            bool wasDepleted = IsDepleted;
+            CurrentValue = dangerAtMax ? 0f : maxValue;
+            IsDepleted = false;
+
+            if (wasDepleted)
+            {
+                OnRecovered?.Invoke();
+                HandleRecovered();
+            }
+
+            OnValueChanged?.Invoke(CurrentValue, maxValue);
         }
 
         // Positive delta fills the gauge, negative drains it. Used both by the passive
